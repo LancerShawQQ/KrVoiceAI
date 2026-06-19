@@ -47,6 +47,7 @@ models/
 # 配置中的敏感信息
 config/secrets.yaml
 config/.env
+config/user_config.yaml
 .env
 .env.local
 .env.cloud

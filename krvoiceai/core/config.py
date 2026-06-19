@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 # 项目根目录
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config" / "default.yaml"
+USER_CONFIG_PATH = PROJECT_ROOT / "config" / "user_config.yaml"
 
 
 class Config:
@@ -32,6 +33,10 @@ class Config:
         """加载配置。
 
         优先级：环境变量 > 用户配置文件 > 默认配置文件
+
+        Args:
+            config_path: 显式指定的用户配置文件路径。若为 None，则自动加载
+                         config/user_config.yaml（若存在）。
         """
         if env_file:
             load_dotenv(env_file)
@@ -45,9 +50,17 @@ class Config:
         with open(DEFAULT_CONFIG_PATH, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f)
 
-        # 合并用户配置
+        # 确定用户配置文件路径：优先使用显式传入的，否则自动加载 user_config.yaml
+        user_paths: list[Path] = []
         if config_path:
-            path = Path(config_path)
+            user_paths.append(Path(config_path))
+        else:
+            # 自动加载 user_config.yaml（由 SettingsManager 维护）
+            if USER_CONFIG_PATH.exists():
+                user_paths.append(USER_CONFIG_PATH)
+
+        # 合并用户配置（按顺序合并，后者覆盖前者）
+        for path in user_paths:
             if path.exists():
                 with open(path, "r", encoding="utf-8") as f:
                     user_data = yaml.safe_load(f) or {}

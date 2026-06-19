@@ -15,6 +15,7 @@ from .core.ffmpeg_utils import FFmpegRunner
 from .core.gpu_runner import GPURunner
 from .core.llm_client import LLMClient
 from .core.logger import get_logger, setup_logging
+from .core.settings_manager import get_settings_manager
 from .core.storage import Storage
 from .modules.avatar_engine import AvatarEngine
 from .modules.cover_generator import CoverGenerator
@@ -50,11 +51,32 @@ class KrVoiceAI:
         )
         self._register_all_modules()
 
+        # 注册设置变更监听器：用户在 UI 修改配置后热重建组件
+        get_settings_manager().add_listener(self._on_settings_changed)
+
         self.logger.info(
             f"KrVoiceAI 初始化完成 "
             f"gpu_available={self.gpu.is_gpu_available()} "
             f"llm_mock={self.llm.is_mock}"
         )
+
+    def _on_settings_changed(self, change: dict) -> None:
+        """配置变更回调：重建受影响的组件"""
+        try:
+            # 重新加载配置
+            self.config = get_config(reload=True)
+            # 重建 LLM 客户端
+            if "llm" in change or "_reset_all" in change:
+                self.llm = LLMClient()
+                self.logger.info("LLM 客户端已热重建")
+            # 重建各模块（它们在 __init__ 读取配置，且 ScriptWriter/Title 持有 LLM 引用）
+            # 任何配置变更都重建模块，确保引用一致
+            if any(k in change for k in ("llm", "tts", "avatar", "asr", "composer",
+                                          "cover", "publisher", "pipeline")) or "_reset_all" in change:
+                self._register_all_modules()
+                self.logger.info("模块已按新配置热重建")
+        except Exception as e:
+            self.logger.error(f"配置热更新失败: {e}")
 
     def _register_all_modules(self) -> None:
         """注册所有模块到编排器"""
@@ -299,3 +321,89 @@ class KrVoiceAI:
             "avatars_count": len(self.list_avatars()),
             "voices_count": len(self.list_voices()),
         }
+
+    # ============ 文案 AI 处理 ============
+
+    def process_script(
+        self,
+        script: str,
+        action: str = "polish",
+        style: Optional[str] = None,
+        topic: Optional[str] = None,
+    ) -> dict:
+        """AI 文案处理（独立于流水线，供文案工作台调用）
+
+        Args:
+            script: 原始文案（generate 模式下可为空）
+            action: polish/rewrite/expand/shorten/style/generate
+            style: 风格转换时的目标风格（幽默/严肃/活泼/专业/口语化/煽情）
+            topic: generate 模式下的主题
+
+        Returns:
+            {"success": bool, "script": str, "action": str, "error": str}
+        """
+        # 构造 prompt
+        sys_prompt = (
+            "你是一位资深的短视频口播文案创作者，擅长创作高完播率、高互动的口播内容。"
+            "文案要求：口语化、短句为主、段落分明、150-400字、不要 emoji 和结构标签。"
+        )
+
+        action_map = {
+            "polish": "请润色以下口播文案，使其更口语化、更有感染力，保留原意和核心信息。直接输出文案，不要解释。\n\n原始文案：\n{input}",
+            "rewrite": "请对以下口播文案进行语义级仿写：保留核心观点和信息结构，替换表达方式避免雷同。直接输出文案，不要解释。\n\n原始文案：\n{input}",
+            "expand": "请将以下口播文案扩写为更详细、更丰富的版本，增加具体案例、细节描写和情感渲染，但保持原主题。目标字数 300-500 字。直接输出文案，不要解释。\n\n原始文案：\n{input}",
+            "shorten": "请将以下口播文案精简压缩，去除冗余，保留核心信息，使其更紧凑有力。目标字数 100-200 字。直接输出文案，不要解释。\n\n原始文案：\n{input}",
+            "style": "请将以下口播文案转换为【{style}】风格，保持核心信息不变，调整用词、语气和表达方式以符合目标风格。直接输出文案，不要解释。\n\n原始文案：\n{input}",
+            "generate": "请根据以下主题/要点，创作一段口播文案。要求开场有钩子、中间有价值点、结尾有行动号召。直接输出文案，不要解释。\n\n主题/要求：\n{input}",
+        }
+
+        if action not in action_map:
+            return {"success": False, "error": f"不支持的操作: {action}"}
+
+        if action == "generate":
+            input_text = topic or script or "短视频运营技巧"
+        elif action == "style":
+            if not style:
+                return {"success": False, "error": "style 模式需要指定 style 参数"}
+            input_text = script
+        else:
+            if not script:
+                return {"success": False, "error": "文案不能为空"}
+            input_text = script
+
+        user_prompt = action_map[action].format(input=input_text, style=style or "")
+
+        try:
+            messages = [
+                {"role": "system", "content": sys_prompt},
+                {"role": "user", "content": user_prompt},
+            ]
+            result = self.llm.chat(messages)
+            # 后处理
+            lines = [line.strip() for line in result.splitlines()]
+            cleaned = []
+            prev_empty = False
+            for line in lines:
+                if not line:
+                    if not prev_empty:
+                        cleaned.append("")
+                    prev_empty = True
+                else:
+                    cleaned.append(line)
+                    prev_empty = False
+            while cleaned and not cleaned[0]:
+                cleaned.pop(0)
+            while cleaned and not cleaned[-1]:
+                cleaned.pop()
+            result = "\n".join(cleaned)
+
+            return {
+                "success": True,
+                "script": result,
+                "action": action,
+                "style": style,
+                "char_count": len(result),
+                "mock": self.llm.is_mock,
+            }
+        except Exception as e:
+            return {"success": False, "error": str(e), "action": action}

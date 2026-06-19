@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KrVoiceAI · 虚拟人口播智能体</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
+</head>
+<body>
+  <div class="app-layout">
+
+    <!-- ========== 侧边栏 ========== -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <div class="logo-icon">🎬</div>
+          <div class="logo-text">Kr<span>VoiceAI</span></div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-label">创作</div>
+          <button class="nav-item active" id="nav-generate">
+            <span class="nav-icon">🚀</span><span>一键生成</span>
+          </button>
+          <button class="nav-item" id="nav-script">
+            <span class="nav-icon">✍️</span><span>文案工作台</span>
+          </button>
+          <button class="nav-item" id="nav-step-by-step">
+            <span class="nav-icon">🔧</span><span>分步创作</span>
+          </button>
+          <button class="nav-item" id="nav-batch">
+            <span class="nav-icon">📦</span><span>批量处理</span>
+          </button>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-label">资源</div>
+          <button class="nav-item" id="nav-avatars">
+            <span class="nav-icon">👤</span><span>形象管理</span>
+          </button>
+          <button class="nav-item" id="nav-voices">
+            <span class="nav-icon">🎙️</span><span>音色管理</span>
+          </button>
+          <button class="nav-item" id="nav-jobs">
+            <span class="nav-icon">📋</span><span>任务管理</span>
+          </button>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-label">设置</div>
+          <button class="nav-item" id="nav-settings-models">
+            <span class="nav-icon">🧠</span><span>模型配置</span>
+          </button>
+          <button class="nav-item" id="nav-settings-video">
+            <span class="nav-icon">🎬</span><span>视频设置</span>
+          </button>
+          <button class="nav-item" id="nav-settings-publish">
+            <span class="nav-icon">📤</span><span>发布设置</span>
+          </button>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-label">系统</div>
+          <button class="nav-item" id="nav-health">
+            <span class="nav-icon">⚙️</span><span>系统状态</span>
+          </button>
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="status-indicator">
+          <div class="status-dot" id="status-dot"></div>
+          <span id="status-text">检查中...</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ========== 主内容区 ========== -->
+    <main class="main-content">
+
+      <!-- ===== 页面 1: 一键生成 ===== -->
+      <div class="page active" id="page-generate">
+        <div class="page-header">
+          <h1 class="page-title">一键生成视频</h1>
+          <p class="page-subtitle">输入文案，自动完成文案仿写、语音合成、数字人口播、字幕、视频合成全流程</p>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <!-- 左侧：输入 -->
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title"><span class="card-title-icon">📝</span> 文案输入</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">口播文案 <span class="hint">150-500 字，系统自动润色</span></label>
+                <textarea class="form-textarea" id="gen-script" placeholder="直接输入文案，或留空并在下方填写参考视频链接自动提取..."></textarea>
+              </div>
+              <div class="form-group">
+                <label class="form-label">参考视频链接 <span class="hint">可选，用于对标文案提取</span></label>
+                <input class="form-input" id="gen-ref-url" placeholder="粘贴抖音/快手/B站视频链接">
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title"><span class="card-title-icon">⚙️</span> 生成设置</div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">文案模式</label>
+                  <select class="form-select" id="gen-mode">
+                    <option value="polish">润色 - 优化表达</option>
+                    <option value="rewrite">仿写 - 语义级改写</option>
+                    <option value="generate">生成 - 根据主题创作</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">目标平台</label>
+                  <select class="form-select" id="gen-platform">
+                    <option value="douyin">抖音</option>
+                    <option value="bilibili">哔哩哔哩</option>
+                    <option value="kuaishou">快手</option>
+                    <option value="wechat_video">微信视频号</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">数字人形象</label>
+                  <select class="form-select" id="gen-avatar"></select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">音色</label>
+                  <select class="form-select" id="gen-voice"></select>
+                </div>
+              </div>
+              <div class="form-group">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                  <input type="checkbox" id="gen-publish" style="width:18px;height:18px">
+                  <span>自动发布到目标平台</span>
+                </label>
+              </div>
+              <button class="btn btn-primary btn-lg btn-block" id="gen-btn">🚀 开始生成视频</button>
+            </div>
+          </div>
+
+          <!-- 右侧：进度 -->
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title"><span class="card-title-icon">📊</span> 流水线进度</div>
+              </div>
+              <div class="pipeline" id="pipeline"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 结果展示 -->
+        <div class="card" style="margin-top:20px">
+          <div class="card-header">
+            <div class="card-title"><span class="card-title-icon">🎬</span> 生成结果</div>
+          </div>
+          <div class="result-grid">
+            <div>
+              <div class="result-video" id="result-video">
+                <div class="result-video-placeholder">
+                  <div style="font-size:48px;margin-bottom:12px">🎬</div>
+                  <div>视频将在此处展示</div>
+                </div>
+              </div>
+            </div>
+            <div class="result-meta">
+              <div class="meta-item">
+                <div class="meta-label">标题</div>
+                <div class="meta-value" id="result-title">—</div>
+              </div>
+              <div class="meta-item">
+                <div class="meta-label">封面</div>
+                <div id="result-cover"><span class="meta-value">—</span></div>
+              </div>
+              <div class="meta-item">
+                <div class="meta-label">最终文案</div>
+                <div class="meta-value" id="result-script" style="max-height:120px;overflow-y:auto;font-size:13px">—</div>
+              </div>
+            </div>
+          </div>
+          <details style="margin-top:16px">
+            <summary style="cursor:pointer;color:var(--text-secondary);font-size:13px">详细信息</summary>
+            <pre id="result-detail" style="margin-top:12px;padding:16px;background:var(--bg-elevated);border-radius:8px;font-size:12px;overflow-x:auto;max-height:300px"></pre>
+          </details>
+        </div>
+      </div>
+
+      <!-- ===== 页面 2: 文案工作台 ===== -->
+      <div class="page" id="page-script">
+        <div class="page-header">
+          <h1 class="page-title">文案工作台</h1>
+          <p class="page-subtitle">AI 驱动的口播文案创作：润色、仿写、扩写、缩写、风格转换、主题生成</p>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <!-- 左侧：输入 + 操作 -->
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title"><span class="card-title-icon">📝</span> 原始文案</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">输入文案 <span class="hint" id="script-char-count">0 字</span></label>
+                <textarea class="form-textarea" id="script-input" style="min-height:200px" placeholder="粘贴或输入口播文案..."></textarea>
+              </div>
+              <div class="form-group" id="topic-input-group" style="display:none">
+                <label class="form-label">创作主题 / 要点</label>
+                <input class="form-input" id="script-topic" placeholder="如：3个提高短视频完播率的技巧">
+              </div>
+              <div class="form-group" id="style-input-group" style="display:none">
+                <label class="form-label">目标风格</label>
+                <select class="form-select" id="script-style">
+                  <option value="幽默">幽默风趣</option>
+                  <option value="严肃">严肃专业</option>
+                  <option value="活泼">活泼可爱</option>
+                  <option value="专业">专业权威</option>
+                  <option value="口语化">口语化</option>
+                  <option value="煽情">煽情走心</option>
+                  <option value="犀利">犀利吐槽</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title"><span class="card-title-icon">🤖</span> AI 处理</div>
+              </div>
+              <div class="action-grid">
+                <button class="action-btn" data-action="polish">✨ 润色</button>
+                <button class="action-btn" data-action="rewrite">🔄 仿写</button>
+                <button class="action-btn" data-action="expand">📈 扩写</button>
+                <button class="action-btn" data-action="shorten">📉 缩写</button>
+                <button class="action-btn" data-action="style">🎨 风格转换</button>
+                <button class="action-btn" data-action="generate">💡 主题生成</button>
+              </div>
+              <div class="form-group" style="margin-top:16px">
+                <button class="btn btn-primary btn-block" id="script-process-btn">▶️ 执行 AI 处理</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 右侧：结果 -->
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title"><span class="card-title-icon">📄</span> 处理结果</div>
+                <button class="btn btn-sm btn-secondary" id="script-copy-btn">📋 复制</button>
+              </div>
+              <div class="form-group">
+                <label class="form-label">输出文案 <span class="hint" id="script-output-count">0 字</span></label>
+                <textarea class="form-textarea" id="script-output" style="min-height:280px" placeholder="AI 处理后的文案将显示在此处..."></textarea>
+              </div>
+              <div class="form-row">
+                <button class="btn btn-secondary btn-block" id="script-to-generate-btn">🚀 用此文案生成视频</button>
+                <button class="btn btn-secondary btn-block" id="script-clear-btn">🗑️ 清空</button>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title"><span class="card-title-icon">💡</span> 使用提示</div>
+              </div>
+              <div style="color:var(--text-secondary);font-size:13px;line-height:1.8">
+                <p><strong>润色</strong>：优化表达，保留原意</p>
+                <p><strong>仿写</strong>：语义级改写，避免查重</p>
+                <p><strong>扩写</strong>：增加细节和案例</p>
+                <p><strong>缩写</strong>：精简压缩，保留核心</p>
+                <p><strong>风格转换</strong>：调整语气风格</p>
+                <p><strong>主题生成</strong>：根据主题创作</p>
+                <p style="margin-top:12px;padding:10px;background:rgba(99,102,241,0.1);border-radius:8px;color:var(--accent-primary)">
+                  💡 需先在「设置 → 模型配置」配置 LLM API Key，否则使用 Mock 模板
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 页面 3: 分步创作 ===== -->
+      <div class="page" id="page-step-by-step">
+        <div class="page-header">
+          <h1 class="page-title">分步创作</h1>
+          <p class="page-subtitle">单独执行任一模块，便于调试和定制。前置模块会自动执行以准备上下文。</p>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title"><span class="card-title-icon">📝</span> 基础设置</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">口播文案</label>
+                <textarea class="form-textarea" id="step-script" placeholder="输入文案..."></textarea>
+              </div>
+              <div class="form-group">
+                <label class="form-label">参考视频链接（可选）</label>
+                <input class="form-input" id="step-ref-url" placeholder="https://...">
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">数字人形象</label>
+                  <select class="form-select" id="step-avatar"></select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">音色</label>
+                  <select class="form-select" id="step-voice"></select>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">文案模式</label>
+                  <select class="form-select" id="step-mode">
+                    <option value="polish">润色</option>
+                    <option value="rewrite">仿写</option>
+                    <option value="generate">生成</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">目标平台</label>
+                  <select class="form-select" id="step-platform">
+                    <option value="douyin">抖音</option>
+                    <option value="bilibili">哔哩哔哩</option>
+                    <option value="kuaishou">快手</option>
+                    <option value="wechat_video">微信视频号</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title"><span class="card-title-icon">🔧</span> 选择模块执行</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">执行模块</label>
+                <select class="form-select" id="step-module">
+                  <option value="script_extract">📝 文案提取</option>
+                  <option value="script_write" selected>✍️ 文案仿写</option>
+                  <option value="tts">🎙️ 语音合成</option>
+                  <option value="avatar">👤 数字人生成</option>
+                  <option value="subtitle">💬 字幕生成</option>
+                  <option value="compose">🎬 视频合成</option>
+                  <option value="title">📌 标题生成</option>
+                  <option value="cover">🖼️ 封面生成</option>
+                  <option value="publish">📤 多平台发布</option>
+                </select>
+              </div>
+              <button class="btn btn-primary btn-lg btn-block" id="step-run-btn">▶️ 执行此模块</button>
+            </div>
+          </div>
+
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title"><span class="card-title-icon">🎵</span> 音频产物</div>
+              </div>
+              <div id="step-audio" style="color:var(--text-muted)">执行后展示</div>
+            </div>
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title"><span class="card-title-icon">🎬</span> 视频产物</div>
+              </div>
+              <div id="step-video" style="color:var(--text-muted)">执行后展示</div>
+            </div>
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title"><span class="card-title-icon">📋</span> 执行结果</div>
+              </div>
+              <pre id="step-result" style="padding:16px;background:var(--bg-elevated);border-radius:8px;font-size:12px;overflow-x:auto;max-height:300px;color:var(--text-secondary)">等待执行...</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 页面 4: 批量处理 ===== -->
+      <div class="page" id="page-batch">
+        <div class="page-header">
+          <h1 class="page-title">批量处理</h1>
+          <p class="page-subtitle">批量提交多个文案，串行生成视频。适合内容矩阵运营。</p>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title"><span class="card-title-icon">📝</span> 批量文案输入</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">文案列表 <span class="hint">每行一条文案，空行分隔</span></label>
+                <textarea class="form-textarea" id="batch-scripts" style="min-height:240px" placeholder="第一条文案内容...&#10;&#10;第二条文案内容...&#10;&#10;第三条文案内容..."></textarea>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">数字人形象</label>
+                  <select class="form-select" id="batch-avatar"></select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">音色</label>
+                  <select class="form-select" id="batch-voice"></select>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">文案模式</label>
+                  <select class="form-select" id="batch-mode">
+                    <option value="polish">润色</option>
+                    <option value="rewrite">仿写</option>
+                    <option value="generate">生成</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">目标平台</label>
+                  <select class="form-select" id="batch-platform">
+                    <option value="douyin">抖音</option>
+                    <option value="bilibili">哔哩哔哩</option>
+                    <option value="kuaishou">快手</option>
+                    <option value="wechat_video">微信视频号</option>
+                  </select>
+                </div>
+              </div>
+              <button class="btn btn-primary btn-lg btn-block" id="batch-run-btn">📦 开始批量生成</button>
+            </div>
+          </div>
+
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title"><span class="card-title-icon">📊</span> 批量进度</div>
+                <span class="badge badge-info" id="batch-progress-badge">0 / 0</span>
+              </div>
+              <div id="batch-progress-list" style="max-height:500px;overflow-y:auto">
+                <div class="empty-state">
+                  <div class="empty-state-icon">📦</div>
+                  <div>提交后将显示每条文案的处理进度</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 页面 5: 形象管理 ===== -->
+      <div class="page" id="page-avatars">
+        <div class="page-header">
+          <h1 class="page-title">形象管理</h1>
+          <p class="page-subtitle">上传 3-10 秒正面说话视频，注册数字人形象</p>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="card-title-icon">📥</span> 注册新形象</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">形象 ID <span class="hint">英文字母+数字</span></label>
+              <input class="form-input" id="avatar-id" placeholder="如：anchor_01">
+            </div>
+            <div class="form-group">
+              <label class="form-label">参考视频（3-10s 正面说话）</label>
+              <div class="upload-zone" onclick="document.getElementById('avatar-file').click()">
+                <div class="upload-icon">📹</div>
+                <div class="upload-text">点击或拖拽上传视频</div>
+                <div class="upload-hint">支持 MP4 / MOV / AVI，建议 720p+</div>
+                <input type="file" id="avatar-file" accept=".mp4,.mov,.avi" style="display:none" onchange="this.parentElement.querySelector('.upload-text').textContent=this.files[0]?this.files[0].name:'点击或拖拽上传视频'">
+              </div>
+            </div>
+            <button class="btn btn-primary btn-block" id="avatar-reg-btn">📥 注册形象</button>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="card-title-icon">👥</span> 已注册形象</div>
+            </div>
+            <div class="asset-grid" id="avatars-grid"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 页面 6: 音色管理 ===== -->
+      <div class="page" id="page-voices">
+        <div class="page-header">
+          <h1 class="page-title">音色管理</h1>
+          <p class="page-subtitle">上传 5-10 秒干净人声样本，克隆音色</p>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="card-title-icon">📥</span> 注册新音色</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">音色 ID <span class="hint">英文字母+数字</span></label>
+              <input class="form-input" id="voice-id" placeholder="如：voice_01">
+            </div>
+            <div class="form-group">
+              <label class="form-label">样本音频（5-10s 干净人声）</label>
+              <div class="upload-zone" onclick="document.getElementById('voice-file').click()">
+                <div class="upload-icon">🎵</div>
+                <div class="upload-text">点击或拖拽上传音频</div>
+                <div class="upload-hint">支持 WAV / MP3 / M4A，无背景噪音</div>
+                <input type="file" id="voice-file" accept=".wav,.mp3,.m4a,.flac" style="display:none" onchange="this.parentElement.querySelector('.upload-text').textContent=this.files[0]?this.files[0].name:'点击或拖拽上传音频'">
+              </div>
+            </div>
+            <button class="btn btn-primary btn-block" id="voice-reg-btn">📥 注册音色</button>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="card-title-icon">🎵</span> 已注册音色</div>
+            </div>
+            <div class="asset-grid" id="voices-grid"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 页面 7: 任务管理 ===== -->
+      <div class="page" id="page-jobs">
+        <div class="page-header">
+          <h1 class="page-title">任务管理</h1>
+          <p class="page-subtitle">查看历史任务、断点续跑、删除任务</p>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="card-title-icon">📋</span> 任务列表</div>
+            <button class="btn btn-sm btn-secondary" id="refresh-jobs-btn">🔄 刷新</button>
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>任务 ID</th>
+                <th>状态</th>
+                <th>创建时间</th>
+                <th>更新时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="jobs-tbody"></tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="card-title-icon">🔍</span> 任务详情</div>
+          </div>
+          <div id="job-detail" style="color:var(--text-muted)">选择上方任务查看详情</div>
+        </div>
+      </div>
+
+      <!-- ===== 页面 8: 模型配置 ===== -->
+      <div class="page" id="page-settings-models">
+        <div class="page-header">
+          <h1 class="page-title">模型配置</h1>
+          <p class="page-subtitle">配置 LLM、TTS、ASR、数字人等核心模型。修改后自动保存并热更新。</p>
+        </div>
+
+        <!-- 子标签 -->
+        <div class="sub-tabs">
+          <button class="sub-tab active" data-subtab="llm">🧠 LLM 大语言模型</button>
+          <button class="sub-tab" data-subtab="tts">🎙️ TTS 语音合成</button>
+          <button class="sub-tab" data-subtab="asr">👂 ASR 语音识别</button>
+          <button class="sub-tab" data-subtab="avatar">👤 数字人模型</button>
+        </div>
+
+        <!-- LLM 配置 -->
+        <div class="sub-page active" id="subpage-llm">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="card-title-icon">🧠</span> LLM 大语言模型配置</div>
+              <span class="badge badge-warning" id="llm-status-badge">检查中</span>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">服务提供商</label>
+                <select class="form-select" id="llm-provider" onchange="onLLMProviderChange()">
+                  <option value="mock">Mock 模式（无需 API Key）</option>
+                  <option value="deepseek">DeepSeek 深度求索</option>
+                  <option value="qwen">通义千问 (DashScope)</option>
+                  <option value="openai">OpenAI</option>
+                  <option value="moonshot">Moonshot Kimi</option>
+                  <option value="zhipu">智谱 GLM</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">模型名称</label>
+                <select class="form-select" id="llm-model">
+                  <option value="">请先选择提供商</option>
+                </select>
+                <input class="form-input" id="llm-model-custom" style="margin-top:8px;display:none" placeholder="或手动输入模型名">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">API Key <span class="hint" id="llm-key-hint">未配置</span></label>
+              <div style="display:flex;gap:8px">
+                <input class="form-input" id="llm-api-key" type="password" placeholder="sk-...">
+                <button class="btn btn-secondary" id="llm-toggle-key" type="button">👁️</button>
+              </div>
+              <div class="hint" id="llm-key-url" style="margin-top:6px"></div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">API Base URL</label>
+              <input class="form-input" id="llm-base-url" placeholder="https://api.example.com/v1">
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Temperature <span class="hint" id="llm-temp-val">0.7</span></label>
+                <input type="range" class="form-range" id="llm-temperature" min="0" max="2" step="0.1" value="0.7" oninput="document.getElementById('llm-temp-val').textContent=this.value">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Max Tokens</label>
+                <input type="number" class="form-input" id="llm-max-tokens" value="2000" min="100" max="32000" step="100">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">超时（秒）</label>
+                <input type="number" class="form-input" id="llm-timeout" value="60" min="5" max="600">
+              </div>
+              <div class="form-group" style="display:flex;align-items:flex-end;gap:8px">
+                <button class="btn btn-secondary" id="llm-test-btn">🔌 测试连接</button>
+              </div>
+            </div>
+            <div id="llm-test-result"></div>
+            <div class="form-row" style="margin-top:16px">
+              <button class="btn btn-primary btn-lg" id="llm-save-btn">💾 保存配置</button>
+              <button class="btn btn-secondary" id="llm-reset-btn">↩️ 重置默认</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- TTS 配置 -->
+        <div class="sub-page" id="subpage-tts">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="card-title-icon">🎙️</span> TTS 语音合成配置</div>
+              <span class="badge badge-warning" id="tts-status-badge">检查中</span>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">服务提供商</label>
+                <select class="form-select" id="tts-provider" onchange="onTTSProviderChange()">
+                  <option value="mock">Mock 模式（静音音频）</option>
+                  <option value="gpt_sovits">GPT-SoVITS 云端（声音克隆）</option>
+                  <option value="edge_tts">Edge TTS（微软标准音色，免费）</option>
+                </select>
+              </div>
+              <div class="form-group" id="tts-edge-voice-group" style="display:none">
+                <label class="form-label">Edge 音色</label>
+                <select class="form-select" id="tts-edge-voice">
+                  <option value="zh-CN-XiaoxiaoNeural">晓晓 (女·温柔)</option>
+                  <option value="zh-CN-YunxiNeural">云希 (男·阳光)</option>
+                  <option value="zh-CN-YunjianNeural">云健 (男·浑厚)</option>
+                  <option value="zh-CN-XiaoyiNeural">晓伊 (女·活泼)</option>
+                  <option value="zh-CN-YunyangNeural">云扬 (男·专业)</option>
+                  <option value="zh-CN-XiaohanNeural">晓涵 (女·成熟)</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group" id="tts-api-base-group">
+              <label class="form-label">GPT-SoVITS 服务地址</label>
+              <input class="form-input" id="tts-api-base" placeholder="http://localhost:9880">
+            </div>
+            <div class="form-group" id="tts-api-key-group">
+              <label class="form-label">API Key <span class="hint">可选，若服务需要鉴权</span></label>
+              <input class="form-input" id="tts-api-key" type="password" placeholder="留空表示无需鉴权">
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">默认音色 ID</label>
+                <input class="form-input" id="tts-default-voice" value="default">
+              </div>
+              <div class="form-group">
+                <label class="form-label">超时（秒）</label>
+                <input type="number" class="form-input" id="tts-timeout" value="120" min="10" max="600">
+              </div>
+            </div>
+            <div class="form-row" style="margin-top:16px">
+              <button class="btn btn-primary btn-lg" id="tts-save-btn">💾 保存配置</button>
+              <button class="btn btn-secondary" id="tts-test-btn">🔌 测试连接</button>
+              <button class="btn btn-secondary" id="tts-reset-btn">↩️ 重置默认</button>
+            </div>
+            <div id="tts-test-result"></div>
+          </div>
+        </div>
+
+        <!-- ASR 配置 -->
+        <div class="sub-page" id="subpage-asr">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="card-title-icon">👂</span> ASR 语音识别配置</div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">服务提供商</label>
+                <select class="form-select" id="asr-provider">
+                  <option value="mock">Mock 模式（按句切分）</option>
+                  <option value="funasr">FunASR（本地，paraformer-zh）</option>
+                  <option value="whisper">OpenAI Whisper</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">模型</label>
+                <select class="form-select" id="asr-model">
+                  <option value="paraformer-zh">paraformer-zh</option>
+                  <option value="paraformer-zh-streaming">paraformer-zh-streaming</option>
+                  <option value="conformer-zh">conformer-zh</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">识别语言</label>
+                <select class="form-select" id="asr-language">
+                  <option value="zh">中文</option>
+                  <option value="en">英文</option>
+                  <option value="ja">日文</option>
+                  <option value="auto">自动检测</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">每行最大字符数</label>
+                <input type="number" class="form-input" id="asr-max-chars" value="18" min="8" max="40">
+              </div>
+            </div>
+            <div class="form-row" style="margin-top:16px">
+              <button class="btn btn-primary btn-lg" id="asr-save-btn">💾 保存配置</button>
+              <button class="btn btn-secondary" id="asr-reset-btn">↩️ 重置默认</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 数字人配置 -->
+        <div class="sub-page" id="subpage-avatar">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="card-title-icon">👤</span> 数字人模型配置</div>
+              <span class="badge badge-warning" id="avatar-status-badge">检查中</span>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">服务提供商</label>
+                <select class="form-select" id="avatar-provider" onchange="onAvatarProviderChange()">
+                  <option value="mock">Mock 模式（占位图视频）</option>
+                  <option value="musetalk">MuseTalk（实时口播）</option>
+                  <option value="latentsync">LatentSync（高精度口型）</option>
+                  <option value="echomimic">EchoMimic（表情驱动）</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">默认形象 ID</label>
+                <input class="form-input" id="avatar-default" value="default">
+              </div>
+            </div>
+            <div class="form-group" id="avatar-api-base-group">
+              <label class="form-label">数字人服务地址</label>
+              <input class="form-input" id="avatar-api-base" placeholder="http://localhost:8010">
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">输出 FPS</label>
+                <input type="number" class="form-input" id="avatar-fps" value="25" min="15" max="60">
+              </div>
+              <div class="form-group">
+                <label class="form-label">超时（秒）</label>
+                <input type="number" class="form-input" id="avatar-timeout" value="300" min="30" max="1800">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">输出分辨率</label>
+              <div style="display:flex;gap:8px;align-items:center">
+                <input type="number" class="form-input" id="avatar-res-w" value="1080" style="flex:1">
+                <span>×</span>
+                <input type="number" class="form-input" id="avatar-res-h" value="1920" style="flex:1">
+                <select class="form-select" id="avatar-res-preset" style="width:auto" onchange="onAvatarResPresetChange(this.value)">
+                  <option value="">自定义</option>
+                  <option value="1080x1920">竖版 1080×1920</option>
+                  <option value="1920x1080">横版 1920×1080</option>
+                  <option value="1080x1080">方形 1080×1080</option>
+                  <option value="720x1280">竖版 720×1280</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row" style="margin-top:16px">
+              <button class="btn btn-primary btn-lg" id="avatar-save-btn">💾 保存配置</button>
+              <button class="btn btn-secondary" id="avatar-test-btn">🔌 测试连接</button>
+              <button class="btn btn-secondary" id="avatar-reset-btn">↩️ 重置默认</button>
+            </div>
+            <div id="avatar-test-result"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 页面 9: 视频设置 ===== -->
+      <div class="page" id="page-settings-video">
+        <div class="page-header">
+          <h1 class="page-title">视频设置</h1>
+          <p class="page-subtitle">字幕样式、BGM、画面比例、水印等视频输出参数</p>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="card-title-icon">💬</span> 字幕样式</div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">字号</label>
+                <input type="number" class="form-input" id="sub-font-size" value="24" min="12" max="60">
+              </div>
+              <div class="form-group">
+                <label class="form-label">每行最大字符</label>
+                <input type="number" class="form-input" id="sub-max-chars" value="18" min="8" max="40">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">字体颜色</label>
+                <input type="color" class="form-input" id="sub-font-color" value="#FFFFFF" style="height:42px;padding:4px">
+              </div>
+              <div class="form-group">
+                <label class="form-label">描边颜色</label>
+                <input type="color" class="form-input" id="sub-outline-color" value="#000000" style="height:42px;padding:4px">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">描边宽度</label>
+              <input type="number" class="form-input" id="sub-outline-width" value="2" min="0" max="10" step="0.5">
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="card-title-icon">🎵</span> 背景音乐 (BGM)</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">BGM 音量 <span class="hint" id="bgm-vol-val">0.15</span></label>
+              <input type="range" class="form-range" id="bgm-volume" min="0" max="1" step="0.05" value="0.15" oninput="document.getElementById('bgm-vol-val').textContent=this.value">
+            </div>
+            <div class="form-group">
+              <label class="form-label">BGM 目录</label>
+              <input class="form-input" id="bgm-dir" value="./config/bgm">
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="card-title-icon">🎬</span> 视频输出参数</div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">输出 FPS</label>
+                <input type="number" class="form-input" id="video-fps" value="30" min="15" max="60">
+              </div>
+              <div class="form-group">
+                <label class="form-label">视频码率</label>
+                <select class="form-select" id="video-bitrate">
+                  <option value="4M">4M (低画质)</option>
+                  <option value="8M">8M (标准)</option>
+                  <option value="12M">12M (高清)</option>
+                  <option value="20M">20M (超清)</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">音频码率</label>
+                <select class="form-select" id="audio-bitrate">
+                  <option value="128k">128k</option>
+                  <option value="192k">192k</option>
+                  <option value="256k">256k</option>
+                  <option value="320k">320k</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">画面比例</label>
+                <select class="form-select" id="video-ratio" onchange="onVideoRatioChange(this.value)">
+                  <option value="1080x1920">9:16 竖版 (1080×1920)</option>
+                  <option value="1920x1080">16:9 横版 (1920×1080)</option>
+                  <option value="1080x1080">1:1 方形 (1080×1080)</option>
+                  <option value="720x1280">9:16 竖版 (720×1280)</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">FFmpeg 路径</label>
+              <input class="form-input" id="ffmpeg-path" value="ffmpeg" placeholder="ffmpeg 或绝对路径">
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="card-title-icon">🖼️</span> 封面设置</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">封面生成模式</label>
+              <select class="form-select" id="cover-mode">
+                <option value="frame_overlay">帧叠加（视频帧+标题文字）</option>
+                <option value="sdxl">SDXL 文生图</option>
+                <option value="template">模板拼接</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">标题最大字符数</label>
+              <input type="number" class="form-input" id="cover-max-chars" value="20" min="8" max="40">
+            </div>
+            <div class="form-group">
+              <label class="form-label">字体文件路径</label>
+              <input class="form-input" id="cover-font-path" value="./config/fonts/SourceHanSansCN-Bold.otf">
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:20px">
+          <div class="form-row">
+            <button class="btn btn-primary btn-lg" id="video-save-btn">💾 保存视频设置</button>
+            <button class="btn btn-secondary" id="video-reset-btn">↩️ 重置默认</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 页面 10: 发布设置 ===== -->
+      <div class="page" id="page-settings-publish">
+        <div class="page-header">
+          <h1 class="page-title">发布设置</h1>
+          <p class="page-subtitle">多平台账号管理、发布模式、频率控制</p>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="card-title-icon">⚙️</span> 发布模式</div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">发布模式</label>
+              <select class="form-select" id="pub-mode">
+                <option value="manual">手动 - 仅生成视频，自行发布</option>
+                <option value="semi_auto">半自动 - 自动打开浏览器，手动确认</option>
+                <option value="auto">全自动 - 自动发布（需登录态）</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">发布间隔（秒）</label>
+              <input type="number" class="form-input" id="pub-interval" value="60" min="10" max="3600">
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="card-title-icon">📤</span> 平台管理</div>
+          </div>
+          <div class="platform-list" id="platform-list">
+            <!-- 平台卡片由 JS 渲染 -->
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:20px">
+          <div class="form-row">
+            <button class="btn btn-primary btn-lg" id="publish-save-btn">💾 保存发布设置</button>
+            <button class="btn btn-secondary" id="publish-reset-btn">↩️ 重置默认</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 页面 11: 系统状态 ===== -->
+      <div class="page" id="page-health">
+        <div class="page-header">
+          <h1 class="page-title">系统状态</h1>
+          <p class="page-subtitle">查看各模块运行状态</p>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+          <button class="btn btn-sm btn-secondary" id="refresh-health-btn">🔄 刷新</button>
+        </div>
+
+        <div id="health-content"></div>
+
+        <div class="card" style="margin-top:20px">
+          <div class="card-header">
+            <div class="card-title"><span class="card-title-icon">ℹ️</span> 状态说明</div>
+          </div>
+          <div style="color:var(--text-secondary);font-size:13px;line-height:1.8">
+            <p><strong>FFmpeg</strong>：视频处理引擎，必须可用</p>
+            <p><strong>云端 TTS</strong>：GPT-SoVITS 语音合成服务。不可用时降级为静音音频（mock 模式）</p>
+            <p><strong>云端数字人</strong>：MuseTalk 口播生成服务。不可用时降级为占位图视频（mock 模式）</p>
+            <p><strong>LLM 模式</strong>：Mock 模式表示未配置 API Key，使用模板化文案。配置 DeepSeek/Qwen API Key 后切换为真实生成</p>
+            <p style="margin-top:12px;padding:12px;background:rgba(99,102,241,0.1);border-radius:8px">
+              💡 <strong>提示</strong>：GPU 服务不在线时，系统自动降级为 mock 模式，可跑通全流程但产物为占位内容。配置云端 GPU 后即可生成真实音视频。前往「设置 → 模型配置」配置各模型。
+            </p>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Toast 容器 -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script src="/static/js/app.js"></script>
+  <script src="/static/js/settings.js"></script>
+</body>
+</html>
