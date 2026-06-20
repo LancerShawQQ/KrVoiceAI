@@ -633,6 +633,22 @@ def create_app() -> FastAPI:
             return {"success": False, "error": "形象图不存在"}
         return FileResponse(str(img_path), media_type="image/jpeg")
 
+    @app.post("/api/presets/avatars/{avatar_id}/register")
+    async def register_preset_avatar(avatar_id: str):
+        """将预制形象注册为用户形象（对标万兴播爆"一键使用模板形象"）
+
+        将 config/presets/avatars/{avatar_id}.jpg 复制到 avatars 目录，
+        使用户可直接在向导中选择该形象。
+        """
+        from pathlib import Path as _Path
+        import shutil
+        src = _Path(f"./config/presets/avatars/{avatar_id}.jpg")
+        if not src.exists():
+            return {"success": False, "error": "预制形象图不存在"}
+        target_id = f"preset_{avatar_id}"
+        ok = _get_app().register_avatar(target_id, src)
+        return {"success": ok, "avatar_id": target_id}
+
     @app.get("/api/presets/voices")
     async def get_preset_voices():
         """获取预制音色库"""

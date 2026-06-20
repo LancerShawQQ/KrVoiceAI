@@ -2,13 +2,25 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5.0">
   <title>KrVoiceAI · 虚拟人口播智能体</title>
   <link rel="stylesheet" href="/static/css/style.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
 </head>
 <body>
   <div class="app-layout">
+
+    <!-- ========== 移动端顶部栏 ========== -->
+    <header class="mobile-topbar">
+      <button class="menu-toggle" id="menu-toggle" aria-label="打开菜单">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="mobile-logo">🎬 Kr<span>VoiceAI</span></div>
+      <button class="mobile-quick-create" id="mobile-quick-create" aria-label="快速创建">➕</button>
+    </header>
+
+    <!-- ========== 侧边栏遮罩（移动端抽屉） ========== -->
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
     <!-- ========== 侧边栏 ========== -->
     <aside class="sidebar">
@@ -687,7 +699,7 @@
           <p class="page-subtitle">输入文案，自动完成文案仿写、语音合成、数字人口播、字幕、视频合成全流程</p>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div class="two-col-grid">
           <!-- 左侧：输入 -->
           <div>
             <div class="card">
@@ -801,7 +813,7 @@
           <p class="page-subtitle">AI 驱动的口播文案创作：润色、仿写、扩写、缩写、风格转换、主题生成</p>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div class="two-col-grid">
           <!-- 左侧：输入 + 操作 -->
           <div>
             <div class="card">
@@ -892,7 +904,7 @@
           <p class="page-subtitle">单独执行任一模块，便于调试和定制。前置模块会自动执行以准备上下文。</p>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div class="two-col-grid">
           <div>
             <div class="card">
               <div class="card-header">
@@ -989,7 +1001,7 @@
           <p class="page-subtitle">批量提交多个文案，串行生成视频。适合内容矩阵运营。</p>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div class="two-col-grid">
           <div>
             <div class="card">
               <div class="card-header">
@@ -1272,7 +1284,7 @@
           </div>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div class="two-col-grid">
           <div class="card">
             <div class="card-header">
               <div class="card-title"><span class="card-title-icon">📥</span> 注册新形象</div>
@@ -1310,7 +1322,7 @@
           <p class="page-subtitle">上传 5-10 秒干净人声样本，克隆音色</p>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div class="two-col-grid">
           <div class="card">
             <div class="card-header">
               <div class="card-title"><span class="card-title-icon">📥</span> 注册新音色</div>
@@ -1421,18 +1433,20 @@
             <div class="card-title"><span class="card-title-icon">📋</span> 任务列表</div>
             <button class="btn btn-sm btn-secondary" id="refresh-jobs-btn">🔄 刷新</button>
           </div>
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>任务 ID</th>
-                <th>状态</th>
-                <th>创建时间</th>
-                <th>更新时间</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody id="jobs-tbody"></tbody>
-          </table>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>任务 ID</th>
+                  <th>状态</th>
+                  <th>创建时间</th>
+                  <th>更新时间</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="jobs-tbody"></tbody>
+            </table>
+          </div>
         </div>
 
         <div class="card">
@@ -1693,7 +1707,7 @@
           <p class="page-subtitle">字幕样式、BGM、画面比例、水印等视频输出参数</p>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div class="two-col-grid">
           <div class="card">
             <div class="card-header">
               <div class="card-title"><span class="card-title-icon">💬</span> 字幕样式</div>
@@ -1859,7 +1873,7 @@
           <p class="page-subtitle">数字人场景、音频效果、视频转场/滤镜/水印/片头片尾等高级效果配置</p>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div class="two-col-grid">
           <!-- 数字人场景 -->
           <div class="card">
             <div class="card-header">
@@ -2122,6 +2136,31 @@
       </div>
 
     </main>
+
+    <!-- ========== 移动端底部导航栏（拇指区） ========== -->
+    <nav class="bottom-nav">
+      <button class="bottom-nav-item active" data-page="dashboard">
+        <span class="bottom-nav-icon">🏠</span>
+        <span class="bottom-nav-label">首页</span>
+      </button>
+      <button class="bottom-nav-item" data-page="wizard">
+        <span class="bottom-nav-icon">🧙</span>
+        <span class="bottom-nav-label">创作</span>
+      </button>
+      <button class="bottom-nav-item" data-page="templates">
+        <span class="bottom-nav-icon">🎨</span>
+        <span class="bottom-nav-label">模板</span>
+      </button>
+      <button class="bottom-nav-item" data-page="jobs">
+        <span class="bottom-nav-icon">📋</span>
+        <span class="bottom-nav-label">任务</span>
+      </button>
+      <button class="bottom-nav-item" data-page="settings-models">
+        <span class="bottom-nav-icon">⚙️</span>
+        <span class="bottom-nav-label">设置</span>
+      </button>
+    </nav>
+
   </div>
 
   <!-- 生成进度模态框 -->

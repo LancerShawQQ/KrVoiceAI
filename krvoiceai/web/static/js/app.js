@@ -79,6 +79,18 @@ function navigate(page) {
   if (targetPage) targetPage.classList.add('active');
   if (targetNav) targetNav.classList.add('active');
 
+  // 更新底部导航栏激活状态（移动端）
+  document.querySelectorAll('.bottom-nav-item').forEach(item => {
+    item.classList.toggle('active', item.dataset.page === page);
+  });
+
+  // 移动端：导航后自动关闭侧边栏抽屉
+  closeSidebarDrawer();
+
+  // 滚动到顶部
+  const mainContent = document.querySelector('.main-content');
+  if (mainContent) mainContent.scrollTop = 0;
+
   // 页面加载时刷新数据
   if (page === 'dashboard') loadDashboard();
   if (page === 'jobs') loadJobs();
@@ -95,6 +107,26 @@ function navigate(page) {
   if (page === 'settings-video') loadVideoSettings();
   if (page === 'settings-scene') loadSceneEffectSettings();
   if (page === 'settings-publish') loadPublishSettings();
+}
+
+// ========== 移动端侧边栏抽屉 ==========
+
+function openSidebarDrawer() {
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  const toggle = document.getElementById('menu-toggle');
+  if (sidebar) sidebar.classList.add('open');
+  if (overlay) overlay.classList.add('active');
+  if (toggle) toggle.classList.add('active');
+}
+
+function closeSidebarDrawer() {
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  const toggle = document.getElementById('menu-toggle');
+  if (sidebar) sidebar.classList.remove('open');
+  if (overlay) overlay.classList.remove('active');
+  if (toggle) toggle.classList.remove('active');
 }
 
 // ========== 首页仪表盘 ==========
@@ -369,12 +401,103 @@ let wizardState = {
   wizScriptTab: 'manual',
   wizScriptAction: 'polish',
   initialized: false,
+  sceneCategory: null,  // 从首页场景卡带入的分类
+};
+
+// 场景分类 → 推荐默认配置（对标旗博士/万兴播爆"选场景即配好参数"）
+const SCENE_CATEGORY_DEFAULTS = {
+  self_media: {
+    label: '自媒体口播',
+    subtitle_preset: 'douyin_hot',
+    subtitle_animation: 'bounce',
+    bgm_track: 'vlog_chill',
+    emotion: 'cheerful',
+    filter: 'vlog',
+    transition: 'slideleft',
+    speech_speed: 1.0,
+  },
+  marketing: {
+    label: '营销推广',
+    subtitle_preset: 'pop_pink',
+    subtitle_animation: 'bounce',
+    bgm_track: 'upbeat_corporate',
+    emotion: 'excited',
+    filter: 'vivid',
+    transition: 'zoom',
+    speech_speed: 1.1,
+  },
+  knowledge: {
+    label: '知识科普',
+    subtitle_preset: 'tech_blue',
+    subtitle_animation: 'fade',
+    bgm_track: 'ambient_calm',
+    emotion: 'neutral',
+    filter: 'none',
+    transition: 'fade',
+    speech_speed: 0.95,
+  },
+  enterprise: {
+    label: '政企宣传',
+    subtitle_preset: 'classic_gold',
+    subtitle_animation: 'fade',
+    bgm_track: 'upbeat_corporate',
+    emotion: 'neutral',
+    filter: 'cinematic',
+    transition: 'fade',
+    speech_speed: 0.95,
+  },
 };
 
 function initWizard() {
   if (!wizardState.initialized) {
     wizardState.initialized = true;
     loadWizardData();
+  }
+  // 若从首页场景卡进入，应用对应分类的推荐默认值
+  if (wizardState.sceneCategory) {
+    applySceneCategoryDefaults(wizardState.sceneCategory);
+  }
+  // 若从场景模板进入，预填文案
+  if (wizardState.sceneScript) {
+    setTimeout(() => {
+      const wizScript = document.getElementById('wiz-script');
+      if (wizScript) {
+        wizScript.value = wizardState.sceneScript;
+        updateScriptStats(wizardState.sceneScript);
+      }
+    }, 500);
+  }
+}
+
+// 应用场景分类推荐默认配置到向导表单（对标万兴播爆"选场景即配好参数"）
+function applySceneCategoryDefaults(scene) {
+  const defaults = SCENE_CATEGORY_DEFAULTS[scene];
+  if (!defaults) return;
+  try {
+    // 字幕样式
+    wizardState.selectedSubtitleStyle = defaults.subtitle_preset;
+    const subAnim = document.getElementById('wiz-sub-anim');
+    if (subAnim) subAnim.value = defaults.subtitle_animation;
+    // 滤镜/转场
+    const filterSel = document.getElementById('wiz-filter');
+    if (filterSel) filterSel.value = defaults.filter;
+    const transSel = document.getElementById('wiz-transition');
+    if (transSel) transSel.value = defaults.transition;
+    // 语速
+    const speed = document.getElementById('wiz-speed');
+    if (speed) speed.value = defaults.speech_speed;
+    // BGM
+    const bgmEnabled = document.getElementById('wiz-bgm-enabled');
+    const bgmTrack = document.getElementById('wiz-bgm-track');
+    if (bgmEnabled) bgmEnabled.checked = true;
+    if (bgmTrack) bgmTrack.value = defaults.bgm_track;
+    const bgmGroup = document.getElementById('wiz-bgm-group');
+    if (bgmGroup) bgmGroup.style.display = 'block';
+    // 情感（btn-card-grid）
+    setBtnCardValue('wiz-emotion-grid', defaults.emotion);
+    toast(`已应用「${defaults.label}」推荐配置：字幕/${defaults.subtitle_preset} · 滤镜/${defaults.filter} · 转场/${defaults.transition}`, 'success');
+  } catch (e) {
+    console.warn('应用场景默认配置失败:', e.message);
   }
 }
 
@@ -1330,8 +1453,14 @@ async function applyTemplateFromCenter(templateId) {
       method: 'POST',
       body: { template_id: templateId },
     });
-    toast(result.success ? (result.message || '模板应用成功') : (result.message || '应用失败'),
-          result.success ? 'success' : 'error');
+    if (result.success) {
+      toast(result.message || '模板应用成功，即将进入创作向导', 'success');
+      // 自动跳转到创作向导（对标万兴播爆"选模板→自动进入创作"）
+      wizardState.selectedTemplate = templateId;
+      navigate('wizard');
+    } else {
+      toast(result.message || '应用失败', 'error');
+    }
   } catch (e) {
     toast(`应用模板失败: ${e.message}`, 'error');
   }
@@ -1486,15 +1615,21 @@ async function applySceneStyle() {
     const data = await resp.json();
     if (data.success) {
       toast(`样式应用成功！已设置: ${data.applied_sections.join(', ')}`, 'success');
-      // 如果已生成文案，复制到剪贴板并提示去生成页
-      if (sceneState.generatedScript) {
-        try {
-          await navigator.clipboard.writeText(sceneState.generatedScript);
-          toast('文案已复制到剪贴板，去"一键生成"页面粘贴即可', 'success');
-        } catch (e) {
-          // 剪贴板可能被禁用，提示用户手动复制
+      // 关闭弹窗，自动跳转到创作向导并预填文案（对标万兴播爆"一键创作"无缝流程）
+      closeSceneModal();
+      wizardState.sceneScript = sceneState.generatedScript || '';
+      navigate('wizard');
+      // 向导加载后预填文案到步骤3
+      setTimeout(() => {
+        const wizScript = document.getElementById('wiz-script');
+        if (wizScript && sceneState.generatedScript) {
+          wizScript.value = sceneState.generatedScript;
+          updateScriptStats(sceneState.generatedScript);
+          // 自动跳到步骤3（文案输入）
+          wizardGoToStep(3);
+          toast('已自动填入场景文案，可直接进入下一步', 'success');
         }
-      }
+      }, 800);
     } else {
       toast(data.error || '应用失败', 'error');
     }
@@ -1537,10 +1672,18 @@ async function loadPresetAvatars() {
   }
 }
 
-// 使用预制形象（设置默认形象+推荐音色+情感）
+// 使用预制形象（注册形象+设置推荐音色+情感，并跳转向导预选）
 async function usePresetAvatar(avatarId, voice, emotion) {
   try {
-    // 设置推荐音色
+    // 1. 注册预制形象为用户形象（对标万兴播爆"一键使用模板形象"）
+    let targetAvatarId = 'default';
+    const regResp = await fetch(`/api/presets/avatars/${encodeURIComponent(avatarId)}/register`, { method: 'POST' });
+    const regData = await regResp.json();
+    if (regData.success) {
+      targetAvatarId = regData.avatar_id;
+    }
+
+    // 2. 设置推荐音色
     if (voice) {
       const resp = await fetch('/api/settings/tts', { method: 'PUT' });
       const ttsSection = await resp.json();
@@ -1553,7 +1696,28 @@ async function usePresetAvatar(avatarId, voice, emotion) {
         body: JSON.stringify(ttsData),
       });
     }
-    toast(`已设置推荐音色${voice ? ': ' + voice : ''}${emotion ? ' / 情感: ' + emotion : ''}。形象为占位图，请上传真人照片到"形象管理"以获最佳效果`, 'success');
+
+    // 3. 跳转到创作向导并预选该形象
+    wizardState.presetAvatarId = targetAvatarId;
+    navigate('wizard');
+    // 向导数据加载后刷新形象列表并预选
+    setTimeout(async () => {
+      try {
+        const avatars = await api('/api/avatars').catch(() => []);
+        if (avatars && avatars.length) {
+          renderWizardAvatarGrid(avatars);
+        }
+        const avatarInput = document.getElementById('wiz-avatar');
+        if (avatarInput && targetAvatarId !== 'default') {
+          avatarInput.value = targetAvatarId;
+          document.querySelectorAll('#wiz-avatar-grid .avatar-card').forEach(c => {
+            c.classList.toggle('selected', c.dataset.id === targetAvatarId);
+          });
+        }
+      } catch (e) { /* 忽略刷新失败 */ }
+    }, 600);
+
+    toast(`已使用该形象${voice ? '（音色: ' + voice + (emotion ? ' / 情感: ' + emotion : '') + '）' : ''}，即将进入创作向导`, 'success');
   } catch (e) {
     toast(`设置失败: ${e.message}`, 'error');
   }
@@ -2309,6 +2473,24 @@ document.addEventListener('DOMContentLoaded', () => {
     if (nav) nav.addEventListener('click', () => navigate(p));
   });
 
+  // 移动端：汉堡菜单切换侧边栏抽屉
+  document.getElementById('menu-toggle')?.addEventListener('click', () => {
+    const sidebar = document.querySelector('.sidebar');
+    if (sidebar?.classList.contains('open')) {
+      closeSidebarDrawer();
+    } else {
+      openSidebarDrawer();
+    }
+  });
+  // 移动端：点击遮罩关闭抽屉
+  document.getElementById('sidebar-overlay')?.addEventListener('click', closeSidebarDrawer);
+  // 移动端：快速创建按钮
+  document.getElementById('mobile-quick-create')?.addEventListener('click', () => navigate('wizard'));
+  // 移动端：底部导航栏
+  document.querySelectorAll('.bottom-nav-item').forEach(item => {
+    item.addEventListener('click', () => navigate(item.dataset.page));
+  });
+
   // 按钮绑定
   document.getElementById('gen-btn').addEventListener('click', handleGenerate);
   document.getElementById('step-run-btn').addEventListener('click', handleRunModule);
@@ -2346,9 +2528,15 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('dash-from-template-btn')?.addEventListener('click', () => navigate('templates'));
   document.getElementById('dash-view-all-jobs')?.addEventListener('click', () => navigate('jobs'));
   document.getElementById('dash-view-all-templates')?.addEventListener('click', () => navigate('templates'));
-  // 场景卡点击跳转到创作向导
+  // 场景卡点击跳转到创作向导，并带入场景分类上下文
   document.querySelectorAll('.scene-card').forEach(card => {
-    card.addEventListener('click', () => navigate('wizard'));
+    card.addEventListener('click', () => {
+      const scene = card.dataset.scene;
+      wizardState.sceneCategory = scene;
+      navigate('wizard');
+      // 应用该场景分类的推荐默认配置
+      applySceneCategoryDefaults(scene);
+    });
   });
 
   // 进度模态框关闭
