@@ -20,8 +20,10 @@ class LLMClient:
     """OpenAI 兼容 LLM 客户端"""
 
     # 429 限流重试配置
-    MAX_RETRIES = 3
+    MAX_RETRIES = 5
     RETRY_BASE_DELAY = 2.0  # 基础延迟秒数，指数退避
+    RATE_LIMIT_MAX_RETRIES = 8  # 429 限流专用最大重试次数
+    RATE_LIMIT_BASE_DELAY = 5.0  # 429 限流退避基数（更长）
 
     def __init__(self, provider: str | None = None):
         cfg = get_config()
@@ -66,20 +68,28 @@ class LLMClient:
 
         start = time.time()
         last_error: Exception | None = None
+        rate_limit_attempts = 0  # 429 专用计数器
 
         for attempt in range(self.MAX_RETRIES + 1):
             try:
                 r = httpx.post(url, json=payload, headers=headers, timeout=self.timeout)
 
-                # 429 限流：等待后重试
-                if r.status_code == 429 and attempt < self.MAX_RETRIES:
-                    delay = self.RETRY_BASE_DELAY * (2 ** attempt)
-                    self.logger.warning(
-                        f"LLM 限流 429，第 {attempt+1}/{self.MAX_RETRIES} 次重试，"
-                        f"等待 {delay:.1f}s"
-                    )
-                    time.sleep(delay)
-                    continue
+                # 429 限流：使用专用退避策略（更长延迟、更多重试）
+                if r.status_code == 429:
+                    rate_limit_attempts += 1
+                    if rate_limit_attempts <= self.RATE_LIMIT_MAX_RETRIES:
+                        delay = self.RATE_LIMIT_BASE_DELAY * (2 ** (rate_limit_attempts - 1))
+                        # 限制最大延迟 60s
+                        delay = min(delay, 60.0)
+                        self.logger.warning(
+                            f"LLM 限流 429，第 {rate_limit_attempts}/{self.RATE_LIMIT_MAX_RETRIES} 次重试，"
+                            f"等待 {delay:.1f}s"
+                        )
+                        time.sleep(delay)
+                        continue
+                    else:
+                        self.logger.error(f"LLM 限流 429，已达最大重试次数 {self.RATE_LIMIT_MAX_RETRIES}")
+                        r.raise_for_status()
 
                 r.raise_for_status()
                 data = r.json()

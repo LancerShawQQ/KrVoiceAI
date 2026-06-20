@@ -35,9 +35,9 @@ PIPELINE_STEPS = [
     "avatar",           # 数字人生成
     "subtitle",         # 字幕生成
     "broll",            # B-roll 画中画/插播视频（可选）
-    "compose",          # 视频合成
-    "title",            # 标题生成
-    "cover",            # 封面生成
+    "title",            # 标题生成（compose 前需要，用于封面）
+    "cover",            # 封面生成（compose 前需要，用于封面首帧）
+    "compose",          # 视频合成（字幕+BGM+滤镜+水印+片头片尾+封面首帧）
     "publish",          # 发布
 ]
 

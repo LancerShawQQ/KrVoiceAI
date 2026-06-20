@@ -72,8 +72,10 @@ class KrVoiceAI:
                 self.logger.info("LLM 客户端已热重建")
             # 重建各模块（它们在 __init__ 读取配置，且 ScriptWriter/Title 持有 LLM 引用）
             # 任何配置变更都重建模块，确保引用一致
+            # 注意：audio/effects/scene 段影响 video_composer 的 BGM/滤镜/水印/片头片尾，必须包含
             if any(k in change for k in ("llm", "tts", "avatar", "asr", "composer",
-                                          "cover", "publisher", "pipeline")) or "_reset_all" in change:
+                                          "cover", "publisher", "pipeline",
+                                          "audio", "effects", "scene", "subtitle")) or "_reset_all" in change:
                 self._register_all_modules()
                 self.logger.info("模块已按新配置热重建")
         except Exception as e:

@@ -310,11 +310,11 @@ class VideoComposer(BaseModule):
         self.logger.info(f"插入封面首帧: {cover.name}")
 
         # 将封面图转为 1.5 秒的视频片段
-        cover_clip = work_dir / "cover_intro.mp4"
+        cover_clip = work_dir / "_tmp_cover_intro.mp4"
         w, h = self.output_resolution
 
         # 调整封面尺寸
-        resized_cover = work_dir / "cover_resized.jpg"
+        resized_cover = work_dir / "_tmp_cover_resized.jpg"
         img = Image.open(str(cover)).convert("RGB")
         img = img.resize((w, h), Image.LANCZOS)
         img.save(str(resized_cover), "JPEG", quality=95)
@@ -339,7 +339,7 @@ class VideoComposer(BaseModule):
 
         # 拼接封面 + 原视频
         # 先确保原视频参数一致（重新编码为统一参数）
-        normalized_video = work_dir / "main_normalized.mp4"
+        normalized_video = work_dir / "_tmp_main_normalized.mp4"
         args = [
             "-i", str(video),
             "-vf", f"scale={w}:{h}:force_original_aspect_ratio=decrease,"
@@ -355,7 +355,7 @@ class VideoComposer(BaseModule):
         self.ffmpeg.run(args)
 
         # concat（用 filter 重新编码，避免参数不一致导致 copy 失败）
-        combined = work_dir / "with_cover.mp4"
+        combined = work_dir / "_tmp_with_cover.mp4"
         args = [
             "-i", str(cover_clip),
             "-i", str(normalized_video),
@@ -403,7 +403,7 @@ class VideoComposer(BaseModule):
         """拼接片头+主视频+片尾"""
         w, h = self.output_resolution
         # 先统一主视频参数
-        normalized = work_dir / "main_for_concat.mp4"
+        normalized = work_dir / "_tmp_main_for_concat.mp4"
         args = [
             "-i", str(main_video),
             "-vf", f"scale={w}:{h}:force_original_aspect_ratio=decrease,"
@@ -425,8 +425,7 @@ class VideoComposer(BaseModule):
         if len(segments) == 1:
             return normalized
 
-        combined = work_dir / "with_intro_outro.mp4"
-        args = ["-i"] + [str(s) for s in segments for _ in (0, 1)][::2]
+        combined = work_dir / "_tmp_with_intro_outro.mp4"
         # 构建输入
         inputs = []
         for s in segments:
@@ -453,7 +452,7 @@ class VideoComposer(BaseModule):
         if not text:
             return None
         w, h = self.output_resolution
-        clip_path = work_dir / f"{prefix}.mp4"
+        clip_path = work_dir / f"_tmp_{prefix}.mp4"
         # 转义文字
         safe_text = text.replace(":", r"\:").replace("'", r"\'")
         # 尝试加载中文字体
