@@ -106,24 +106,110 @@ class ScriptExtractor(BaseModule):
             return ModuleResult(success=False, error=str(e))
 
     def extract(self, video_url: str, lang: str = "zh") -> str:
-        """直接调用接口：从视频 URL 提取文案"""
+        """直接调用接口：从视频/文章 URL 提取文案
+
+        支持两类输入：
+        1. 视频链接（抖音/快手/B站/YouTube）：yt-dlp 下载音频 + ASR 转写
+        2. 文章链接（腾讯新闻/微信公众号/新浪新闻等）：requests 抓取网页正文
+        """
         # 从分享文本中提取真实 URL（用户可能粘贴整段抖音分享文案）
         video_url = self._extract_url_from_text(video_url)
         if not video_url:
             raise ValueError("无法从输入中识别有效的视频链接，请粘贴包含抖音/快手/B站/YouTube 链接的内容")
 
-        use_real = self._ytdlp_available and self.asr_provider in ("funasr", "mimo")
-        if use_real:
-            import tempfile
-            with tempfile.TemporaryDirectory() as tmp:
-                try:
-                    text = self._extract_real(video_url, Path(tmp))
-                except Exception as e:
-                    self.logger.warning(f"真实提取失败，降级到 mock 模式: {e}")
-                    text = self._extract_mock(video_url)
+        # 判断是视频链接还是文章链接
+        is_video = self._is_video_url(video_url)
+
+        if is_video:
+            # 视频链接：yt-dlp + ASR
+            use_real = self._ytdlp_available and self.asr_provider in ("funasr", "mimo")
+            if use_real:
+                import tempfile
+                with tempfile.TemporaryDirectory() as tmp:
+                    try:
+                        text = self._extract_real(video_url, Path(tmp))
+                    except Exception as e:
+                        self.logger.warning(f"视频提取失败，尝试文章提取: {e}")
+                        # 视频提取失败，尝试作为文章提取
+                        try:
+                            text = self._extract_article(video_url)
+                        except Exception as e2:
+                            self.logger.warning(f"文章提取也失败，降级到 mock: {e2}")
+                            text = self._extract_mock(video_url)
+            else:
+                text = self._extract_mock(video_url)
         else:
-            text = self._extract_mock(video_url)
+            # 文章链接：直接抓取网页正文
+            try:
+                text = self._extract_article(video_url)
+            except Exception as e:
+                self.logger.warning(f"文章提取失败，降级到 mock: {e}")
+                text = self._extract_mock(video_url)
         return self._clean_text(text)
+
+    @staticmethod
+    def _is_video_url(url: str) -> bool:
+        """判断 URL 是否为视频链接"""
+        video_domains = (
+            "douyin.com", "iesdouyin.com", "kuaishou.com",
+            "bilibili.com", "b23.tv", "youtube.com", "youtu.be",
+            "weibo.com", "xiaohongshu.com",
+        )
+        return any(d in url for d in video_domains)
+
+    def _extract_article(self, url: str) -> str:
+        """从新闻/文章页面提取正文文本
+
+        支持：腾讯新闻、微信公众号、新浪新闻、网易新闻、知乎专栏等
+        """
+        self.logger.info(f"提取文章正文: {url}")
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+        }
+        r = httpx.get(url, headers=headers, timeout=30, follow_redirects=True)
+        r.raise_for_status()
+        html = r.text
+
+        # 提取标题
+        title = ""
+        title_match = re.search(r"<title[^>]*>([^<]+)</title>", html)
+        if title_match:
+            title = title_match.group(1).strip()
+            # 清理常见后缀
+            title = re.sub(r"\s*[-_|]\s*腾讯新闻.*$", "", title)
+            title = re.sub(r"\s*[-_|]\s*新浪.*$", "", title)
+            title = re.sub(r"\s*[-_|]\s*网易.*$", "", title)
+
+        # 提取正文段落：<p> 标签中长度 > 30 的文本
+        # 先移除 script/style 标签内容
+        clean_html = re.sub(r"<script[^>]*>.*?</script>", "", html, flags=re.DOTALL | re.IGNORECASE)
+        clean_html = re.sub(r"<style[^>]*>.*?</style>", "", clean_html, flags=re.DOTALL | re.IGNORECASE)
+        # 提取所有 <p> 标签内容
+        paragraphs = re.findall(r"<p[^>]*>(.*?)</p>", clean_html, flags=re.DOTALL | re.IGNORECASE)
+        # 清理 HTML 标签，保留纯文本
+        body_parts = []
+        for p in paragraphs:
+            # 移除内部 HTML 标签
+            text = re.sub(r"<[^>]+>", "", p).strip()
+            # 过滤短文本（导航、广告等）
+            if len(text) >= 30:
+                body_parts.append(text)
+
+        # 如果 <p> 标签提取失败，尝试 meta description
+        if not body_parts:
+            desc_match = re.search(r'<meta\s+name="description"\s+content="([^"]+)"', html, re.IGNORECASE)
+            if desc_match:
+                body_parts.append(desc_match.group(1).strip())
+
+        if not body_parts:
+            raise RuntimeError("无法从页面提取正文内容")
+
+        # 组合标题 + 正文
+        result = title + "\n" + "\n".join(body_parts) if title else "\n".join(body_parts)
+        self.logger.info(f"文章提取完成: {len(result)} 字, {len(body_parts)} 段")
+        return result
 
     @staticmethod
     def _extract_url_from_text(text: str) -> str:

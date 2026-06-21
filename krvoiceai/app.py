@@ -412,7 +412,7 @@ class KrVoiceAI:
         Returns:
             {"success": bool, "script": str, "action": str, "error": str}
         """
-        # 文案提取：从参考视频链接提取文案
+        # 文案提取：从参考视频/文章链接提取文案
         if action == "extract":
             if not reference_url:
                 return {"success": False, "error": "请输入参考视频链接"}
@@ -421,12 +421,17 @@ class KrVoiceAI:
                 if not extractor:
                     return {"success": False, "error": "文案提取模块未初始化"}
                 text = extractor.extract(reference_url)
+                # 判断是否为 mock：文章提取是真实的，视频提取在 mock 模式下才返回模板文案
+                clean_url = extractor._extract_url_from_text(reference_url)
+                is_video = extractor._is_video_url(clean_url) if clean_url else False
+                is_mock = is_video and (extractor.asr_provider == "mock" or not extractor._ytdlp_available)
                 return {
                     "success": True,
                     "script": text,
                     "action": "extract",
                     "char_count": len(text),
-                    "mock": extractor.asr_provider == "mock" or not extractor._ytdlp_available,
+                    "mock": is_mock,
+                    "source_type": "video" if is_video else "article",
                 }
             except Exception as e:
                 return {"success": False, "error": str(e), "action": "extract"}
