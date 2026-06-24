@@ -292,6 +292,39 @@ class KrVoiceAI:
             "final_video": str(ctx.final_video) if ctx.final_video else None,
         }
 
+    def preview_tts(self, text: str, voice_id: str = "default") -> dict:
+        """试听/预览合成（provider 无关，不经过流水线，供 UI 试听按钮调用）
+
+        Args:
+            text: 要试听的文案片段
+            voice_id: 音色 ID（default 或已注册音色）
+
+        Returns:
+            {"success": bool, "audio_path": str|None, "duration": float, "error": str|None}
+            音频落到 output/voice_preview_{ts}.wav，可直接交给 gradio.Audio 播放。
+        """
+        import time as _time
+        if not text or not text.strip():
+            return {"success": False, "audio_path": None, "duration": 0.0,
+                    "error": "无文案可试听"}
+        try:
+            engine = self.modules.get("tts")
+            if engine is None:
+                return {"success": False, "audio_path": None, "duration": 0.0,
+                        "error": "TTS 引擎未初始化"}
+            persist = Path("output") / f"voice_preview_{int(_time.time())}.wav"
+            persist.parent.mkdir(parents=True, exist_ok=True)
+            audio_path, duration, _ = engine.synthesize(text, voice_id, persist)
+            # synthesize 可能输出到 persist，也可能输出到别处（如 moss 的 16k 转换）
+            final = str(audio_path) if audio_path.exists() else str(persist)
+            if Path(final) != persist and persist.exists():
+                persist.unlink(missing_ok=True)
+            return {"success": True, "audio_path": final,
+                    "duration": round(float(duration), 2), "error": None}
+        except Exception as e:
+            return {"success": False, "audio_path": None, "duration": 0.0,
+                    "error": str(e)}
+
     def get_job(self, job_id: str) -> Optional[dict]:
         return self.orchestrator.get_status(job_id)
 

@@ -114,6 +114,35 @@ class TTSEngine(BaseModule):
         except Exception as e:
             return ModuleResult(success=False, error=str(e))
 
+    def synthesize(
+        self, text: str, voice_id: str, output_path: Path
+    ) -> tuple[Path, float, list[dict]]:
+        """公共合成方法（provider 无关，供 UI 试听/预览使用，无需构造 JobContext）
+
+        与 run() 的分发逻辑一致，但直接返回 (音频路径, 时长, 时间戳)，
+        不依赖 ctx，也不走 run_single_module 的笨重前置步骤。
+
+        Args:
+            text: 要合成的文案
+            voice_id: 音色 ID（default 或已注册音色）
+            output_path: 输出 wav 路径
+
+        Returns:
+            (audio_path: Path, duration: float, timestamps: list[dict])
+        """
+        if not text or not text.strip():
+            raise ValueError("无文案可合成")
+        if self.provider == "moss_nano":
+            return self._synth_moss_nano(text, voice_id, output_path)
+        elif self.provider == "mimo":
+            return self._synth_mimo(text, voice_id, output_path)
+        elif self.provider == "gpt_sovits":
+            return self._synth_gpt_sovits(text, voice_id, output_path)
+        elif self.provider == "edge_tts":
+            return self._synth_edge(text, voice_id, output_path)
+        else:
+            return self._synth_mock(text, voice_id, output_path)
+
     def _get_moss_runtime(self):
         """懒加载 MOSS-TTS-Nano ONNX 运行时（仅依赖 onnxruntime + soundfile + sentencepiece）"""
         if self._moss_runtime is not None:
