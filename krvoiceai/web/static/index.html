@@ -83,8 +83,8 @@
       <button class="menu-toggle" id="menu-toggle" aria-label="打开菜单">
         <span></span><span></span><span></span>
       </button>
-      <div class="mobile-logo">🎬 Kr<span>VoiceAI</span></div>
-      <button class="mobile-quick-create" id="mobile-quick-create" aria-label="快速创建">➕</button>
+      <div class="mobile-logo"><i data-lucide="film"></i> Kr<span>VoiceAI</span></div>
+      <button class="mobile-quick-create" id="mobile-quick-create" aria-label="快速创建"><i data-lucide="plus"></i></button>
     </header>
 
     <!-- ========== 侧边栏遮罩（移动端抽屉） ========== -->
@@ -94,7 +94,7 @@
     <aside class="sidebar">
       <div class="sidebar-header">
         <div class="logo">
-          <div class="logo-icon">🎬</div>
+          <div class="logo-icon"><i data-lucide="film"></i></div>
           <div class="logo-text">Kr<span>VoiceAI</span></div>
         </div>
       </div>
@@ -188,14 +188,14 @@
             <h1 class="hero-title">开始创作你的数字人口播视频</h1>
             <p class="hero-subtitle">AI 驱动 · 全流程自动化 · 商业级品质</p>
             <div class="hero-actions">
-              <button class="btn btn-primary btn-lg" id="dash-new-video-btn">🚀 新建口播视频</button>
-              <button class="btn btn-secondary btn-lg" id="dash-from-template-btn">📋 从模板开始</button>
+              <button class="btn btn-primary btn-lg" id="dash-new-video-btn"><i data-lucide="rocket"></i> 新建口播视频</button>
+              <button class="btn btn-secondary btn-lg" id="dash-from-template-btn"><i data-lucide="clipboard-list"></i> 从模板开始</button>
             </div>
           </div>
           <div class="hero-decoration">
             <div class="hero-orb"></div>
             <div class="hero-orb hero-orb-2"></div>
-            <div class="hero-icon-big">🎬</div>
+            <div class="hero-icon-big"><i data-lucide="film"></i></div>
           </div>
         </div>
 
@@ -205,22 +205,22 @@
         </div>
         <div class="scene-card-grid">
           <div class="scene-card" data-scene="self_media">
-            <div class="scene-card-icon">📢</div>
+            <div class="scene-card-icon"><i data-lucide="megaphone"></i></div>
             <div class="scene-card-title">自媒体口播</div>
             <div class="scene-card-desc">短视频口播、知识分享、Vlog</div>
           </div>
           <div class="scene-card" data-scene="marketing">
-            <div class="scene-card-icon">🛒</div>
+            <div class="scene-card-icon"><i data-lucide="shopping-cart"></i></div>
             <div class="scene-card-title">营销推广</div>
             <div class="scene-card-desc">产品介绍、直播带货、广告投放</div>
           </div>
           <div class="scene-card" data-scene="knowledge">
-            <div class="scene-card-icon">📚</div>
+            <div class="scene-card-icon"><i data-lucide="book-open"></i></div>
             <div class="scene-card-title">知识科普</div>
             <div class="scene-card-desc">教程讲解、课程录制、科普视频</div>
           </div>
           <div class="scene-card" data-scene="enterprise">
-            <div class="scene-card-icon">🏢</div>
+            <div class="scene-card-icon"><i data-lucide="building-2"></i></div>
             <div class="scene-card-title">政企宣传</div>
             <div class="scene-card-desc">企业宣传、新闻播报、培训视频</div>
           </div>
@@ -233,7 +233,7 @@
         </div>
         <div class="recent-scroll" id="dash-recent-list">
           <div class="empty-state">
-            <div class="empty-state-icon">🎬</div>
+            <div class="empty-state-icon"><i data-lucide="film"></i></div>
             <div>还没有创作记录，点击上方按钮开始吧</div>
           </div>
         </div>
@@ -310,12 +310,12 @@
         <div class="wizard-panel active" id="wizard-panel-1">
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon">📰</span> 选择创作模板</div>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="newspaper"></i></span> 选择创作模板</div>
               <span class="hint">点击卡片选中，可一键应用全套样式</span>
             </div>
             <div class="template-grid" id="wizard-template-grid"></div>
             <div class="form-row" style="margin-top:20px">
-              <button class="btn btn-primary btn-lg" id="wizard-apply-template-btn">✓ 应用此模板</button>
+              <button class="btn btn-primary btn-lg" id="wizard-apply-template-btn"><i data-lucide="check"></i> 应用此模板</button>
               <button class="btn btn-secondary btn-lg" id="wizard-skip-template-btn">跳过，自定义</button>
             </div>
           </div>
@@ -325,7 +325,7 @@
         <div class="wizard-panel" id="wizard-panel-2">
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon">👤</span> 数字人形象</div>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="user-round"></i></span> 数字人形象</div>
               <span class="hint">点击卡片选中，再次点击取消</span>
             </div>
             <div class="avatar-card-grid" id="wiz-avatar-grid"></div>
@@ -334,7 +334,7 @@
 
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon">⚙️</span> 高级设置</div>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="settings"></i></span> 高级设置</div>
               <button class="btn btn-sm btn-secondary" type="button" onclick="toggleCollapse('wiz-avatar-advanced', this)">展开</button>
             </div>
             <div class="collapse-body" id="wiz-avatar-advanced" style="display:none">
@@ -394,13 +394,13 @@
         <div class="wizard-panel" id="wizard-panel-3">
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon">📝</span> 文案输入</div>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="pen-line"></i></span> 文案输入</div>
               <span class="hint" id="wiz-script-count">0 字</span>
             </div>
             <div class="sub-tabs">
-              <button class="sub-tab active" data-wiztab="manual" type="button">✍️ 手动输入</button>
-              <button class="sub-tab" data-wiztab="ai" type="button">🤖 AI 生成</button>
-              <button class="sub-tab" data-wiztab="extract" type="button">🔗 对标提取</button>
+              <button class="sub-tab active" data-wiztab="manual" type="button"><i data-lucide="pen-line"></i> 手动输入</button>
+              <button class="sub-tab" data-wiztab="ai" type="button"><i data-lucide="brain-circuit"></i> AI 生成</button>
+              <button class="sub-tab" data-wiztab="extract" type="button"><i data-lucide="link"></i> 对标提取</button>
             </div>
             <div class="sub-page active" id="wiz-script-manual">
               <div class="script-toolbar">
@@ -446,7 +446,7 @@
                   <option value="煽情">煽情走心</option>
                 </select>
               </div>
-              <button class="btn btn-primary" id="wiz-ai-generate-btn" type="button">💡 生成文案</button>
+              <button class="btn btn-primary" id="wiz-ai-generate-btn" type="button"><i data-lucide="lightbulb"></i> 生成文案</button>
             </div>
             <div class="sub-page" id="wiz-script-extract">
               <div class="form-group">
@@ -455,15 +455,15 @@
               </div>
               <div class="extract-preview" id="wiz-extract-preview" style="display:none">
                 <div class="preview-row">
-                  <span class="preview-label">🔗 识别链接</span>
+                  <span class="preview-label"><i data-lucide="link"></i> 识别链接</span>
                   <code class="preview-value" id="wiz-preview-url">—</code>
                 </div>
                 <div class="preview-row">
-                  <span class="preview-label">📝 识别描述</span>
+                  <span class="preview-label"><i data-lucide="pen-line"></i> 识别描述</span>
                   <span class="preview-value" id="wiz-preview-desc">—</span>
                 </div>
               </div>
-              <button class="btn btn-primary" id="wiz-extract-btn" type="button">🔗 提取文案</button>
+              <button class="btn btn-primary" id="wiz-extract-btn" type="button"><i data-lucide="link"></i> 提取文案</button>
               <div class="extract-tip" id="wiz-extract-tip">
                 粘贴抖音/快手/B站分享文本，系统自动提取文案（含字幕转写，无需任何配置）
               </div>
@@ -472,14 +472,14 @@
 
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon">🤖</span> 文案 AI 处理</div>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="brain-circuit"></i></span> 文案 AI 处理</div>
             </div>
             <div class="action-grid">
-              <button class="action-btn" data-wizaction="polish" type="button">✨ 润色</button>
-              <button class="action-btn" data-wizaction="rewrite" type="button">🔄 仿写</button>
-              <button class="action-btn" data-wizaction="expand" type="button">📈 扩写</button>
-              <button class="action-btn" data-wizaction="shorten" type="button">📉 缩写</button>
-              <button class="action-btn" data-wizaction="style" type="button">🎨 风格转换</button>
+              <button class="action-btn" data-wizaction="polish" type="button"><i data-lucide="sparkles"></i> 润色</button>
+              <button class="action-btn" data-wizaction="rewrite" type="button"><i data-lucide="refresh-cw"></i> 仿写</button>
+              <button class="action-btn" data-wizaction="expand" type="button"><i data-lucide="trending-up"></i> 扩写</button>
+              <button class="action-btn" data-wizaction="shorten" type="button"><i data-lucide="trending-down"></i> 缩写</button>
+              <button class="action-btn" data-wizaction="style" type="button"><i data-lucide="palette"></i> 风格转换</button>
             </div>
             <div class="form-group" id="wiz-style-group" style="display:none;margin-top:16px">
               <label class="form-label">目标风格</label>
@@ -493,7 +493,7 @@
               </select>
             </div>
             <div class="form-group" style="margin-top:16px">
-              <button class="btn btn-primary btn-block" id="wiz-script-process-btn" type="button">▶️ 执行 AI 处理</button>
+              <button class="btn btn-primary btn-block" id="wiz-script-process-btn" type="button"><i data-lucide="play"></i> 执行 AI 处理</button>
             </div>
           </div>
         </div>
@@ -502,15 +502,15 @@
         <div class="wizard-panel" id="wizard-panel-4">
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon">🎙️</span> 音色选择</div>
-              <span class="hint">点击卡片选中，▶️ 试听音色</span>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="mic"></i></span> 音色选择</div>
+              <span class="hint">点击卡片选中，<i data-lucide="play"></i> 试听音色</span>
             </div>
             <div class="voice-card-grid" id="wiz-voice-grid"></div>
             <input type="hidden" id="wiz-voice" value="default">
           </div>
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon">⚙️</span> 语音高级设置</div>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="settings"></i></span> 语音高级设置</div>
             </div>
             <div class="form-row">
               <div class="form-group">
@@ -555,7 +555,7 @@
         <div class="wizard-panel" id="wizard-panel-5">
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon">💬</span> 字幕样式</div>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="message-square"></i></span> 字幕样式</div>
             </div>
             <div class="form-group">
               <label class="form-label">字幕样式预设</label>
@@ -601,7 +601,7 @@
 
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon">🎵</span> 背景音乐 (BGM)</div>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="music"></i></span> 背景音乐 (BGM)</div>
               <label class="toggle-switch"><input type="checkbox" id="wiz-bgm-enabled"><span class="toggle-slider"></span></label>
             </div>
             <div id="wiz-bgm-group">
@@ -630,7 +630,7 @@
 
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon">🎬</span> 视频效果</div>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="film"></i></span> 视频效果</div>
             </div>
             <div class="form-row">
               <div class="form-group">
@@ -650,7 +650,7 @@
 
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon">💧</span> 水印</div>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="droplet"></i></span> 水印</div>
               <label class="toggle-switch"><input type="checkbox" id="wiz-watermark-enabled"><span class="toggle-slider"></span></label>
             </div>
             <div id="wiz-watermark-group">
@@ -678,7 +678,7 @@
 
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon">🎞️</span> 片头片尾</div>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="film"></i></span> 片头片尾</div>
             </div>
             <div class="form-row">
               <div class="form-group">
@@ -705,13 +705,13 @@
         <div class="wizard-panel" id="wizard-panel-6">
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon">📋</span> 配置汇总</div>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="clipboard-list"></i></span> 配置汇总</div>
             </div>
             <div id="wiz-summary" class="summary-grid"></div>
           </div>
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon">📤</span> 发布设置</div>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="share-2"></i></span> 发布设置</div>
             </div>
             <div class="form-row">
               <div class="form-group">
@@ -730,23 +730,23 @@
                 </label>
               </div>
             </div>
-            <button class="btn btn-primary btn-lg btn-block" id="wiz-generate-btn" style="margin-top:8px">🚀 开始生成视频</button>
+            <button class="btn btn-primary btn-lg btn-block" id="wiz-generate-btn" style="margin-top:8px"><i data-lucide="rocket"></i> 开始生成视频</button>
           </div>
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon">📊</span> 流水线进度</div>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="bar-chart-3"></i></span> 流水线进度</div>
             </div>
             <div class="pipeline" id="wiz-pipeline"></div>
           </div>
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon">🎬</span> 生成结果</div>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="film"></i></span> 生成结果</div>
             </div>
             <div class="result-grid">
               <div>
                 <div class="result-video" id="wiz-result-video">
                   <div class="result-video-placeholder">
-                    <div style="font-size:48px;margin-bottom:12px">🎬</div>
+                    <div style="font-size:48px;margin-bottom:12px"><i data-lucide="film"></i></div>
                     <div>视频将在此处展示</div>
                   </div>
                 </div>
@@ -785,7 +785,7 @@
           <div>
             <div class="card">
               <div class="card-header">
-                <div class="card-title"><span class="card-title-icon">📝</span> 文案输入</div>
+                <div class="card-title"><span class="card-title-icon"><i data-lucide="pen-line"></i></span> 文案输入</div>
               </div>
               <div class="form-group">
                 <label class="form-label">口播文案 <span class="hint">150-500 字，系统自动润色</span></label>
@@ -799,7 +799,7 @@
 
             <div class="card">
               <div class="card-header">
-                <div class="card-title"><span class="card-title-icon">⚙️</span> 生成设置</div>
+                <div class="card-title"><span class="card-title-icon"><i data-lucide="settings"></i></span> 生成设置</div>
               </div>
               <div class="form-row">
                 <div class="form-group">
@@ -836,7 +836,7 @@
                   <span>自动发布到目标平台</span>
                 </label>
               </div>
-              <button class="btn btn-primary btn-lg btn-block" id="gen-btn">🚀 开始生成视频</button>
+              <button class="btn btn-primary btn-lg btn-block" id="gen-btn"><i data-lucide="rocket"></i> 开始生成视频</button>
             </div>
           </div>
 
@@ -844,7 +844,7 @@
           <div>
             <div class="card">
               <div class="card-header">
-                <div class="card-title"><span class="card-title-icon">📊</span> 流水线进度</div>
+                <div class="card-title"><span class="card-title-icon"><i data-lucide="bar-chart-3"></i></span> 流水线进度</div>
               </div>
               <div class="pipeline" id="pipeline"></div>
             </div>
@@ -854,13 +854,13 @@
         <!-- 结果展示 -->
         <div class="card" style="margin-top:20px">
           <div class="card-header">
-            <div class="card-title"><span class="card-title-icon">🎬</span> 生成结果</div>
+            <div class="card-title"><span class="card-title-icon"><i data-lucide="film"></i></span> 生成结果</div>
           </div>
           <div class="result-grid">
             <div>
               <div class="result-video" id="result-video">
                 <div class="result-video-placeholder">
-                  <div style="font-size:48px;margin-bottom:12px">🎬</div>
+                  <div style="font-size:48px;margin-bottom:12px"><i data-lucide="film"></i></div>
                   <div>视频将在此处展示</div>
                 </div>
               </div>
@@ -899,7 +899,7 @@
           <div>
             <div class="card">
               <div class="card-header">
-                <div class="card-title"><span class="card-title-icon">📝</span> 原始文案</div>
+                <div class="card-title"><span class="card-title-icon"><i data-lucide="pen-line"></i></span> 原始文案</div>
               </div>
               <div class="form-group">
                 <label class="form-label">输入文案 <span class="hint" id="script-char-count">0 字</span></label>
@@ -925,18 +925,18 @@
 
             <div class="card">
               <div class="card-header">
-                <div class="card-title"><span class="card-title-icon">🤖</span> AI 处理</div>
+                <div class="card-title"><span class="card-title-icon"><i data-lucide="brain-circuit"></i></span> AI 处理</div>
               </div>
               <div class="action-grid">
-                <button class="action-btn" data-action="polish">✨ 润色</button>
-                <button class="action-btn" data-action="rewrite">🔄 仿写</button>
-                <button class="action-btn" data-action="expand">📈 扩写</button>
-                <button class="action-btn" data-action="shorten">📉 缩写</button>
-                <button class="action-btn" data-action="style">🎨 风格转换</button>
-                <button class="action-btn" data-action="generate">💡 主题生成</button>
+                <button class="action-btn" data-action="polish"><i data-lucide="sparkles"></i> 润色</button>
+                <button class="action-btn" data-action="rewrite"><i data-lucide="refresh-cw"></i> 仿写</button>
+                <button class="action-btn" data-action="expand"><i data-lucide="trending-up"></i> 扩写</button>
+                <button class="action-btn" data-action="shorten"><i data-lucide="trending-down"></i> 缩写</button>
+                <button class="action-btn" data-action="style"><i data-lucide="palette"></i> 风格转换</button>
+                <button class="action-btn" data-action="generate"><i data-lucide="lightbulb"></i> 主题生成</button>
               </div>
               <div class="form-group" style="margin-top:16px">
-                <button class="btn btn-primary btn-block" id="script-process-btn">▶️ 执行 AI 处理</button>
+                <button class="btn btn-primary btn-block" id="script-process-btn"><i data-lucide="play"></i> 执行 AI 处理</button>
               </div>
             </div>
           </div>
@@ -945,22 +945,22 @@
           <div>
             <div class="card">
               <div class="card-header">
-                <div class="card-title"><span class="card-title-icon">📄</span> 处理结果</div>
-                <button class="btn btn-sm btn-secondary" id="script-copy-btn">📋 复制</button>
+                <div class="card-title"><span class="card-title-icon"><i data-lucide="file-text"></i></span> 处理结果</div>
+                <button class="btn btn-sm btn-secondary" id="script-copy-btn"><i data-lucide="clipboard-list"></i> 复制</button>
               </div>
               <div class="form-group">
                 <label class="form-label">输出文案 <span class="hint" id="script-output-count">0 字</span></label>
                 <textarea class="form-textarea" id="script-output" style="min-height:280px" placeholder="AI 处理后的文案将显示在此处..."></textarea>
               </div>
               <div class="form-row">
-                <button class="btn btn-secondary btn-block" id="script-to-generate-btn">🚀 用此文案生成视频</button>
-                <button class="btn btn-secondary btn-block" id="script-clear-btn">🗑️ 清空</button>
+                <button class="btn btn-secondary btn-block" id="script-to-generate-btn"><i data-lucide="rocket"></i> 用此文案生成视频</button>
+                <button class="btn btn-secondary btn-block" id="script-clear-btn"><i data-lucide="trash-2"></i> 清空</button>
               </div>
             </div>
 
             <div class="card">
               <div class="card-header">
-                <div class="card-title"><span class="card-title-icon">💡</span> 使用提示</div>
+                <div class="card-title"><span class="card-title-icon"><i data-lucide="lightbulb"></i></span> 使用提示</div>
               </div>
               <div style="color:var(--text-secondary);font-size:13px;line-height:1.8">
                 <p><strong>润色</strong>：优化表达，保留原意</p>
@@ -970,7 +970,7 @@
                 <p><strong>风格转换</strong>：调整语气风格</p>
                 <p><strong>主题生成</strong>：根据主题创作</p>
                 <p style="margin-top:12px;padding:10px;background:rgba(99,102,241,0.1);border-radius:8px;color:var(--accent-primary)">
-                  💡 需先在「设置 → 模型配置」配置 LLM API Key，否则使用 Mock 模板
+                  <i data-lucide="lightbulb"></i> 需先在「设置 → 模型配置」配置 LLM API Key，否则使用 Mock 模板
                 </p>
               </div>
             </div>
@@ -989,7 +989,7 @@
           <div>
             <div class="card">
               <div class="card-header">
-                <div class="card-title"><span class="card-title-icon">📝</span> 基础设置</div>
+                <div class="card-title"><span class="card-title-icon"><i data-lucide="pen-line"></i></span> 基础设置</div>
               </div>
               <div class="form-group">
                 <label class="form-label">口播文案</label>
@@ -1032,42 +1032,42 @@
 
             <div class="card">
               <div class="card-header">
-                <div class="card-title"><span class="card-title-icon">🔧</span> 选择模块执行</div>
+                <div class="card-title"><span class="card-title-icon"><i data-lucide="wrench"></i></span> 选择模块执行</div>
               </div>
               <div class="form-group">
                 <label class="form-label">执行模块</label>
                 <select class="form-select" id="step-module">
-                  <option value="script_extract">📝 文案提取</option>
-                  <option value="script_write" selected>✍️ 文案仿写</option>
-                  <option value="tts">🎙️ 语音合成</option>
-                  <option value="avatar">👤 数字人生成</option>
-                  <option value="subtitle">💬 字幕生成</option>
-                  <option value="compose">🎬 视频合成</option>
-                  <option value="title">📌 标题生成</option>
-                  <option value="cover">🖼️ 封面生成</option>
-                  <option value="publish">📤 多平台发布</option>
+                  <option value="script_extract"><i data-lucide="pen-line"></i> 文案提取</option>
+                  <option value="script_write" selected><i data-lucide="pen-line"></i> 文案仿写</option>
+                  <option value="tts"><i data-lucide="mic"></i> 语音合成</option>
+                  <option value="avatar"><i data-lucide="user-round"></i> 数字人生成</option>
+                  <option value="subtitle"><i data-lucide="message-square"></i> 字幕生成</option>
+                  <option value="compose"><i data-lucide="film"></i> 视频合成</option>
+                  <option value="title"><i data-lucide="pin"></i> 标题生成</option>
+                  <option value="cover"><i data-lucide="image"></i> 封面生成</option>
+                  <option value="publish"><i data-lucide="share-2"></i> 多平台发布</option>
                 </select>
               </div>
-              <button class="btn btn-primary btn-lg btn-block" id="step-run-btn">▶️ 执行此模块</button>
+              <button class="btn btn-primary btn-lg btn-block" id="step-run-btn"><i data-lucide="play"></i> 执行此模块</button>
             </div>
           </div>
 
           <div>
             <div class="card">
               <div class="card-header">
-                <div class="card-title"><span class="card-title-icon">🎵</span> 音频产物</div>
+                <div class="card-title"><span class="card-title-icon"><i data-lucide="music"></i></span> 音频产物</div>
               </div>
               <div id="step-audio" style="color:var(--text-muted)">执行后展示</div>
             </div>
             <div class="card">
               <div class="card-header">
-                <div class="card-title"><span class="card-title-icon">🎬</span> 视频产物</div>
+                <div class="card-title"><span class="card-title-icon"><i data-lucide="film"></i></span> 视频产物</div>
               </div>
               <div id="step-video" style="color:var(--text-muted)">执行后展示</div>
             </div>
             <div class="card">
               <div class="card-header">
-                <div class="card-title"><span class="card-title-icon">📋</span> 执行结果</div>
+                <div class="card-title"><span class="card-title-icon"><i data-lucide="clipboard-list"></i></span> 执行结果</div>
               </div>
               <pre id="step-result" style="padding:16px;background:var(--bg-elevated);border-radius:8px;font-size:12px;overflow-x:auto;max-height:300px;color:var(--text-secondary)">等待执行...</pre>
             </div>
@@ -1086,7 +1086,7 @@
           <div>
             <div class="card">
               <div class="card-header">
-                <div class="card-title"><span class="card-title-icon">📝</span> 批量文案输入</div>
+                <div class="card-title"><span class="card-title-icon"><i data-lucide="pen-line"></i></span> 批量文案输入</div>
               </div>
               <div class="form-group">
                 <label class="form-label">文案列表 <span class="hint">每行一条文案，空行分隔</span></label>
@@ -1121,19 +1121,19 @@
                   </select>
                 </div>
               </div>
-              <button class="btn btn-primary btn-lg btn-block" id="batch-run-btn">📦 开始批量生成</button>
+              <button class="btn btn-primary btn-lg btn-block" id="batch-run-btn"><i data-lucide="package"></i> 开始批量生成</button>
             </div>
           </div>
 
           <div>
             <div class="card">
               <div class="card-header">
-                <div class="card-title"><span class="card-title-icon">📊</span> 批量进度</div>
+                <div class="card-title"><span class="card-title-icon"><i data-lucide="bar-chart-3"></i></span> 批量进度</div>
                 <span class="badge badge-info" id="batch-progress-badge">0 / 0</span>
               </div>
               <div id="batch-progress-list" style="max-height:500px;overflow-y:auto">
                 <div class="empty-state">
-                  <div class="empty-state-icon">📦</div>
+                  <div class="empty-state-icon"><i data-lucide="package"></i></div>
                   <div>提交后将显示每条文案的处理进度</div>
                 </div>
               </div>
@@ -1152,7 +1152,7 @@
         <!-- 工作原理说明 -->
         <div class="card" style="margin-bottom:20px;background:linear-gradient(135deg,#fff8e1,#fff3cd);border:1px solid #ffe082">
           <div style="display:flex;gap:16px;align-items:flex-start">
-            <div style="font-size:36px">🎞️</div>
+            <div style="font-size:36px"><i data-lucide="film"></i></div>
             <div style="flex:1">
               <div style="font-weight:600;color:#8b6914;margin-bottom:6px">画中画与插播视频</div>
               <div style="color:#6b5d2e;font-size:13px;line-height:1.6">
@@ -1170,7 +1170,7 @@
           <div>
             <div class="card" style="margin-bottom:16px">
               <div class="card-header">
-                <div class="card-title"><span class="card-title-icon">📋</span> 选择任务</div>
+                <div class="card-title"><span class="card-title-icon"><i data-lucide="clipboard-list"></i></span> 选择任务</div>
               </div>
               <div class="form-group">
                 <label class="form-label">选择已生成视频的任务</label>
@@ -1183,12 +1183,12 @@
 
             <div class="card">
               <div class="card-header">
-                <div class="card-title"><span class="card-title-icon">📁</span> B-roll 素材库</div>
+                <div class="card-title"><span class="card-title-icon"><i data-lucide="folder"></i></span> B-roll 素材库</div>
               </div>
               <div class="form-group">
                 <label class="form-label">上传新素材</label>
                 <div class="upload-zone" style="padding:12px" onclick="document.getElementById('tl-broll-upload').click()">
-                  <div class="upload-icon" style="font-size:24px">📎</div>
+                  <div class="upload-icon" style="font-size:24px"><i data-lucide="paperclip"></i></div>
                   <div class="upload-text" style="font-size:12px" id="tl-upload-text">点击上传视频/图片</div>
                   <input type="file" id="tl-broll-upload" accept="video/*,image/*" style="display:none" onchange="onBrollUpload(this)">
                 </div>
@@ -1200,7 +1200,7 @@
           <!-- 右侧：时间轴编辑器 -->
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon">🎬</span> 时间轴编辑器</div>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="film"></i></span> 时间轴编辑器</div>
               <div style="display:flex;gap:8px">
                 <button class="btn btn-sm btn-secondary" onclick="clearAllBrollClips()">清空</button>
                 <button class="btn btn-sm btn-primary" id="tl-apply-btn" onclick="applyBrollToVideo()">应用 B-roll 合成</button>
@@ -1208,7 +1208,7 @@
             </div>
 
             <div id="tl-editor-empty" class="empty-state">
-              <div class="empty-state-icon">🎞️</div>
+              <div class="empty-state-icon"><i data-lucide="film"></i></div>
               <div>请先选择一个任务</div>
               <div style="font-size:12px;color:#999;margin-top:6px">选择任务后将显示字幕时间轴</div>
             </div>
@@ -1223,13 +1223,13 @@
               <div class="tl-toolbar">
                 <div class="tl-toolbar-group">
                   <span class="tl-toolbar-label">快捷剪辑</span>
-                  <button class="btn btn-sm btn-secondary" onclick="openQuickEditModal('trim')">✂️ 裁剪</button>
-                  <button class="btn btn-sm btn-secondary" onclick="openQuickEditModal('volume')">🔊 音量</button>
-                  <button class="btn btn-sm btn-secondary" onclick="openQuickEditModal('fade')">🌗 淡入淡出</button>
+                  <button class="btn btn-sm btn-secondary" onclick="openQuickEditModal('trim')"><i data-lucide="scissors"></i> 裁剪</button>
+                  <button class="btn btn-sm btn-secondary" onclick="openQuickEditModal('volume')"><i data-lucide="volume-2"></i> 音量</button>
+                  <button class="btn btn-sm btn-secondary" onclick="openQuickEditModal('fade')"><i data-lucide="contrast"></i> 淡入淡出</button>
                 </div>
                 <div class="tl-toolbar-group">
                   <span class="tl-toolbar-label">B-roll</span>
-                  <button class="btn btn-sm btn-secondary" onclick="insertBrollAtPlayhead()">➕ 在播放头插入</button>
+                  <button class="btn btn-sm btn-secondary" onclick="insertBrollAtPlayhead()"><i data-lucide="plus"></i> 在播放头插入</button>
                 </div>
               </div>
 
@@ -1252,7 +1252,7 @@
 
               <!-- 操作提示 -->
               <div class="tl-tip-bar">
-                💡 点击字幕间的 <span class="tl-insert-plus">+</span> 可在两段字幕之间插入 B-roll 视频；点击 B-roll 轨道空白处可在任意位置插入；点击已添加的片段可编辑
+                <i data-lucide="lightbulb"></i> 点击字幕间的 <span class="tl-insert-plus">+</span> 可在两段字幕之间插入 B-roll 视频；点击 B-roll 轨道空白处可在任意位置插入；点击已添加的片段可编辑
               </div>
 
               <!-- 已添加的 B-roll 片段列表 -->
@@ -1277,11 +1277,11 @@
                 <div style="display:flex;gap:12px">
                   <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
                     <input type="radio" name="clip-mode" value="pip" checked onchange="onClipModeChange()">
-                    <span>🖼️ 画中画（小窗口叠加）</span>
+                    <span><i data-lucide="image"></i> 画中画（小窗口叠加）</span>
                   </label>
                   <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
                     <input type="radio" name="clip-mode" value="cut" onchange="onClipModeChange()">
-                    <span>✂️ 整段切换（替换画面）</span>
+                    <span><i data-lucide="scissors"></i> 整段切换（替换画面）</span>
                   </label>
                 </div>
               </div>
@@ -1352,7 +1352,7 @@
         <!-- Wav2Lip 工作原理说明 -->
         <div class="card" style="margin-bottom:20px;background:linear-gradient(135deg,#f0f7ff,#e8f4ff);border:1px solid #c8e0ff">
           <div style="display:flex;gap:16px;align-items:flex-start">
-            <div style="font-size:36px">👄</div>
+            <div style="font-size:36px"><i data-lucide="smile"></i></div>
             <div style="flex:1">
               <div style="font-weight:600;color:#1a4d8f;margin-bottom:6px">Wav2Lip 唇形同步工作原理</div>
               <div style="color:#4a6a8f;font-size:13px;line-height:1.6">
@@ -1368,7 +1368,7 @@
         <div class="two-col-grid">
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon">📥</span> 注册新形象</div>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="download"></i></span> 注册新形象</div>
             </div>
             <div class="form-group">
               <label class="form-label">形象 ID <span class="hint">英文字母+数字</span></label>
@@ -1377,19 +1377,19 @@
             <div class="form-group">
               <label class="form-label">参考素材（真人照片 或 嘴巴不动的视频）</label>
               <div class="upload-zone" id="avatar-upload-zone" onclick="document.getElementById('avatar-file').click()">
-                <div class="upload-icon">📷</div>
+                <div class="upload-icon"><i data-lucide="camera"></i></div>
                 <div class="upload-text" id="avatar-upload-text">点击或拖拽上传照片/视频</div>
                 <div class="upload-hint">支持 JPG/PNG 照片 或 MP4/MOV 视频，建议正面清晰、嘴巴不动</div>
                 <input type="file" id="avatar-file" accept=".jpg,.jpeg,.png,.webp,.mp4,.mov,.avi,.mkv" style="display:none" onchange="onAvatarFileSelected(this)">
               </div>
               <div id="avatar-preview" style="display:none;margin-top:12px;text-align:center"></div>
             </div>
-            <button class="btn btn-primary btn-block" id="avatar-reg-btn" onclick="handleRegisterAvatar()">📥 注册形象（Wav2Lip 唇形同步）</button>
+            <button class="btn btn-primary btn-block" id="avatar-reg-btn" onclick="handleRegisterAvatar()"><i data-lucide="download"></i> 注册形象（Wav2Lip 唇形同步）</button>
           </div>
 
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon">👥</span> 已注册形象</div>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="users"></i></span> 已注册形象</div>
             </div>
             <div class="asset-grid" id="avatars-grid"></div>
           </div>
@@ -1406,7 +1406,7 @@
         <div class="two-col-grid">
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon">📥</span> 注册新音色</div>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="download"></i></span> 注册新音色</div>
             </div>
             <div class="form-group">
               <label class="form-label">音色 ID <span class="hint">英文字母+数字</span></label>
@@ -1415,18 +1415,18 @@
             <div class="form-group">
               <label class="form-label">样本音频（5-10s 干净人声）</label>
               <div class="upload-zone" onclick="document.getElementById('voice-file').click()">
-                <div class="upload-icon">🎵</div>
+                <div class="upload-icon"><i data-lucide="music"></i></div>
                 <div class="upload-text">点击或拖拽上传音频</div>
                 <div class="upload-hint">支持 WAV / MP3 / M4A，无背景噪音</div>
                 <input type="file" id="voice-file" accept=".wav,.mp3,.m4a,.flac" style="display:none" onchange="this.parentElement.querySelector('.upload-text').textContent=this.files[0]?this.files[0].name:'点击或拖拽上传音频'">
               </div>
             </div>
-            <button class="btn btn-primary btn-block" id="voice-reg-btn">📥 注册音色</button>
+            <button class="btn btn-primary btn-block" id="voice-reg-btn"><i data-lucide="download"></i> 注册音色</button>
           </div>
 
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon">🎵</span> 已注册音色</div>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="music"></i></span> 已注册音色</div>
             </div>
             <div class="asset-grid" id="voices-grid"></div>
           </div>
@@ -1443,8 +1443,8 @@
         <!-- 场景化模板（核心：选模板→填内容→生成） -->
         <div class="card">
           <div class="card-header">
-            <div class="card-title"><span class="card-title-icon">🎬</span> 场景化创作模板</div>
-            <button class="btn btn-sm btn-secondary" id="refresh-scene-templates-btn">🔄 刷新</button>
+            <div class="card-title"><span class="card-title-icon"><i data-lucide="film"></i></span> 场景化创作模板</div>
+            <button class="btn btn-sm btn-secondary" id="refresh-scene-templates-btn"><i data-lucide="refresh-cw"></i> 刷新</button>
           </div>
           <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px">
             每个模板预置了该场景的口播文案骨架、字幕样式、BGM、滤镜、转场、情感、语速。选择场景后填入关键词即可生成完整文案，一键应用全部样式。
@@ -1471,8 +1471,8 @@
         <!-- 预制形象库 -->
         <div class="card">
           <div class="card-header">
-            <div class="card-title"><span class="card-title-icon">👤</span> 预制数字人形象库</div>
-            <button class="btn btn-sm btn-secondary" id="refresh-preset-avatars-btn">🔄 刷新</button>
+            <div class="card-title"><span class="card-title-icon"><i data-lucide="user-round"></i></span> 预制数字人形象库</div>
+            <button class="btn btn-sm btn-secondary" id="refresh-preset-avatars-btn"><i data-lucide="refresh-cw"></i> 刷新</button>
           </div>
           <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px">
             预制形象可直接选用，搭配推荐音色。点击"使用此形象"将设为默认形象（建议上传真人照片替换占位图以获最佳效果）。
@@ -1483,8 +1483,8 @@
         <!-- 预制音色库 -->
         <div class="card">
           <div class="card-header">
-            <div class="card-title"><span class="card-title-icon">🎙️</span> 预制音色库</div>
-            <button class="btn btn-sm btn-secondary" id="refresh-preset-voices-btn">🔄 刷新</button>
+            <div class="card-title"><span class="card-title-icon"><i data-lucide="mic"></i></span> 预制音色库</div>
+            <button class="btn btn-sm btn-secondary" id="refresh-preset-voices-btn"><i data-lucide="refresh-cw"></i> 刷新</button>
           </div>
           <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px">
             基于 Edge TTS 的免费音色，按场景推荐。点击"使用此音色"将设为默认音色。
@@ -1495,8 +1495,8 @@
         <!-- 原有创作模板（样式模板） -->
         <div class="card">
           <div class="card-header">
-            <div class="card-title"><span class="card-title-icon">🎨</span> 样式模板库（字幕/BGM/滤镜/转场）</div>
-            <button class="btn btn-sm btn-secondary" id="refresh-templates-btn">🔄 刷新</button>
+            <div class="card-title"><span class="card-title-icon"><i data-lucide="palette"></i></span> 样式模板库（字幕/BGM/滤镜/转场）</div>
+            <button class="btn btn-sm btn-secondary" id="refresh-templates-btn"><i data-lucide="refresh-cw"></i> 刷新</button>
           </div>
           <div class="template-grid" id="templates-grid"></div>
         </div>
@@ -1511,8 +1511,8 @@
 
         <div class="card">
           <div class="card-header">
-            <div class="card-title"><span class="card-title-icon">📋</span> 任务列表</div>
-            <button class="btn btn-sm btn-secondary" id="refresh-jobs-btn">🔄 刷新</button>
+            <div class="card-title"><span class="card-title-icon"><i data-lucide="clipboard-list"></i></span> 任务列表</div>
+            <button class="btn btn-sm btn-secondary" id="refresh-jobs-btn"><i data-lucide="refresh-cw"></i> 刷新</button>
           </div>
           <div class="table-wrap">
             <table class="data-table">
@@ -1532,7 +1532,7 @@
 
         <div class="card">
           <div class="card-header">
-            <div class="card-title"><span class="card-title-icon">🔍</span> 任务详情</div>
+            <div class="card-title"><span class="card-title-icon"><i data-lucide="search"></i></span> 任务详情</div>
           </div>
           <div id="job-detail" style="color:var(--text-muted)">选择上方任务查看详情</div>
         </div>
@@ -1547,17 +1547,17 @@
 
         <!-- 子标签 -->
         <div class="sub-tabs">
-          <button class="sub-tab active" data-subtab="llm">🧠 LLM 大语言模型</button>
-          <button class="sub-tab" data-subtab="tts">🎙️ TTS 语音合成</button>
-          <button class="sub-tab" data-subtab="asr">👂 ASR 语音识别</button>
-          <button class="sub-tab" data-subtab="avatar">👤 数字人模型</button>
+          <button class="sub-tab active" data-subtab="llm"><i data-lucide="brain"></i> LLM 大语言模型</button>
+          <button class="sub-tab" data-subtab="tts"><i data-lucide="mic"></i> TTS 语音合成</button>
+          <button class="sub-tab" data-subtab="asr"><i data-lucide="ear"></i> ASR 语音识别</button>
+          <button class="sub-tab" data-subtab="avatar"><i data-lucide="user-round"></i> 数字人模型</button>
         </div>
 
         <!-- LLM 配置 -->
         <div class="sub-page active" id="subpage-llm">
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon">🧠</span> LLM 大语言模型配置</div>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="brain"></i></span> LLM 大语言模型配置</div>
               <span class="badge badge-warning" id="llm-status-badge">检查中</span>
             </div>
             <div class="form-row">
@@ -1584,7 +1584,7 @@
               <label class="form-label">API Key <span class="hint" id="llm-key-hint">未配置</span></label>
               <div style="display:flex;gap:8px">
                 <input class="form-input" id="llm-api-key" type="password" placeholder="sk-...">
-                <button class="btn btn-secondary" id="llm-toggle-key" type="button">👁️</button>
+                <button class="btn btn-secondary" id="llm-toggle-key" type="button"><i data-lucide="eye"></i></button>
               </div>
               <div class="hint" id="llm-key-url" style="margin-top:6px"></div>
             </div>
@@ -1608,13 +1608,13 @@
                 <input type="number" class="form-input" id="llm-timeout" value="60" min="5" max="600">
               </div>
               <div class="form-group" style="display:flex;align-items:flex-end;gap:8px">
-                <button class="btn btn-secondary" id="llm-test-btn">🔌 测试连接</button>
+                <button class="btn btn-secondary" id="llm-test-btn"><i data-lucide="plug"></i> 测试连接</button>
               </div>
             </div>
             <div id="llm-test-result"></div>
             <div class="form-row" style="margin-top:16px">
-              <button class="btn btn-primary btn-lg" id="llm-save-btn">💾 保存配置</button>
-              <button class="btn btn-secondary" id="llm-reset-btn">↩️ 重置默认</button>
+              <button class="btn btn-primary btn-lg" id="llm-save-btn"><i data-lucide="save"></i> 保存配置</button>
+              <button class="btn btn-secondary" id="llm-reset-btn"><i data-lucide="corner-up-left"></i> 重置默认</button>
             </div>
           </div>
         </div>
@@ -1623,7 +1623,7 @@
         <div class="sub-page" id="subpage-tts">
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon">🎙️</span> TTS 语音合成配置</div>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="mic"></i></span> TTS 语音合成配置</div>
               <span class="badge badge-warning" id="tts-status-badge">检查中</span>
             </div>
             <div class="form-row">
@@ -1666,9 +1666,9 @@
               </div>
             </div>
             <div class="form-row" style="margin-top:16px">
-              <button class="btn btn-primary btn-lg" id="tts-save-btn">💾 保存配置</button>
-              <button class="btn btn-secondary" id="tts-test-btn">🔌 测试连接</button>
-              <button class="btn btn-secondary" id="tts-reset-btn">↩️ 重置默认</button>
+              <button class="btn btn-primary btn-lg" id="tts-save-btn"><i data-lucide="save"></i> 保存配置</button>
+              <button class="btn btn-secondary" id="tts-test-btn"><i data-lucide="plug"></i> 测试连接</button>
+              <button class="btn btn-secondary" id="tts-reset-btn"><i data-lucide="corner-up-left"></i> 重置默认</button>
             </div>
             <div id="tts-test-result"></div>
           </div>
@@ -1678,7 +1678,7 @@
         <div class="sub-page" id="subpage-asr">
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon">👂</span> ASR 语音识别配置</div>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="ear"></i></span> ASR 语音识别配置</div>
             </div>
             <div class="form-row">
               <div class="form-group">
@@ -1714,8 +1714,8 @@
               </div>
             </div>
             <div class="form-row" style="margin-top:16px">
-              <button class="btn btn-primary btn-lg" id="asr-save-btn">💾 保存配置</button>
-              <button class="btn btn-secondary" id="asr-reset-btn">↩️ 重置默认</button>
+              <button class="btn btn-primary btn-lg" id="asr-save-btn"><i data-lucide="save"></i> 保存配置</button>
+              <button class="btn btn-secondary" id="asr-reset-btn"><i data-lucide="corner-up-left"></i> 重置默认</button>
             </div>
           </div>
         </div>
@@ -1724,7 +1724,7 @@
         <div class="sub-page" id="subpage-avatar">
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon">👤</span> 数字人模型配置</div>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="user-round"></i></span> 数字人模型配置</div>
               <span class="badge badge-warning" id="avatar-status-badge">检查中</span>
             </div>
             <div class="form-row">
@@ -1772,9 +1772,9 @@
               </div>
             </div>
             <div class="form-row" style="margin-top:16px">
-              <button class="btn btn-primary btn-lg" id="avatar-save-btn">💾 保存配置</button>
-              <button class="btn btn-secondary" id="avatar-test-btn">🔌 测试连接</button>
-              <button class="btn btn-secondary" id="avatar-reset-btn">↩️ 重置默认</button>
+              <button class="btn btn-primary btn-lg" id="avatar-save-btn"><i data-lucide="save"></i> 保存配置</button>
+              <button class="btn btn-secondary" id="avatar-test-btn"><i data-lucide="plug"></i> 测试连接</button>
+              <button class="btn btn-secondary" id="avatar-reset-btn"><i data-lucide="corner-up-left"></i> 重置默认</button>
             </div>
             <div id="avatar-test-result"></div>
           </div>
@@ -1791,7 +1791,7 @@
         <div class="two-col-grid">
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon">💬</span> 字幕样式</div>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="message-square"></i></span> 字幕样式</div>
             </div>
             <div class="form-group">
               <label class="form-label">字幕样式预设</label>
@@ -1859,7 +1859,7 @@
 
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon">🎵</span> 背景音乐 (BGM)</div>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="music"></i></span> 背景音乐 (BGM)</div>
             </div>
             <div class="form-group">
               <label class="form-label">BGM 音量 <span class="hint" id="bgm-vol-val">0.15</span></label>
@@ -1873,7 +1873,7 @@
 
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon">🎬</span> 视频输出参数</div>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="film"></i></span> 视频输出参数</div>
             </div>
             <div class="form-row">
               <div class="form-group">
@@ -1918,7 +1918,7 @@
 
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon">🖼️</span> 封面设置</div>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="image"></i></span> 封面设置</div>
             </div>
             <div class="form-group">
               <label class="form-label">封面生成模式</label>
@@ -1941,8 +1941,8 @@
 
         <div class="card" style="margin-top:20px">
           <div class="form-row">
-            <button class="btn btn-primary btn-lg" id="video-save-btn">💾 保存视频设置</button>
-            <button class="btn btn-secondary" id="video-reset-btn">↩️ 重置默认</button>
+            <button class="btn btn-primary btn-lg" id="video-save-btn"><i data-lucide="save"></i> 保存视频设置</button>
+            <button class="btn btn-secondary" id="video-reset-btn"><i data-lucide="corner-up-left"></i> 重置默认</button>
           </div>
         </div>
       </div>
@@ -1958,7 +1958,7 @@
           <!-- 数字人场景 -->
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon">👤</span> 数字人场景</div>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="user-round"></i></span> 数字人场景</div>
             </div>
             <div class="form-group">
               <label class="form-label">姿态</label>
@@ -2013,7 +2013,7 @@
           <!-- 音频效果 -->
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon">🎙️</span> 音频效果</div>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="mic"></i></span> 音频效果</div>
             </div>
             <div class="form-row">
               <div class="form-group">
@@ -2056,7 +2056,7 @@
           <!-- 视频效果 -->
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon">🎬</span> 视频效果</div>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="film"></i></span> 视频效果</div>
             </div>
             <div class="form-row">
               <div class="form-group">
@@ -2083,7 +2083,7 @@
           <!-- 水印 -->
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon">💧</span> 水印</div>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="droplet"></i></span> 水印</div>
               <label class="toggle-switch"><input type="checkbox" id="effect-watermark-enabled"><span class="toggle-slider"></span></label>
             </div>
             <div id="effect-watermark-group">
@@ -2112,7 +2112,7 @@
           <!-- 片头片尾 -->
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon">🎞️</span> 片头片尾</div>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="film"></i></span> 片头片尾</div>
             </div>
             <div class="form-row">
               <div class="form-group">
@@ -2137,8 +2137,8 @@
 
         <div class="card" style="margin-top:20px">
           <div class="form-row">
-            <button class="btn btn-primary btn-lg" id="scene-save-btn">💾 保存场景与效果</button>
-            <button class="btn btn-secondary" id="scene-reset-btn">↩️ 重置默认</button>
+            <button class="btn btn-primary btn-lg" id="scene-save-btn"><i data-lucide="save"></i> 保存场景与效果</button>
+            <button class="btn btn-secondary" id="scene-reset-btn"><i data-lucide="corner-up-left"></i> 重置默认</button>
           </div>
         </div>
       </div>
@@ -2152,7 +2152,7 @@
 
         <div class="card">
           <div class="card-header">
-            <div class="card-title"><span class="card-title-icon">⚙️</span> 发布模式</div>
+            <div class="card-title"><span class="card-title-icon"><i data-lucide="settings"></i></span> 发布模式</div>
           </div>
           <div class="form-row">
             <div class="form-group">
@@ -2172,7 +2172,7 @@
 
         <div class="card">
           <div class="card-header">
-            <div class="card-title"><span class="card-title-icon">📤</span> 平台管理</div>
+            <div class="card-title"><span class="card-title-icon"><i data-lucide="share-2"></i></span> 平台管理</div>
           </div>
           <div class="platform-list" id="platform-list">
             <!-- 平台卡片由 JS 渲染 -->
@@ -2181,8 +2181,8 @@
 
         <div class="card" style="margin-top:20px">
           <div class="form-row">
-            <button class="btn btn-primary btn-lg" id="publish-save-btn">💾 保存发布设置</button>
-            <button class="btn btn-secondary" id="publish-reset-btn">↩️ 重置默认</button>
+            <button class="btn btn-primary btn-lg" id="publish-save-btn"><i data-lucide="save"></i> 保存发布设置</button>
+            <button class="btn btn-secondary" id="publish-reset-btn"><i data-lucide="corner-up-left"></i> 重置默认</button>
           </div>
         </div>
       </div>
@@ -2195,14 +2195,14 @@
         </div>
 
         <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
-          <button class="btn btn-sm btn-secondary" id="refresh-health-btn">🔄 刷新</button>
+          <button class="btn btn-sm btn-secondary" id="refresh-health-btn"><i data-lucide="refresh-cw"></i> 刷新</button>
         </div>
 
         <div id="health-content"></div>
 
         <div class="card" style="margin-top:20px">
           <div class="card-header">
-            <div class="card-title"><span class="card-title-icon">ℹ️</span> 状态说明</div>
+            <div class="card-title"><span class="card-title-icon"><i data-lucide="info"></i></span> 状态说明</div>
           </div>
           <div style="color:var(--text-secondary);font-size:13px;line-height:1.8">
             <p><strong>FFmpeg</strong>：视频处理引擎，必须可用</p>
@@ -2210,7 +2210,7 @@
             <p><strong>云端数字人</strong>：MuseTalk 口播生成服务。不可用时降级为占位图视频（mock 模式）</p>
             <p><strong>LLM 模式</strong>：Mock 模式表示未配置 API Key，使用模板化文案。配置 DeepSeek/Qwen API Key 后切换为真实生成</p>
             <p style="margin-top:12px;padding:12px;background:rgba(99,102,241,0.1);border-radius:8px">
-              💡 <strong>提示</strong>：GPU 服务不在线时，系统自动降级为 mock 模式，可跑通全流程但产物为占位内容。配置云端 GPU 后即可生成真实音视频。前往「设置 → 模型配置」配置各模型。
+              <i data-lucide="lightbulb"></i> <strong>提示</strong>：GPU 服务不在线时，系统自动降级为 mock 模式，可跑通全流程但产物为占位内容。配置云端 GPU 后即可生成真实音视频。前往「设置 → 模型配置」配置各模型。
             </p>
           </div>
         </div>
@@ -2249,7 +2249,7 @@
     <div class="progress-modal">
       <div class="progress-modal-header">
         <h2 class="progress-modal-title" id="progress-modal-title">正在生成视频...</h2>
-        <button class="progress-modal-close" id="progress-modal-close" style="display:none" type="button">✕</button>
+        <button class="progress-modal-close" id="progress-modal-close" style="display:none" type="button"><i data-lucide="x"></i></button>
       </div>
       <div class="progress-stages" id="progress-stages"></div>
       <div class="progress-bar-wrap">
