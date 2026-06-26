@@ -108,7 +108,7 @@ class KrVoiceAI:
                 name=name,
                 module=module,
                 skip_when=self._make_skip_condition(name),
-                optional=name in ("title", "cover", "publish", "script_extract", "broll"),
+                optional=name in ("title", "cover", "publish", "script_extract", "broll", "originality_check"),
             ))
 
     def _make_skip_condition(self, step_name: str):

@@ -172,7 +172,8 @@ class ScriptExtractor(BaseModule):
             web_desc, video_dl_url = self._extract_from_web_page(video_url, cleaned_input)
 
             # 如果拿到视频 URL 且 ASR 可用 → 下载视频音频 + ASR 转写完整口播文案
-            if video_dl_url and self.asr_provider in ("funasr", "mimo", "whisper_local"):
+            asr_capable = self.asr_provider in ("funasr", "mimo", "whisper_local")
+            if video_dl_url and asr_capable:
                 import tempfile
                 with tempfile.TemporaryDirectory() as tmp:
                     try:
@@ -183,13 +184,8 @@ class ScriptExtractor(BaseModule):
                     except Exception as e:
                         self.logger.warning(f"视频下载+ASR 转写失败: {e}")
 
-            # desc 足够长 → 直接用（标题/描述文案）
-            if web_desc and len(web_desc) >= 10:
-                self.logger.info(f"网页抓取文案: {len(web_desc)} 字")
-                return self._clean_text(web_desc)
-
-            # 网页抓取失败 → yt-dlp + ASR（重型兜底）
-            use_real = self._ytdlp_available and self.asr_provider in ("funasr", "mimo", "whisper_local")
+            # Playwright 没拿到 video_url → yt-dlp + ASR 重型兜底（抖音可能需要 cookies）
+            use_real = self._ytdlp_available and asr_capable
             if use_real:
                 import tempfile
                 with tempfile.TemporaryDirectory() as tmp:
@@ -197,29 +193,40 @@ class ScriptExtractor(BaseModule):
                         text = self._extract_real(video_url, Path(tmp))
                     except Exception as e:
                         self.logger.warning(f"视频音频下载/转写失败: {e}")
-                        desc = self._extract_desc_from_share_text(cleaned_input)
-                        if desc:
-                            self.logger.info(f"已从分享文本提取文案描述: {len(desc)} 字")
-                            text = desc
+                        # 降级链：优先用 Playwright 提取的 web_desc（可能是完整描述）
+                        if web_desc and len(web_desc) >= 10:
+                            self.logger.info(f"使用网页抓取文案（降级）: {len(web_desc)} 字")
+                            text = web_desc
                             self._last_extract_degraded = True
                         else:
-                            try:
-                                text = self._extract_article(video_url)
-                            except Exception as e2:
-                                self.logger.warning(f"文章提取也失败: {e2}")
-                                raise RuntimeError(
-                                    f"无法提取文案（网页抓取与视频下载均失败）。"
-                                    f"请直接在第①步手动输入文案，或粘贴抖音分享文本。"
-                                )
+                            desc = self._extract_desc_from_share_text(cleaned_input)
+                            if desc:
+                                self.logger.info(f"已从分享文本提取文案描述: {len(desc)} 字")
+                                text = desc
+                                self._last_extract_degraded = True
+                            else:
+                                try:
+                                    text = self._extract_article(video_url)
+                                except Exception as e2:
+                                    self.logger.warning(f"文章提取也失败: {e2}")
+                                    raise RuntimeError(
+                                        f"无法提取文案（网页抓取与视频下载均失败）。"
+                                        f"请直接在第①步手动输入文案，或粘贴抖音分享文本。"
+                                    )
             else:
-                # yt-dlp 或 ASR 不可用：用分享文案描述兜底
-                desc = self._extract_desc_from_share_text(cleaned_input)
-                if desc:
-                    self.logger.info(f"yt-dlp/ASR 不可用，使用分享文本文案描述: {len(desc)} 字")
-                    text = desc
+                # yt-dlp 或 ASR 不可用：优先用 Playwright 提取的 web_desc，再降级到分享文本/mock
+                if web_desc and len(web_desc) >= 10:
+                    self.logger.info(f"使用网页抓取文案: {len(web_desc)} 字")
+                    text = web_desc
                     self._last_extract_degraded = True
                 else:
-                    text = self._extract_mock(video_url)
+                    desc = self._extract_desc_from_share_text(cleaned_input)
+                    if desc:
+                        self.logger.info(f"yt-dlp/ASR 不可用，使用分享文本文案描述: {len(desc)} 字")
+                        text = desc
+                        self._last_extract_degraded = True
+                    else:
+                        text = self._extract_mock(video_url)
         else:
             # 文章链接：直接抓取网页正文
             try:
