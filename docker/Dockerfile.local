@@ -49,8 +49,9 @@ ENV PYTHONUNBUFFERED=1 \
     KRVOICEAI_LOGGING_FILE=/app/workspace_data/logs/krvoiceai.log \
     KRVOICEAI_PIPELINE_DB_PATH=/app/workspace_data/jobs.db
 
-# 暴露端口（Gradio UI）
+# 暴露端口（Web UI 推荐 + Gradio UI 备用）
+EXPOSE 8000
 EXPOSE 7860
 
-# 默认启动 Gradio UI
-CMD ["python", "-m", "krvoiceai.ui.cli", "serve", "--host", "0.0.0.0", "--port", "7860"]
+# 默认启动 Web UI（现代化界面，对标旗博士）
+CMD ["python", "-m", "krvoiceai.ui.cli", "web", "--host", "0.0.0.0", "--port", "8000"]

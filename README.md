@@ -74,8 +74,18 @@ KRVOICEAI_TTS_PROVIDER=moss_nano    # 本地声音克隆
 
 ### 4. 启动 GUI
 
+**推荐：Web UI（现代化界面，对标旗博士）**
+
 ```bash
-python -m krvoiceai.ui.gradio_app --port 7860
+python -m krvoiceai.ui.cli web --port 8000
+```
+
+访问 http://localhost:8000
+
+**备用：Gradio UI（精简，功能受限）**
+
+```bash
+python -m krvoiceai.ui.cli serve --port 7860
 ```
 
 访问 http://localhost:7860

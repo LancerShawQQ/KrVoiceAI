@@ -117,3 +117,62 @@ def test_extract_with_rewrite_flow(extractor, job_work_dir):
     rewritten = writer.write(ctx.input_script, mode="rewrite")
     assert rewritten
     assert len(rewritten) > 20
+
+
+# ============ URL 提取边界用例（修复反引号/包裹符 Bug） ============
+
+def test_extract_url_backtick_wrapped():
+    """反引号包围的 URL 应正确提取，不带反引号"""
+    text = "`https://v.douyin.com/ft9Ds7C-8Fs/`"
+    url = ScriptExtractor._extract_url_from_text(text)
+    assert url == "https://v.douyin.com/ft9Ds7C-8Fs/"
+    assert "`" not in url
+
+
+def test_extract_url_backtick_with_token_suffix():
+    """反引号包围 + 口令后缀"""
+    text = "`https://v.douyin.com/ft9Ds7C-8Fs/` anq:/ :1pm"
+    url = ScriptExtractor._extract_url_from_text(text)
+    assert url == "https://v.douyin.com/ft9Ds7C-8Fs/"
+    assert "`" not in url
+    assert "anq" not in url
+
+
+def test_extract_url_from_full_share_text():
+    """完整抖音分享文本（用户实际粘贴的格式）"""
+    text = (
+        "1.25 复制打开抖音，看看【风芒新闻的作品】深圳一三甲医院涉嫌伪造病历 "
+        "七旬老人腿疼住院 手术... `https://v.douyin.com/ft9Ds7C-8Fs/` "
+        "anq:/ :1pm 03/29 P@K.Wm"
+    )
+    url = ScriptExtractor._extract_url_from_text(text)
+    assert url == "https://v.douyin.com/ft9Ds7C-8Fs/"
+    assert "`" not in url
+
+
+def test_extract_url_with_token_suffix_no_backtick():
+    """URL + 口令后缀（无反引号），不应把口令带入 URL"""
+    text = "https://v.douyin.com/Dy9OhN6yTe8/ f@B.Gv 07/20 :2pm VYZ:/"
+    url = ScriptExtractor._extract_url_from_text(text)
+    assert url == "https://v.douyin.com/Dy9OhN6yTe8/"
+    assert "f@B" not in url
+
+
+def test_extract_url_chinese_quote_wrapped():
+    """中文引号「」包围的 URL"""
+    text = "「https://v.douyin.com/xxx/」"
+    url = ScriptExtractor._extract_url_from_text(text)
+    assert url == "https://v.douyin.com/xxx/"
+
+
+def test_extract_desc_from_share_text_with_backtick():
+    """从含反引号的抖音分享文本提取描述，末尾不带反引号"""
+    text = (
+        "1.25 复制打开抖音，看看【风芒新闻的作品】深圳一三甲医院涉嫌伪造病历 "
+        "七旬老人腿疼住院 手术... `https://v.douyin.com/ft9Ds7C-8Fs/` "
+        "anq:/ :1pm 03/29 P@K.Wm"
+    )
+    desc = ScriptExtractor._extract_desc_from_share_text(text)
+    assert desc  # 非空
+    assert "`" not in desc
+    assert "深圳一三甲医院" in desc

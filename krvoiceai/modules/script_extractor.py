@@ -34,6 +34,22 @@ FILLER_WORDS = [
     "你知道吗", "怎么说呢", "反正", "其实吧",
 ]
 
+# URL 边界排除字符集：URL 中不应出现的字符（空格、<>、中文、各类引号/包裹符）
+# 关键：含反引号 `、单双引号、中文引号「」『』、方括号【】[]、括号（）()
+# 修复历史 Bug：抖音分享文本常以反引号包围 URL，旧正则未排除反引号导致 URL 末尾带 `
+_URL_BOUNDARY_CHARS = r"`'\"\u300c\u300d\u300e\u300f\u3010\u3011\[\]\uff08\uff09\(\)"
+
+# URL 末尾清理字符集：strip 这些可能粘在 URL 末尾的标点
+_URL_TRAILING_CHARS = ",.;!?，。；！？、）)】」』`'\""
+
+# 描述末尾清理字符集：含省略号、反引号、引号等包裹符（修复反引号边界 Bug）
+_DESC_TRAILING_CHARS = "….;；，,。 \n`'\"」』"
+
+
+def _build_url_pattern(prefix: str = r"https?://") -> str:
+    """构建 URL 匹配正则：prefix + 非边界字符序列"""
+    return prefix + r"[^\s<>\u4e00-\u9fa5" + _URL_BOUNDARY_CHARS + r"]+"
+
 
 class ScriptExtractor(BaseModule):
     """对标文案提取模块"""
@@ -333,25 +349,25 @@ class ScriptExtractor(BaseModule):
         用户可能粘贴整段抖音分享文案，如：
         "2.87 复制打开抖音，看看【侃侃体育的作品】... https://v.douyin.com/5lPIfwzFtH0/ 03/29 ULw:/"
         需要从中提取出 https://v.douyin.com/5lPIfwzFtH0/
+
+        支持 URL 被反引号/引号/括号包围的场景：
+        "看看【xx的作品】文案... `https://v.douyin.com/xxx/` anq:/ :1pm"
         """
         if not text:
             return ""
         text = text.strip()
-        # 如果本身就是 URL，直接返回
-        if re.match(r"^https?://", text):
-            return text
         # 从文本中匹配 URL（支持抖音/快手/B站/YouTube短链）
-        url_pattern = r"https?://[^\s<>\u4e00-\u9fa5]+"
+        # 边界排除反引号/引号/括号等包裹符，避免 URL 末尾带包裹符
+        # 统一走 findall：能正确处理纯 URL、URL+口令后缀、被包裹符包围的 URL
+        url_pattern = _build_url_pattern(r"https?://")
         matches = re.findall(url_pattern, text)
         if matches:
-            # 清理末尾可能的标点
-            url = matches[0].rstrip(",.;!?，。；！？、）)】]")
-            return url
+            return matches[0].rstrip(_URL_TRAILING_CHARS)
         # 尝试匹配不带 https 的短链（如 v.douyin.com/xxx）
-        short_pattern = r"(?:v\.douyin\.com|v\.kuaishou\.com|b23\.tv|youtu\.be)/[^\s<>\u4e00-\u9fa5]+"
+        short_pattern = _build_url_pattern(r"(?:v\.douyin\.com|v\.kuaishou\.com|b23\.tv|youtu\.be)/")
         matches = re.findall(short_pattern, text)
         if matches:
-            return "https://" + matches[0].rstrip(",.;!?，。；！？、）)】]")
+            return "https://" + matches[0].rstrip(_URL_TRAILING_CHARS)
         return ""
 
     @staticmethod
@@ -367,18 +383,21 @@ class ScriptExtractor(BaseModule):
         if not text:
             return ""
         text = text.strip()
+        # URL 前置边界：允许空格/反引号/引号等包裹符出现在 URL 前
+        # 修复历史 Bug：抖音分享文本常以反引号包围 URL，旧正则只允许 \s+ 导致描述吞掉整个 URL
+        _url_prefix_boundary = r"(?:[\s`'\"\u300c\u300d\u300e\u300f]*https?://|$)"
         # 抖音：【作者的作品】文案内容 https://...
-        m = re.search(r"看看【(.+?)】(.+?)(?:\s+https?://|$)", text)
+        m = re.search(r"看看【(.+?)】(.+?)" + _url_prefix_boundary, text)
         if m:
             desc = m.group(2).strip()
-            # 去掉末尾省略号或标点
-            desc = desc.rstrip("….;；，,。 \n")
+            # 去掉末尾省略号或标点（含反引号等包裹符）
+            desc = desc.rstrip(_DESC_TRAILING_CHARS)
             if len(desc) >= 4:
                 return desc
         # 快手：复制打开快手...文案 https://...
-        m = re.search(r"复制打开快[手眼][，,]?\s*(.+?)(?:\s+https?://|$)", text)
+        m = re.search(r"复制打开快[手眼][，,]?\s*(.+?)" + _url_prefix_boundary, text)
         if m:
-            desc = m.group(1).strip().rstrip("….;；，,。 \n")
+            desc = m.group(1).strip().rstrip(_DESC_TRAILING_CHARS)
             if len(desc) >= 4:
                 return desc
         # 通用：URL 之前的中文描述（去掉前缀"复制打开xxx"）
@@ -388,7 +407,7 @@ class ScriptExtractor(BaseModule):
             # 去掉常见的分享前缀
             prefix = re.sub(r"^[\d.]+\s*复制打开[^，,]*[，,]?\s*", "", prefix)
             prefix = re.sub(r"^看看【[^】]*】\s*", "", prefix)
-            prefix = prefix.strip().rstrip("….;； \n")
+            prefix = prefix.strip().rstrip(_DESC_TRAILING_CHARS)
             if len(prefix) >= 4:
                 return prefix
         return ""

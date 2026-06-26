@@ -20,6 +20,7 @@ from pydantic import BaseModel
 from ..app import KrVoiceAI
 from ..core.logger import get_logger
 from ..core.settings_manager import get_settings_manager
+from ..modules.script_extractor import ScriptExtractor
 
 logger = get_logger().bind(component="web_server")
 
@@ -88,6 +89,11 @@ class ScriptProcessRequest(BaseModel):
     style: Optional[str] = None  # 幽默/严肃/活泼/专业/口语化
     topic: Optional[str] = None  # generate 模式下的主题
     reference_url: Optional[str] = None  # extract 模式下的参考视频链接
+
+
+class ParseShareTextRequest(BaseModel):
+    """分享文本轻量解析请求（仅解析 URL + 描述，不触发下载/ASR）"""
+    text: str = ""
 
 
 class BatchGenerateItem(BaseModel):
@@ -731,6 +737,24 @@ def create_app() -> FastAPI:
             )
         )
         return result
+
+    @app.post("/api/script/parse")
+    async def parse_share_text(req: ParseShareTextRequest):
+        """轻量解析分享文本：返回识别到的 URL 和描述（不触发下载/ASR）
+
+        用于前端实时预览：用户粘贴抖音/快手分享文本时，
+        立即显示识别到的 URL 和文案描述，确认无误后再点"提取文案"。
+        """
+        text = (req.text or "").strip()
+        if not text:
+            return {"success": True, "url": "", "desc": ""}
+        try:
+            url = ScriptExtractor._extract_url_from_text(text)
+            desc = ScriptExtractor._extract_desc_from_share_text(text)
+            return {"success": True, "url": url, "desc": desc}
+        except Exception as e:
+            logger.warning(f"解析分享文本失败: {e}")
+            return {"success": False, "url": "", "desc": "", "error": str(e)}
 
     # ============ 批量处理 API ============
 

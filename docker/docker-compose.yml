@@ -7,7 +7,7 @@
 #   docker-compose --profile gpu up -d      # 同时启动 GPU 服务（需在 GPU 机器上）
 #
 # 说明：
-#   - local: 本地 CPU 服务（Gradio UI + CLI），使用 mock 模式或调用云端 GPU
+#   - local: 本地 CPU 服务（Web UI + CLI），使用 mock 模式或调用云端 GPU
 #   - tts: 云端 TTS 服务（GPT-SoVITS），需 GPU
 #   - avatar: 云端数字人服务（MuseTalk），需 GPU
 
@@ -22,7 +22,8 @@ services:
     image: krvoiceai:local
     container_name: krvoiceai-local
     ports:
-      - "7860:7860"  # Gradio UI
+      - "8000:8000"  # Web UI（推荐，现代化界面）
+      - "7860:7860"  # Gradio UI（备用）
     volumes:
       - ./workspace_data:/app/workspace_data
       - ./config:/app/config

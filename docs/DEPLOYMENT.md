@@ -21,7 +21,8 @@
 │  本地机器（CPU）                                          │
 │  ┌───────────────────────────────────────────────────┐  │
 │  │  KrVoiceAI App                                    │  │
-│  │  ├── Gradio UI (7860)                             │  │
+│  │  ├── Web UI (8000)  ← 推荐                       │  │
+│  │  ├── Gradio UI (7860) ← 备用                     │  │
 │  │  ├── CLI                                          │  │
 │  │  ├── Pipeline Orchestrator                        │  │
 │  │  └── 9 个模块（mock 模式或调用云端）              │  │
@@ -66,7 +67,10 @@ brew install ffmpeg
 ### 3. 启动服务
 
 ```bash
-# 启动 Gradio UI
+# 启动 Web UI（推荐，现代化界面）
+python -m krvoiceai.ui.cli web --host 0.0.0.0 --port 8000
+
+# 或启动 Gradio UI（备用，精简）
 python -m krvoiceai.ui.cli serve --host 0.0.0.0 --port 7860
 
 # 或使用 CLI 直接生成视频
@@ -217,7 +221,7 @@ bash scripts/build_docker.sh gpu
 docker-compose up -d local
 ```
 
-访问 http://localhost:7860
+访问 http://localhost:8000（Web UI 推荐）或 http://localhost:7860（Gradio 备用）
 
 **云端 GPU 服务（在 GPU 机器上）：**
 

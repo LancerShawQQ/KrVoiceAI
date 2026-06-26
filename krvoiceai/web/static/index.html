@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5.0">
   <title>KrVoiceAI · 虚拟人口播智能体</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=20260621d">
+  <link rel="stylesheet" href="/static/css/style.css?v=20260626a">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
   <!-- 移动端点击修复（内联确保优先级，避免外部CSS缓存导致失效） -->
   <style>
@@ -449,8 +449,18 @@
             </div>
             <div class="sub-page" id="wiz-script-extract">
               <div class="form-group">
-                <label class="form-label">参考视频链接</label>
-                <input class="form-input" id="wiz-ref-url" placeholder="粘贴抖音/快手/B站视频链接，或腾讯新闻/微信公众号等文章链接">
+                <label class="form-label">视频链接 / 分享文本</label>
+                <textarea class="form-textarea" id="wiz-ref-url" rows="4" placeholder="粘贴抖音/快手/B站视频链接，或整段分享文本&#10;例：1.25 复制打开抖音，看看【xxx的作品】文案... https://v.douyin.com/xxx/ anq:/ :1pm"></textarea>
+              </div>
+              <div class="extract-preview" id="wiz-extract-preview" style="display:none">
+                <div class="preview-row">
+                  <span class="preview-label">🔗 识别链接</span>
+                  <code class="preview-value" id="wiz-preview-url">—</code>
+                </div>
+                <div class="preview-row">
+                  <span class="preview-label">📝 识别描述</span>
+                  <span class="preview-value" id="wiz-preview-desc">—</span>
+                </div>
               </div>
               <button class="btn btn-primary" id="wiz-extract-btn" type="button">🔗 提取文案</button>
             </div>
@@ -2254,7 +2264,7 @@
   <!-- Toast 容器 -->
   <div class="toast-container" id="toast-container"></div>
 
-  <script src="/static/js/app.js?v=20260621d"></script>
+  <script src="/static/js/app.js?v=20260626a"></script>
   <script src="/static/js/settings.js?v=20260621d"></script>
 </body>
 </html>

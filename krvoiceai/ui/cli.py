@@ -56,13 +56,13 @@ def main():
     p_reg_voice.add_argument("voice_id", help="音色 ID")
     p_reg_voice.add_argument("audio", help="样本音频路径")
 
-    # serve - 启动 Gradio Web UI
-    p_serve = sub.add_parser("serve", help="启动 Gradio Web UI")
+    # serve - 启动 Gradio UI（精简备用，功能受限）
+    p_serve = sub.add_parser("serve", help="启动 Gradio UI（精简备用）")
     p_serve.add_argument("--host", default="0.0.0.0")
     p_serve.add_argument("--port", type=int, default=7860)
 
-    # web - 启动精美 Web UI (FastAPI)
-    p_web = sub.add_parser("web", help="启动精美 Web UI (FastAPI)")
+    # web - 启动 Web UI（推荐，现代化界面，对标旗博士）
+    p_web = sub.add_parser("web", help="启动 Web UI（推荐，现代化界面）")
     p_web.add_argument("--host", default="0.0.0.0")
     p_web.add_argument("--port", type=int, default=8000)
 

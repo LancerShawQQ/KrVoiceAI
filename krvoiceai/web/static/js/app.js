@@ -596,6 +596,7 @@ async function loadWizardData() {
     document.getElementById('wizard-skip-template-btn').addEventListener('click', wizardSkipTemplate);
     document.getElementById('wiz-ai-generate-btn').addEventListener('click', wizardAiGenerate);
     document.getElementById('wiz-extract-btn').addEventListener('click', wizardExtractScript);
+    bindShareTextPreview(); // 分享文本实时解析预览
     document.getElementById('wiz-script-process-btn').addEventListener('click', wizardScriptProcess);
     document.getElementById('wiz-generate-btn').addEventListener('click', wizardGenerate);
     document.getElementById('wiz-prev-btn').addEventListener('click', () => wizardGoToStep(wizardState.currentStep - 1));
@@ -1104,6 +1105,39 @@ async function wizardAiGenerate() {
   } finally {
     btn.disabled = false;
     btn.innerHTML = '💡 生成文案';
+  }
+}
+
+// 文案提取：分享文本实时解析预览（防抖 300ms）
+let _shareTextParseTimer = null;
+function bindShareTextPreview() {
+  const el = document.getElementById('wiz-ref-url');
+  if (!el) return;
+  el.addEventListener('input', () => {
+    clearTimeout(_shareTextParseTimer);
+    _shareTextParseTimer = setTimeout(previewShareText, 300);
+  });
+}
+
+async function previewShareText() {
+  const text = document.getElementById('wiz-ref-url').value.trim();
+  const previewBox = document.getElementById('wiz-extract-preview');
+  const urlEl = document.getElementById('wiz-preview-url');
+  const descEl = document.getElementById('wiz-preview-desc');
+  if (!previewBox) return;
+  if (!text) { previewBox.style.display = 'none'; return; }
+  try {
+    const result = await api('/api/script/parse', { method: 'POST', body: { text } });
+    if (result.success && (result.url || result.desc)) {
+      urlEl.textContent = result.url || '—';
+      descEl.textContent = result.desc || '—';
+      previewBox.style.display = 'block';
+    } else {
+      previewBox.style.display = 'none';
+    }
+  } catch (e) {
+    // 预览失败静默，不影响主流程
+    previewBox.style.display = 'none';
   }
 }
 
