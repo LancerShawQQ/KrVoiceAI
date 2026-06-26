@@ -31,13 +31,160 @@ function toast(message, type = 'info') {
   const container = document.getElementById('toast-container');
   const el = document.createElement('div');
   el.className = `toast ${type}`;
-  const icons = { success: '✓', error: '✕', info: 'ℹ' };
-  el.innerHTML = `<span style="font-size:18px">${icons[type] || ''}</span><span>${message}</span>`;
+  const icons = {
+    success: '<i data-lucide="check" style="width:18px;height:18px"></i>',
+    error: '<i data-lucide="x" style="width:18px;height:18px"></i>',
+    info: '<i data-lucide="info" style="width:18px;height:18px"></i>',
+    warning: '<i data-lucide="alert-triangle" style="width:18px;height:18px"></i>'
+  };
+  el.innerHTML = `<span style="display:inline-flex;align-items:center">${icons[type] || ''}</span><span>${message}</span>`;
   container.appendChild(el);
-  setTimeout(() => {
+  if (window.lucide) lucide.createIcons();
+  // 点击可提前关闭
+  el.style.cursor = 'pointer';
+  el.addEventListener('click', () => {
     el.style.animation = 'slideIn 0.3s ease reverse';
     setTimeout(() => el.remove(), 300);
+  });
+  setTimeout(() => {
+    if (el.parentNode) {
+      el.style.animation = 'slideIn 0.3s ease reverse';
+      setTimeout(() => el.remove(), 300);
+    }
   }, 4000);
+}
+
+// 图片加载失败时回退为 Lucide 图标（供 onerror 内联调用）
+function setFallbackIcon(parent, lucideName) {
+  parent.innerHTML = `<i data-lucide="${lucideName}"></i>`;
+  if (window.lucide) lucide.createIcons();
+}
+
+// 设置按钮为「Lucide 图标 + 文字」并渲染图标
+function setBtnIcon(btn, lucideName, text) {
+  btn.innerHTML = text ? `<i data-lucide="${lucideName}"></i> ${text}` : `<i data-lucide="${lucideName}"></i>`;
+  if (window.lucide) lucide.createIcons();
+}
+
+// ========== 骨架屏（Skeleton Screen）工具 ==========
+
+/**
+ * 在容器内显示骨架屏卡片网格
+ * @param {HTMLElement} container - 目标容器
+ * @param {number} count - 骨架卡片数量
+ */
+function showSkeletonCards(container, count = 6) {
+  if (!container) return;
+  const cols = container.dataset.gridCols || 3;
+  container.innerHTML = '';
+  container.style.display = 'grid';
+  container.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  container.style.gap = '16px';
+  for (let i = 0; i < count; i++) {
+    const card = document.createElement('div');
+    card.className = 'skeleton-card';
+    card.innerHTML = `
+      <div class="skeleton skeleton-thumb"></div>
+      <div class="skeleton skeleton-title"></div>
+      <div class="skeleton skeleton-meta"></div>
+    `;
+    container.appendChild(card);
+  }
+}
+
+/**
+ * 在容器内显示骨架屏行列表（用于表格/列表）
+ * @param {HTMLElement} container - 目标容器
+ * @param {number} count - 骨架行数量
+ */
+function showSkeletonRows(container, count = 5) {
+  if (!container) return;
+  container.innerHTML = '';
+  for (let i = 0; i < count; i++) {
+    const row = document.createElement('div');
+    row.className = 'skeleton-row';
+    row.innerHTML = `
+      <div class="skeleton skeleton-avatar"></div>
+      <div class="skeleton-content">
+        <div class="skeleton skeleton-line long"></div>
+        <div class="skeleton skeleton-line short"></div>
+      </div>
+    `;
+    container.appendChild(row);
+  }
+}
+
+/**
+ * 在容器内显示骨架屏文本行（用于简单文本列表）
+ * @param {HTMLElement} container - 目标容器
+ * @param {number} count - 骨架行数量
+ */
+function showSkeletonLines(container, count = 4) {
+  if (!container) return;
+  container.innerHTML = '';
+  for (let i = 0; i < count; i++) {
+    const line = document.createElement('div');
+    line.className = 'skeleton skeleton-line';
+    line.classList.add(i % 3 === 0 ? 'medium' : 'long');
+    container.appendChild(line);
+  }
+}
+
+// ========== 表单校验工具 ==========
+
+/**
+ * 设置输入框错误状态
+ * @param {HTMLElement} input - 输入框元素
+ * @param {string} msg - 错误信息（空则清除错误）
+ */
+function setFieldError(input, msg = '') {
+  if (!input) return;
+  input.classList.remove('error', 'success');
+  if (msg) {
+    input.classList.add('error');
+  }
+  // 查找或创建 field-error 元素
+  let errEl = input.parentNode.querySelector('.field-error');
+  if (!errEl) {
+    errEl = document.createElement('span');
+    errEl.className = 'field-error';
+    input.parentNode.insertBefore(errEl, input.nextSibling);
+  }
+  errEl.textContent = msg;
+}
+
+/**
+ * 设置输入框成功状态
+ */
+function setFieldSuccess(input) {
+  if (!input) return;
+  input.classList.remove('error');
+  input.classList.add('success');
+  const errEl = input.parentNode.querySelector('.field-error');
+  if (errEl) errEl.textContent = '';
+}
+
+/**
+ * URL 格式校验
+ * @param {string} url
+ * @returns {boolean}
+ */
+function isValidUrl(url) {
+  try {
+    const u = new URL(url);
+    return u.protocol === 'http:' || u.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * ID 格式校验（英文字母+数字，3-32位）
+ * @param {string} id
+ * @returns {boolean}
+ */
+function isValidId(id) {
+  return /^[a-zA-Z0-9]{3,32}$/.test(id);
 }
 
 function formatTime(ts) {
@@ -147,10 +294,12 @@ async function loadDashboard() {
 async function loadDashboardJobs() {
   const container = document.getElementById('dash-recent-list');
   if (!container) return;
+  showSkeletonRows(container, 4);
   try {
     const jobs = await api('/api/jobs?limit=8');
     if (!jobs || !jobs.length) {
-      container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🎬</div><div>还没有创作记录，点击上方按钮开始吧</div></div>';
+      container.innerHTML = '<div class="empty-state"><div class="empty-state-icon"><i data-lucide="film"></i></div><div>还没有创作记录，点击上方按钮开始吧</div></div>';
+      if (window.lucide) lucide.createIcons();
       return;
     }
     // 并行获取每个 job 的详情以拿到标题/封面
@@ -165,8 +314,8 @@ async function loadDashboardJobs() {
       const title = output.title || input.script?.substring(0, 20) || j.job_id;
       const coverPath = output.cover;
       const coverHtml = coverPath
-        ? `<img src="/api/files?path=${encodeURIComponent(coverPath)}" alt="封面" onerror="this.parentElement.innerHTML='🎬'">`
-        : '🎬';
+        ? `<img src="/api/files?path=${encodeURIComponent(coverPath)}" alt="封面" onerror="setFallbackIcon(this.parentElement,'film')">`
+        : '<i data-lucide="film"></i>';
       return `
         <div class="recent-card" onclick="showJobDetail('${j.job_id}');navigate('jobs')">
           <div class="recent-card-thumb">${coverHtml}</div>
@@ -180,14 +329,17 @@ async function loadDashboardJobs() {
         </div>
       `;
     }).join('');
+    if (window.lucide) lucide.createIcons();
   } catch (e) {
-    container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🎬</div><div>加载失败，请稍后重试</div></div>';
+    container.innerHTML = '<div class="empty-state"><div class="empty-state-icon"><i data-lucide="film"></i></div><div>加载失败，请稍后重试</div></div>';
+    if (window.lucide) lucide.createIcons();
   }
 }
 
 async function loadDashboardTemplates() {
   const grid = document.getElementById('dash-template-grid');
   if (!grid) return;
+  showSkeletonCards(grid, 6);
   try {
     const templates = await ensureTemplates();
     const entries = Object.entries(templates).slice(0, 6);
@@ -205,8 +357,10 @@ async function loadDashboardTemplates() {
     grid.querySelectorAll('.template-card').forEach(card => {
       card.addEventListener('click', () => applyDashboardTemplate(card.dataset.key));
     });
+    if (window.lucide) lucide.createIcons();
   } catch (e) {
-    grid.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🎨</div><div>模板加载失败</div></div>';
+    grid.innerHTML = '<div class="empty-state"><div class="empty-state-icon"><i data-lucide="palette"></i></div><div>模板加载失败</div></div>';
+    if (window.lucide) lucide.createIcons();
   }
 }
 
@@ -615,6 +769,7 @@ async function loadWizardData() {
       const info = STEP_INFO[step];
       return `<div class="pipeline-step pending"><div class="step-icon">○</div><div class="step-info"><div class="step-name">${info.icon} ${info.name}</div><div class="step-status">等待中</div></div></div>`;
     }).join('');
+    if (window.lucide) lucide.createIcons();
   } catch (e) {
     toast(`加载向导数据失败: ${e.message}`, 'error');
     console.error(e);
@@ -655,9 +810,9 @@ function renderWizardAvatarGrid(avatars) {
     const mode = a.meta?.mode || 'mock';
     const hasLipSync = a.meta?.has_lip_sync || mode === 'wav2lip';
     const lipBadge = hasLipSync
-      ? '<span style="position:absolute;top:4px;right:4px;background:#10b981;color:#fff;font-size:9px;padding:1px 4px;border-radius:3px">👄 唇形</span>'
+      ? '<span style="position:absolute;top:4px;right:4px;background:#10b981;color:#fff;font-size:9px;padding:1px 4px;border-radius:3px;display:inline-flex;align-items:center;gap:2px"><i data-lucide="smile" style="width:11px;height:11px"></i> 唇形</span>'
       : '';
-    const imgHtml = `<img src="/api/avatars/${encodeURIComponent(id)}/preview" alt="${id}" onerror="this.parentElement.innerHTML='👤'">`;
+    const imgHtml = `<img src="/api/avatars/${encodeURIComponent(id)}/preview" alt="${id}" onerror="setFallbackIcon(this.parentElement,'user-round')">`;
     return `
       <div class="avatar-card" data-id="${id}" style="position:relative">
         <div class="avatar-card-img">${imgHtml}${lipBadge}</div>
@@ -665,6 +820,7 @@ function renderWizardAvatarGrid(avatars) {
       </div>
     `;
   }).join('');
+  if (window.lucide) lucide.createIcons();
   // 默认选中第一个
   const firstId = list[0].avatar_id;
   document.getElementById('wiz-avatar').value = firstId;
@@ -705,11 +861,12 @@ function renderWizardVoiceGrid(voices) {
               <span class="voice-card-tag provider">${provider}</span>
             </div>
           </div>
-          <button class="voice-preview-btn" data-voice="${id}" type="button" title="试听">▶️</button>
+          <button class="voice-preview-btn" data-voice="${id}" type="button" title="试听"><i data-lucide="play"></i></button>
         </div>
       </div>
     `;
   }).join('');
+  if (window.lucide) lucide.createIcons();
   // 默认选中第一个
   const firstId = list[0].voice_id;
   document.getElementById('wiz-voice').value = firstId;
@@ -747,7 +904,7 @@ async function playVoicePreview(voiceId, btn) {
     _currentPreviewAudio.pause();
     if (_currentPreviewBtn) {
       _currentPreviewBtn.classList.remove('playing');
-      _currentPreviewBtn.textContent = '▶️';
+      setBtnIcon(_currentPreviewBtn, 'play', '');
     }
     // 如果点的是同一个按钮，仅停止
     if (_currentPreviewBtn === btn) {
@@ -757,7 +914,7 @@ async function playVoicePreview(voiceId, btn) {
     }
   }
   btn.classList.add('playing');
-  btn.textContent = '⏸️';
+  setBtnIcon(btn, 'pause', '');
   _currentPreviewBtn = btn;
   try {
     // 调用 module/run 执行 TTS 合成短句
@@ -781,13 +938,13 @@ async function playVoicePreview(voiceId, btn) {
     _currentPreviewAudio = audio;
     audio.addEventListener('ended', () => {
       btn.classList.remove('playing');
-      btn.textContent = '▶️';
+      setBtnIcon(btn, 'play', '');
       _currentPreviewAudio = null;
       _currentPreviewBtn = null;
     });
     audio.addEventListener('error', () => {
       btn.classList.remove('playing');
-      btn.textContent = '▶️';
+      setBtnIcon(btn, 'play', '');
       _currentPreviewAudio = null;
       _currentPreviewBtn = null;
       toast('音频播放失败', 'error');
@@ -795,7 +952,7 @@ async function playVoicePreview(voiceId, btn) {
     await audio.play();
   } catch (e) {
     btn.classList.remove('playing');
-    btn.textContent = '▶️';
+    setBtnIcon(btn, 'play', '');
     _currentPreviewAudio = null;
     _currentPreviewBtn = null;
     toast(`试听失败: ${e.message}`, 'error');
@@ -817,7 +974,8 @@ function updateScriptStats(text) {
   if (warningEl) {
     if (len > 500) {
       warningEl.style.display = 'block';
-      warningEl.textContent = '⚠️ 文案较长，生成时间可能增加';
+      warningEl.innerHTML = '<i data-lucide="alert-triangle"></i> 文案较长，生成时间可能增加';
+      if (window.lucide) lucide.createIcons();
     } else {
       warningEl.style.display = 'none';
     }
@@ -899,7 +1057,7 @@ function renderWizardStepper() {
   document.getElementById('wiz-prev-btn').disabled = wizardState.currentStep === 1;
   const nextBtn = document.getElementById('wiz-next-btn');
   if (wizardState.currentStep === 6) {
-    nextBtn.innerHTML = '🚀 开始生成';
+    setBtnIcon(nextBtn, 'rocket', '开始生成');
   } else {
     nextBtn.innerHTML = '下一步 →';
   }
@@ -1075,7 +1233,7 @@ async function wizardApplyTemplate() {
     toast(`应用模板失败: ${e.message}`, 'error');
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '✓ 应用此模板';
+    setBtnIcon(btn, 'check', '应用此模板');
   }
 }
 
@@ -1110,7 +1268,7 @@ async function wizardAiGenerate() {
     toast(`生成失败: ${e.message}`, 'error');
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '💡 生成文案';
+    setBtnIcon(btn, 'lightbulb', '生成文案');
   }
 }
 
@@ -1126,15 +1284,17 @@ function bindShareTextPreview() {
 }
 
 async function previewShareText() {
-  const text = document.getElementById('wiz-ref-url').value.trim();
+  const inputEl = document.getElementById('wiz-ref-url');
+  const text = inputEl.value.trim();
   const previewBox = document.getElementById('wiz-extract-preview');
   const urlEl = document.getElementById('wiz-preview-url');
   const descEl = document.getElementById('wiz-preview-desc');
   if (!previewBox) return;
-  if (!text) { previewBox.style.display = 'none'; return; }
+  if (!text) { previewBox.style.display = 'none'; setFieldError(inputEl, ''); return; }
   try {
     const result = await api('/api/script/parse', { method: 'POST', body: { text } });
     if (result.success && (result.url || result.desc)) {
+      setFieldSuccess(inputEl);
       urlEl.textContent = result.url || '—';
       descEl.textContent = result.desc || '—';
       previewBox.style.display = 'block';
@@ -1148,8 +1308,10 @@ async function previewShareText() {
 }
 
 async function wizardExtractScript() {
-  const refUrl = document.getElementById('wiz-ref-url').value.trim();
-  if (!refUrl) { toast('请输入参考视频链接', 'error'); return; }
+  const refInput = document.getElementById('wiz-ref-url');
+  const refUrl = refInput.value.trim();
+  if (!refUrl) { setFieldError(refInput, '请输入参考视频链接'); toast('请输入参考视频链接', 'error'); return; }
+  setFieldSuccess(refInput);
   const btn = document.getElementById('wiz-extract-btn');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> 提取中...';
@@ -1177,7 +1339,7 @@ async function wizardExtractScript() {
     toast(`提取失败: ${e.message}`, 'error');
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '🔗 提取文案';
+    setBtnIcon(btn, 'link', '提取文案');
   }
 }
 
@@ -1217,7 +1379,7 @@ async function wizardScriptProcess() {
     toast(`处理失败: ${e.message}`, 'error');
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '▶️ 执行 AI 处理';
+    setBtnIcon(btn, 'play', '执行 AI 处理');
   }
 }
 
@@ -1236,11 +1398,11 @@ function renderWizardSummary() {
 
   container.innerHTML = `
     <div class="summary-card">
-      <div class="summary-card-title">📰 模板</div>
+      <div class="summary-card-title"><i data-lucide="newspaper"></i> 模板</div>
       <div class="summary-card-row"><span class="key">模板</span><span class="val">${tplLabel}</span></div>
     </div>
     <div class="summary-card">
-      <div class="summary-card-title">👤 数字人形象</div>
+      <div class="summary-card-title"><i data-lucide="user-round"></i> 数字人形象</div>
       <div class="summary-card-row"><span class="key">形象</span><span class="val">${avatar}</span></div>
       <div class="summary-card-row"><span class="key">姿态</span><span class="val">${scene.pose}</span></div>
       <div class="summary-card-row"><span class="key">位置</span><span class="val">${scene.position}</span></div>
@@ -1248,19 +1410,19 @@ function renderWizardSummary() {
       <div class="summary-card-row"><span class="key">背景</span><span class="val">${scene.background_type}</span></div>
     </div>
     <div class="summary-card">
-      <div class="summary-card-title">📝 文案</div>
+      <div class="summary-card-title"><i data-lucide="pen-line"></i> 文案</div>
       <div class="summary-card-row"><span class="key">字数</span><span class="val">${script.length} 字</span></div>
       <div class="summary-card-row"><span class="key">预览</span><span class="val">${script.substring(0, 40)}${script.length > 40 ? '...' : ''}</span></div>
     </div>
     <div class="summary-card">
-      <div class="summary-card-title">🎙️ 声音</div>
+      <div class="summary-card-title"><i data-lucide="mic"></i> 声音</div>
       <div class="summary-card-row"><span class="key">音色</span><span class="val">${voice}</span></div>
       <div class="summary-card-row"><span class="key">语速</span><span class="val">${audio.speed}</span></div>
       <div class="summary-card-row"><span class="key">音量</span><span class="val">${audio.volume}</span></div>
       <div class="summary-card-row"><span class="key">情感</span><span class="val">${audio.emotion}</span></div>
     </div>
     <div class="summary-card">
-      <div class="summary-card-title">💬 字幕</div>
+      <div class="summary-card-title"><i data-lucide="message-square"></i> 字幕</div>
       <div class="summary-card-row"><span class="key">预设</span><span class="val">${subtitle.preset}</span></div>
       <div class="summary-card-row"><span class="key">动画</span><span class="val">${subtitle.animation}</span></div>
       <div class="summary-card-row"><span class="key">位置</span><span class="val">${subtitle.position}</span></div>
@@ -1268,18 +1430,19 @@ function renderWizardSummary() {
       <div class="summary-card-row"><span class="key">卡拉OK</span><span class="val">${subtitle.karaoke ? '是' : '否'}</span></div>
     </div>
     <div class="summary-card">
-      <div class="summary-card-title">🎵 BGM</div>
+      <div class="summary-card-title"><i data-lucide="music"></i> BGM</div>
       <div class="summary-card-row"><span class="key">启用</span><span class="val">${audio.bgm.enabled ? '是' : '否'}</span></div>
       <div class="summary-card-row"><span class="key">曲目</span><span class="val">${audio.bgm.track}</span></div>
       <div class="summary-card-row"><span class="key">音量</span><span class="val">${audio.bgm.volume}</span></div>
     </div>
     <div class="summary-card">
-      <div class="summary-card-title">🎬 效果</div>
+      <div class="summary-card-title"><i data-lucide="film"></i> 效果</div>
       <div class="summary-card-row"><span class="key">转场</span><span class="val">${effects.transition}</span></div>
       <div class="summary-card-row"><span class="key">滤镜</span><span class="val">${effects.filter}</span></div>
       <div class="summary-card-row"><span class="key">水印</span><span class="val">${effects.watermark.enabled ? '是' : '否'}</span></div>
     </div>
   `;
+  if (window.lucide) lucide.createIcons();
 }
 
 // ========== 异步任务轮询（实时进度） ==========
@@ -1341,6 +1504,7 @@ async function pollGenerateJob(payload) {
         const statusText = { pending: '等待中', running: '执行中...', success: '已完成', failed: '失败', skipped: '已跳过' };
         return `<div class="pipeline-step ${status}"><div class="step-icon">${icons[status] || '○'}</div><div class="step-info"><div class="step-name">${info.icon} ${info.name}</div><div class="step-status">${statusText[status] || status}</div></div></div>`;
       }).join('');
+      if (window.lucide) lucide.createIcons();
     }
 
     // 更新模态框进度
@@ -1393,6 +1557,7 @@ async function wizardGenerate() {
     const info = STEP_INFO[step];
     return `<div class="pipeline-step pending"><div class="step-icon">○</div><div class="step-info"><div class="step-name">${info.icon} ${info.name}</div><div class="step-status">等待中</div></div></div>`;
   }).join('');
+  if (window.lucide) lucide.createIcons();
 
   // 显示进度模态框
   showProgressModal();
@@ -1443,7 +1608,7 @@ async function wizardGenerate() {
     finishProgressModalError(errMsg);
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '🚀 开始生成视频';
+    setBtnIcon(btn, 'rocket', '开始生成视频');
   }
 }
 
@@ -1524,19 +1689,20 @@ function finishProgressModal(result, hasFailed) {
       <div class="progress-modal-result-title">${escapeHtml(title)}</div>
       <video src="/api/files?path=${encodeURIComponent(videoPath)}" controls autoplay></video>
       <div class="progress-modal-result-actions">
-        <a class="btn btn-primary" href="/api/files?path=${encodeURIComponent(videoPath)}" target="_blank" download>⬇️ 下载视频</a>
-        <button class="btn btn-secondary" type="button" onclick="closeProgressModal()">🔄 再做一个</button>
+        <a class="btn btn-primary" href="/api/files?path=${encodeURIComponent(videoPath)}" target="_blank" download><i data-lucide="download"></i> 下载视频</a>
+        <button class="btn btn-secondary" type="button" onclick="closeProgressModal()"><i data-lucide="refresh-cw"></i> 再做一个</button>
       </div>
     `;
   } else {
     resultEl.innerHTML = `
       <div class="progress-modal-result-title">视频未生成</div>
       <div class="progress-modal-result-actions">
-        <button class="btn btn-secondary" type="button" onclick="closeProgressModal()">🔄 再做一个</button>
+        <button class="btn btn-secondary" type="button" onclick="closeProgressModal()"><i data-lucide="refresh-cw"></i> 再做一个</button>
       </div>
     `;
   }
   resultEl.style.display = 'block';
+  if (window.lucide) lucide.createIcons();
 }
 
 function finishProgressModalError(message) {
@@ -1544,12 +1710,13 @@ function finishProgressModalError(message) {
   document.getElementById('progress-modal-close').style.display = 'flex';
   const resultEl = document.getElementById('progress-modal-result');
   resultEl.innerHTML = `
-    <div class="progress-modal-result-title" style="color:var(--color-error)">❌ ${escapeHtml(message)}</div>
+    <div class="progress-modal-result-title" style="color:var(--color-error)"><i data-lucide="x-circle"></i> ${escapeHtml(message)}</div>
     <div class="progress-modal-result-actions">
       <button class="btn btn-secondary" type="button" onclick="closeProgressModal()">关闭</button>
     </div>
   `;
   resultEl.style.display = 'block';
+  if (window.lucide) lucide.createIcons();
 }
 
 function closeProgressModal() {
@@ -1561,9 +1728,10 @@ function closeProgressModal() {
 
 async function loadTemplatesCenter() {
   try {
-    const templates = await ensureTemplates();
     const grid = document.getElementById('templates-grid');
     if (!grid) return;
+    showSkeletonCards(grid, 6);
+    const templates = await ensureTemplates();
     grid.innerHTML = Object.entries(templates).map(([key, tpl]) => `
       <div class="template-card" data-key="${key}">
         <div class="template-card-icon">${tpl.icon}</div>
@@ -1615,11 +1783,12 @@ const sceneState = {
 // 加载场景模板列表
 async function loadSceneTemplates() {
   try {
+    const grid = document.getElementById('scene-templates-grid');
+    if (!grid) return;
+    showSkeletonCards(grid, 6);
     const resp = await fetch('/api/scene/templates');
     const data = await resp.json();
     sceneState.templates = data.templates || {};
-    const grid = document.getElementById('scene-templates-grid');
-    if (!grid) return;
     if (Object.keys(sceneState.templates).length === 0) {
       grid.innerHTML = '<div style="color:var(--text-muted);padding:20px;text-align:center">暂无场景模板</div>';
       return;
@@ -1635,7 +1804,7 @@ async function loadSceneTemplates() {
       }
       return `
         <div class="scene-template-card" onclick="openSceneModal('${tid}')">
-          <div class="scene-icon">${tpl.icon || '📋'}</div>
+          <div class="scene-icon">${tpl.icon || '<i data-lucide="clipboard-list"></i>'}</div>
           <div class="scene-label">${tpl.label}</div>
           <div class="scene-category">${tpl.category || '其他'}</div>
           <div class="scene-desc">${tpl.description || ''}</div>
@@ -1645,6 +1814,7 @@ async function loadSceneTemplates() {
         </div>
       `;
     }).join('');
+    if (window.lucide) lucide.createIcons();
   } catch (e) {
     toast(`加载场景模板失败: ${e.message}`, 'error');
   }
@@ -1663,13 +1833,13 @@ async function openSceneModal(templateId) {
     sceneState.currentTemplate.id = templateId;
     sceneState.placeholders = {};
     const tpl = data.template;
-    document.getElementById('scene-modal-title').textContent = `${tpl.icon || '📋'} ${tpl.label} - 场景创作`;
+    document.getElementById('scene-modal-title').innerHTML = `${tpl.icon || '<i data-lucide="clipboard-list"></i>'} ${tpl.label} - 场景创作`;
     // 渲染占位符输入表单
     const body = document.getElementById('scene-modal-body');
     const placeholders = tpl.placeholders || {};
     let html = `
       <div style="margin-bottom:16px;padding:12px;background:rgba(16,185,129,0.08);border-left:3px solid #10b981;border-radius:4px;font-size:12px;color:var(--text-secondary);line-height:1.5">
-        <strong>📝 文案骨架：</strong>填入下方关键词，系统将自动生成完整口播文案。每个字段都有示例提示，照着填即可。
+        <strong><i data-lucide="pen-line"></i> 文案骨架：</strong>填入下方关键词，系统将自动生成完整口播文案。每个字段都有示例提示，照着填即可。
       </div>
     `;
     Object.entries(placeholders).forEach(([key, hint]) => {
@@ -1680,8 +1850,9 @@ async function openSceneModal(templateId) {
         </div>
       `;
     });
-    html += `<div id="scene-script-preview" style="display:none"><div style="font-size:12px;font-weight:600;margin-top:12px;margin-bottom:6px">📄 生成文案预览</div><div class="scene-preview-script" id="scene-preview-content"></div></div>`;
+    html += `<div id="scene-script-preview" style="display:none"><div style="font-size:12px;font-weight:600;margin-top:12px;margin-bottom:6px;display:flex;align-items:center;gap:4px"><i data-lucide="file-text"></i> 生成文案预览</div><div class="scene-preview-script" id="scene-preview-content"></div></div>`;
     body.innerHTML = html;
+    if (window.lucide) lucide.createIcons();
     document.getElementById('scene-modal').style.display = '';
   } catch (e) {
     toast(`打开模板失败: ${e.message}`, 'error');
@@ -1712,7 +1883,7 @@ async function generateSceneScript() {
   try {
     const btn = document.getElementById('scene-generate-btn');
     btn.disabled = true;
-    btn.textContent = '生成中...';
+    btn.innerHTML = '<span class="spinner"></span> 生成中...';
     const resp = await fetch('/api/scene/fill-script', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1733,7 +1904,8 @@ async function generateSceneScript() {
   } finally {
     const btn = document.getElementById('scene-generate-btn');
     btn.disabled = false;
-    btn.textContent = '生成文案';
+    btn.innerHTML = '<i data-lucide="sparkles"></i> 生成文案';
+    if (window.lucide) lucide.createIcons();
   }
 }
 
@@ -1744,7 +1916,7 @@ async function applySceneStyle() {
   try {
     const btn = document.getElementById('scene-apply-style-btn');
     btn.disabled = true;
-    btn.textContent = '应用中...';
+    btn.innerHTML = '<span class="spinner"></span> 应用中...';
     const resp = await fetch('/api/scene/apply', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1776,17 +1948,19 @@ async function applySceneStyle() {
   } finally {
     const btn = document.getElementById('scene-apply-style-btn');
     btn.disabled = false;
-    btn.textContent = '一键应用样式';
+    btn.innerHTML = '<i data-lucide="wand-2"></i> 一键应用样式';
+    if (window.lucide) lucide.createIcons();
   }
 }
 
 // 加载预制形象库
 async function loadPresetAvatars() {
   try {
-    const resp = await fetch('/api/presets/avatars');
-    const data = await resp.json();
     const grid = document.getElementById('preset-avatars-grid');
     if (!grid) return;
+    showSkeletonCards(grid, 6);
+    const resp = await fetch('/api/presets/avatars');
+    const data = await resp.json();
     const avatars = data.avatars || {};
     if (Object.keys(avatars).length === 0) {
       grid.innerHTML = '<div style="color:var(--text-muted);padding:20px;text-align:center">暂无预制形象</div>';
@@ -1797,7 +1971,7 @@ async function loadPresetAvatars() {
       return `
         <div class="preset-avatar-card">
           <img src="/api/presets/avatars/${aid}/image" alt="${info.label}" onerror="this.style.display='none';this.nextElementSibling.style.display=''">
-          <div class="preset-avatar-icon" style="display:none">${info.icon || '👤'}</div>
+          <div class="preset-avatar-icon" style="display:none">${info.icon || '<i data-lucide="user-round"></i>'}</div>
           <div class="preset-avatar-name">${info.label}</div>
           <div class="preset-avatar-desc">${info.description || ''}</div>
           <div class="preset-avatar-scenes">适合: ${scenes}</div>
@@ -1805,6 +1979,7 @@ async function loadPresetAvatars() {
         </div>
       `;
     }).join('');
+    if (window.lucide) lucide.createIcons();
   } catch (e) {
     toast(`加载预制形象失败: ${e.message}`, 'error');
   }
@@ -1864,10 +2039,11 @@ async function usePresetAvatar(avatarId, voice, emotion) {
 // 加载预制音色库
 async function loadPresetVoices() {
   try {
-    const resp = await fetch('/api/presets/voices');
-    const data = await resp.json();
     const grid = document.getElementById('preset-voices-grid');
     if (!grid) return;
+    showSkeletonCards(grid, 6);
+    const resp = await fetch('/api/presets/voices');
+    const data = await resp.json();
     const voices = data.voices || {};
     if (Object.keys(voices).length === 0) {
       grid.innerHTML = '<div style="color:var(--text-muted);padding:20px;text-align:center">暂无预制音色</div>';
@@ -1914,15 +2090,15 @@ async function usePresetVoice(voiceId) {
 // ========== 一键生成页面 ==========
 
 const STEP_INFO = {
-  script_extract: { name: '文案提取', icon: '📝' },
-  script_write: { name: '文案仿写', icon: '✍️' },
-  tts: { name: '语音合成', icon: '🎙️' },
-  avatar: { name: '数字人生成', icon: '👤' },
-  subtitle: { name: '字幕生成', icon: '💬' },
-  compose: { name: '视频合成', icon: '🎬' },
-  title: { name: '标题生成', icon: '📌' },
-  cover: { name: '封面生成', icon: '🖼️' },
-  publish: { name: '多平台发布', icon: '📤' },
+  script_extract: { name: '文案提取', icon: '<i data-lucide="pen-line"></i>' },
+  script_write: { name: '文案仿写', icon: '<i data-lucide="pen-line"></i>' },
+  tts: { name: '语音合成', icon: '<i data-lucide="mic"></i>' },
+  avatar: { name: '数字人生成', icon: '<i data-lucide="user-round"></i>' },
+  subtitle: { name: '字幕生成', icon: '<i data-lucide="message-square"></i>' },
+  compose: { name: '视频合成', icon: '<i data-lucide="film"></i>' },
+  title: { name: '标题生成', icon: '<i data-lucide="pin"></i>' },
+  cover: { name: '封面生成', icon: '<i data-lucide="image"></i>' },
+  publish: { name: '多平台发布', icon: '<i data-lucide="share-2"></i>' },
 };
 
 const STEP_ORDER = ['script_extract', 'script_write', 'tts', 'avatar', 'subtitle', 'compose', 'title', 'cover', 'publish'];
@@ -1948,6 +2124,7 @@ function renderPipeline(stepsState = {}) {
       </div>
     `;
   }).join('');
+  if (window.lucide) lucide.createIcons();
 }
 
 async function loadAvatarsForSelect() {
@@ -2132,7 +2309,7 @@ async function handleRunModule() {
     console.error(e);
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '▶️ 执行此模块';
+    setBtnIcon(btn, 'play', '执行此模块');
   }
 }
 
@@ -2140,8 +2317,9 @@ async function handleRunModule() {
 
 async function loadJobs() {
   try {
-    const jobs = await api('/api/jobs?limit=50');
     const tbody = document.getElementById('jobs-tbody');
+    if (tbody) showSkeletonRows(tbody, 5);
+    const jobs = await api('/api/jobs?limit=50');
     if (!jobs.length) {
       tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-muted)">暂无任务</td></tr>';
       return;
@@ -2186,6 +2364,7 @@ async function showJobDetail(jobId) {
       <div class="pipeline">${stepsHtml}</div>
       ${job.error ? `<div style="margin-top:12px;color:var(--color-error)">错误: ${job.error}</div>` : ''}
     `;
+    if (window.lucide) lucide.createIcons();
   } catch (e) {
     toast(`加载详情失败: ${e.message}`, 'error');
   }
@@ -2242,10 +2421,12 @@ function onAvatarFileSelected(input) {
 
 async function loadAvatars() {
   try {
-    const avatars = await api('/api/avatars');
     const grid = document.getElementById('avatars-grid');
+    if (grid) showSkeletonCards(grid, 6);
+    const avatars = await api('/api/avatars');
     if (!avatars.length) {
-      grid.innerHTML = '<div class="empty-state"><div class="empty-state-icon">👤</div><div>暂无已注册形象</div><div style="font-size:12px;color:#999;margin-top:6px">请上传真人照片/视频注册</div></div>';
+      grid.innerHTML = '<div class="empty-state"><div class="empty-state-icon"><i data-lucide="user-round"></i></div><div>暂无已注册形象</div><div style="font-size:12px;color:#999;margin-top:6px">请上传真人照片/视频注册</div></div>';
+      if (window.lucide) lucide.createIcons();
       return;
     }
     grid.innerHTML = avatars.map(a => {
@@ -2253,7 +2434,7 @@ async function loadAvatars() {
       const hasLipSync = a.meta?.has_lip_sync || mode === 'wav2lip';
       const refType = a.meta?.reference_type || (a.reference_image ? 'photo' : 'unknown');
       const lipBadge = hasLipSync
-        ? '<span style="color:#10b981;font-size:11px">👄 唇形同步</span>'
+        ? '<span style="color:#10b981;font-size:11px;display:inline-flex;align-items:center;gap:2px"><i data-lucide="smile" style="width:12px;height:12px"></i> 唇形同步</span>'
         : '<span style="color:#999;font-size:11px">静态图</span>';
       const modeBadge = `<span style="color:#6b7280;font-size:11px">${mode}</span>`;
       // 参考图预览
@@ -2266,19 +2447,23 @@ async function loadAvatars() {
           ${imgHtml}
           <div class="asset-id" style="margin-top:8px">${a.avatar_id}</div>
           <div style="display:flex;gap:8px;margin-top:4px">${lipBadge} ${modeBadge}</div>
-          ${refType === 'video' ? '<div style="font-size:11px;color:#6b7280;margin-top:2px">📹 视频参考</div>' : ''}
+          ${refType === 'video' ? '<div style="font-size:11px;color:#6b7280;margin-top:2px;display:flex;align-items:center;gap:3px"><i data-lucide="video" style="width:12px;height:12px"></i> 视频参考</div>' : ''}
         </div>
       `;
     }).join('');
+    if (window.lucide) lucide.createIcons();
   } catch (e) {
     toast(`加载形象失败: ${e.message}`, 'error');
   }
 }
 
 async function handleRegisterAvatar() {
-  const avatarId = document.getElementById('avatar-id').value.trim();
+  const avatarIdInput = document.getElementById('avatar-id');
+  const avatarId = avatarIdInput.value.trim();
   const fileInput = document.getElementById('avatar-file');
-  if (!avatarId) { toast('请输入形象 ID', 'error'); return; }
+  if (!avatarId) { setFieldError(avatarIdInput, '请输入形象 ID'); toast('请输入形象 ID', 'error'); return; }
+  if (!isValidId(avatarId)) { setFieldError(avatarIdInput, 'ID 只能包含英文字母和数字（3-32位）'); toast('形象 ID 格式不正确', 'error'); return; }
+  setFieldSuccess(avatarIdInput);
   if (!fileInput.files.length) { toast('请选择参考照片或视频', 'error'); return; }
 
   const file = fileInput.files[0];
@@ -2312,7 +2497,7 @@ async function handleRegisterAvatar() {
     toast(`注册失败: ${e.message}`, 'error');
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '📥 注册形象（Wav2Lip 唇形同步）';
+    setBtnIcon(btn, 'download', '注册形象（Wav2Lip 唇形同步）');
   }
 }
 
@@ -2320,10 +2505,12 @@ async function handleRegisterAvatar() {
 
 async function loadVoices() {
   try {
-    const voices = await api('/api/voices');
     const grid = document.getElementById('voices-grid');
+    if (grid) showSkeletonCards(grid, 6);
+    const voices = await api('/api/voices');
     if (!voices.length) {
-      grid.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🎙️</div><div>暂无已注册音色</div></div>';
+      grid.innerHTML = '<div class="empty-state"><div class="empty-state-icon"><i data-lucide="mic"></i></div><div>暂无已注册音色</div></div>';
+      if (window.lucide) lucide.createIcons();
       return;
     }
     grid.innerHTML = voices.map(v => `
@@ -2338,9 +2525,12 @@ async function loadVoices() {
 }
 
 async function handleRegisterVoice() {
-  const voiceId = document.getElementById('voice-id').value.trim();
+  const voiceIdInput = document.getElementById('voice-id');
+  const voiceId = voiceIdInput.value.trim();
   const fileInput = document.getElementById('voice-file');
-  if (!voiceId) { toast('请输入音色 ID', 'error'); return; }
+  if (!voiceId) { setFieldError(voiceIdInput, '请输入音色 ID'); toast('请输入音色 ID', 'error'); return; }
+  if (!isValidId(voiceId)) { setFieldError(voiceIdInput, 'ID 只能包含英文字母和数字（3-32位）'); toast('音色 ID 格式不正确', 'error'); return; }
+  setFieldSuccess(voiceIdInput);
   if (!fileInput.files.length) { toast('请选择样本音频', 'error'); return; }
 
   const formData = new FormData();
@@ -2364,7 +2554,7 @@ async function handleRegisterVoice() {
     toast(`注册失败: ${e.message}`, 'error');
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '📥 注册音色';
+    setBtnIcon(btn, 'download', '注册音色');
   }
 }
 
@@ -2375,12 +2565,12 @@ async function loadHealth() {
     const health = await api('/api/health');
     const container = document.getElementById('health-content');
     const items = [
-      { key: 'ffmpeg', label: 'FFmpeg 视频处理', icon: '🎬' },
-      { key: 'gpu_tts', label: '云端 TTS 服务', icon: '🎙️' },
-      { key: 'gpu_avatar', label: '云端数字人服务', icon: '👤' },
-      { key: 'llm_mock', label: 'LLM 模式', icon: '🧠' },
-      { key: 'avatars_count', label: '已注册形象', icon: '👥' },
-      { key: 'voices_count', label: '已注册音色', icon: '🎵' },
+      { key: 'ffmpeg', label: 'FFmpeg 视频处理', icon: '<i data-lucide="film"></i>' },
+      { key: 'gpu_tts', label: '云端 TTS 服务', icon: '<i data-lucide="mic"></i>' },
+      { key: 'gpu_avatar', label: '云端数字人服务', icon: '<i data-lucide="user-round"></i>' },
+      { key: 'llm_mock', label: 'LLM 模式', icon: '<i data-lucide="brain"></i>' },
+      { key: 'avatars_count', label: '已注册形象', icon: '<i data-lucide="users"></i>' },
+      { key: 'voices_count', label: '已注册音色', icon: '<i data-lucide="music"></i>' },
     ];
     container.innerHTML = items.map(item => {
       const val = health[item.key];
@@ -2399,13 +2589,14 @@ async function loadHealth() {
       return `
         <div class="card" style="display:flex;align-items:center;justify-content:space-between">
           <div style="display:flex;align-items:center;gap:14px">
-            <span style="font-size:24px">${item.icon}</span>
+            <span style="display:inline-flex;width:24px;height:24px;color:var(--color-primary)">${item.icon}</span>
             <span style="font-weight:600">${item.label}</span>
           </div>
           ${display}
         </div>
       `;
     }).join('');
+    if (window.lucide) lucide.createIcons();
 
     // 更新侧边栏状态
     const dot = document.getElementById('status-dot');
@@ -2492,7 +2683,7 @@ async function handleScriptProcess() {
     toast(`处理失败: ${e.message}`, 'error');
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '▶️ 执行 AI 处理';
+    setBtnIcon(btn, 'play', '执行 AI 处理');
   }
 }
 
@@ -2586,16 +2777,19 @@ async function handleBatchGenerate() {
           itemEl.classList.remove('running');
           itemEl.classList.add('success');
           const videoPath = result.output?.final_video || '';
-          itemEl.querySelector('.batch-item-meta').innerHTML = `✅ 成功 · ${videoPath ? `<a href="/api/files?path=${encodeURIComponent(videoPath)}" target="_blank">查看视频</a>` : ''}`;
+          itemEl.querySelector('.batch-item-meta').innerHTML = `<i data-lucide="check-circle"></i> 成功 · ${videoPath ? `<a href="/api/files?path=${encodeURIComponent(videoPath)}" target="_blank">查看视频</a>` : ''}`;
+          if (window.lucide) lucide.createIcons();
         } else {
           itemEl.classList.remove('running');
           itemEl.classList.add('failed');
-          itemEl.querySelector('.batch-item-meta').textContent = `❌ 失败: ${result.error || '未知错误'}`;
+          itemEl.querySelector('.batch-item-meta').innerHTML = `<i data-lucide="x-circle"></i> 失败: ${escapeHtml(result.error || '未知错误')}`;
+          if (window.lucide) lucide.createIcons();
         }
       } catch (e) {
         itemEl.classList.remove('running');
         itemEl.classList.add('failed');
-        itemEl.querySelector('.batch-item-meta').textContent = `❌ 异常: ${e.message}`;
+        itemEl.querySelector('.batch-item-meta').innerHTML = `<i data-lucide="x-circle"></i> 异常: ${escapeHtml(e.message)}`;
+        if (window.lucide) lucide.createIcons();
       }
     }
 
@@ -2605,7 +2799,7 @@ async function handleBatchGenerate() {
     toast(`批量处理失败: ${e.message}`, 'error');
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '📦 开始批量生成';
+    setBtnIcon(btn, 'package', '开始批量生成');
   }
 }
 
@@ -2883,8 +3077,8 @@ function renderTimeline() {
     seg.className = `tl-broll-segment ${clip.mode}`;
     seg.style.left = (clip.start * pxPerSec) + 'px';
     seg.style.width = ((clip.end - clip.start) * pxPerSec) + 'px';
-    const modeIcon = clip.mode === 'pip' ? '🖼️' : '✂️';
-    const transIcon = clip.transition === 'fade' ? ' 🌗' : '';
+    const modeIcon = clip.mode === 'pip' ? '<i data-lucide="image"></i>' : '<i data-lucide="scissors"></i>';
+    const transIcon = clip.transition === 'fade' ? ' <i data-lucide="contrast"></i>' : '';
     seg.innerHTML = `${modeIcon}${transIcon} ${clip.filename || 'B-roll'}<span class="tl-segment-delete" onclick="event.stopPropagation();deleteClip(${idx})">×</span>`;
     seg.title = `${clip.mode === 'pip' ? '画中画' : '整段切换'} · ${clip.start}s-${clip.end}s · 点击编辑`;
     seg.onclick = (e) => {
@@ -2893,6 +3087,7 @@ function renderTimeline() {
     };
     brollTrack.appendChild(seg);
   });
+  if (window.lucide) lucide.createIcons();
 
   // 字幕轨道 + 字幕间插入点
   const subTrack = document.getElementById('tl-subtitle-track');
@@ -2960,10 +3155,10 @@ function renderBrollAssets() {
   }
   list.innerHTML = tlState.brollAssets.map(a => {
     const sizeStr = a.size > 1024*1024 ? (a.size/1024/1024).toFixed(1)+'MB' : Math.round(a.size/1024)+'KB';
-    const icon = a.kind === 'video' ? '🎬' : '🖼️';
+    const iconName = a.kind === 'video' ? 'film' : 'image';
     const thumb = a.kind === 'image'
-      ? `<img src="/api/broll/assets/${encodeURIComponent(a.filename)}" onerror="this.parentElement.innerHTML='${icon}'">`
-      : icon;
+      ? `<img src="/api/broll/assets/${encodeURIComponent(a.filename)}" onerror="setFallbackIcon(this.parentElement,'${iconName}')">`
+      : `<i data-lucide="${iconName}"></i>`;
     return `
       <div class="broll-asset-card ${tlState.selectedAsset?.path === a.path ? 'selected' : ''}"
            onclick="selectBrollAsset('${a.path}','${a.filename}','${a.kind}')">
@@ -2975,6 +3170,7 @@ function renderBrollAssets() {
       </div>
     `;
   }).join('');
+  if (window.lucide) lucide.createIcons();
 }
 
 // 选择素材
@@ -3140,11 +3336,12 @@ function renderClipList() {
         <span class="clip-badge ${clip.mode}">${modeLabel}</span>
         <span>${clip.filename}</span>
         <span style="color:#666">${clip.start}s - ${clip.end}s${posLabel}${transLabel}</span>
-        <span class="clip-edit" onclick="openClipModalForEdit(${idx})" title="编辑">✏️</span>
-        <span class="clip-delete" onclick="deleteClip(${idx})" title="删除">🗑️</span>
+        <span class="clip-edit" onclick="openClipModalForEdit(${idx})" title="编辑"><i data-lucide="pencil"></i></span>
+        <span class="clip-delete" onclick="deleteClip(${idx})" title="删除"><i data-lucide="trash-2"></i></span>
       </div>
     `;
   }).join('');
+  if (window.lucide) lucide.createIcons();
 }
 
 // 删除片段
@@ -3224,8 +3421,9 @@ function openQuickEditModal(action) {
     return;
   }
   tlState.quickEditAction = action;
-  const titles = { trim: '✂️ 裁剪视频', volume: '🔊 调整音量', fade: '🌗 淡入淡出' };
-  document.getElementById('qe-title').textContent = titles[action] || '快捷剪辑';
+  const titles = { trim: '<i data-lucide="scissors"></i> 裁剪视频', volume: '<i data-lucide="volume-2"></i> 调整音量', fade: '<i data-lucide="contrast"></i> 淡入淡出' };
+  document.getElementById('qe-title').innerHTML = titles[action] || '快捷剪辑';
+  if (window.lucide) lucide.createIcons();
   const duration = tlState.videoDuration || 0;
   const body = document.getElementById('qe-body');
 

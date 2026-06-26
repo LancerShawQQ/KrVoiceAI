@@ -156,7 +156,7 @@ asr:
     download_root: ""       # 模型下载根目录（空则用 ~/AppData/Local/cache 或 HuggingFace 默认）
     # 热词：提示 whisper 关注特定词汇，减少专有名词/术语识别错误
     # 例："脓毒症 造影 动脉 医疗事故 卫健局"
-    hotwords: ""
+    hotwords: "脓毒症 造影 动脉 医疗事故 卫健局 立案 调查 鉴定"
   # 字幕基础样式
   subtitle:
     font_size: 24

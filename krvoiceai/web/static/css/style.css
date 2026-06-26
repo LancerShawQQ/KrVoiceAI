@@ -3935,4 +3935,91 @@ input[type="color"]::-webkit-color-swatch {
   color: var(--text-secondary);
 }
 
+/* ---------- 骨架屏（Skeleton Screen） ---------- */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 25%,
+    rgba(255, 255, 255, 0.08) 37%,
+    rgba(255, 255, 255, 0.04) 63%
+  );
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+  border-radius: var(--radius-sm);
+}
+@keyframes skeleton-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+/* 骨架屏条 */
+.skeleton-line {
+  height: 14px;
+  margin-bottom: 8px;
+  border-radius: var(--radius-sm);
+}
+.skeleton-line.short { width: 40%; }
+.skeleton-line.medium { width: 65%; }
+.skeleton-line.long { width: 90%; }
+/* 骨架屏卡片（网格列表用） */
+.skeleton-card {
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+}
+.skeleton-card .skeleton-thumb {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  margin-bottom: 12px;
+  border-radius: var(--radius-sm);
+}
+.skeleton-card .skeleton-title {
+  height: 16px;
+  width: 70%;
+  margin-bottom: 8px;
+}
+.skeleton-card .skeleton-meta {
+  height: 12px;
+  width: 45%;
+}
+/* 骨架屏行（表格/列表用） */
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+}
+.skeleton-row .skeleton-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.skeleton-row .skeleton-content {
+  flex: 1;
+}
+
+/* ---------- 表单校验视觉状态 ---------- */
+.form-input.error,
+.form-select.error,
+.form-textarea.error {
+  border-color: var(--danger, #ef4444);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+}
+.form-input.success,
+.form-select.success,
+.form-textarea.success {
+  border-color: var(--success, #10b981);
+}
+/* 内联错误提示 */
+.field-error {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--danger, #ef4444);
+  line-height: 1.4;
+  min-height: 16px;
+}
+.field-error:empty { display: none; }
+
 
