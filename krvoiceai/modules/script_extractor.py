@@ -520,9 +520,15 @@ class ScriptExtractor(BaseModule):
         Returns: (desc, video_dl_url)
         """
         # 优先：Playwright 无头浏览器（最可靠，绕过所有 JS 挑战）
-        desc, video_url = self._fetch_with_playwright(url, "douyin")
+        # 重试机制：偶发页面加载超时，重试一次提升成功率
+        desc, video_url = "", ""
+        for attempt in (1, 2):
+            desc, video_url = self._fetch_with_playwright(url, "douyin")
+            if (desc and len(desc) >= 10) or video_url:
+                self.logger.info(f"抖音 Playwright 提取成功（第{attempt}次）: desc={len(desc)}字, video_url={'有' if video_url else '无'}")
+                break
+            self.logger.warning(f"抖音 Playwright 第{attempt}次尝试未提取到内容，{'重试' if attempt == 1 else '降级'}")
         if desc and len(desc) >= 10:
-            self.logger.info(f"抖音 Playwright 提取成功: {len(desc)} 字, video_url={'有' if video_url else '无'}")
             return desc, video_url
 
         # 降级：httpx 解析（可能被 JS 挑战拦截，作为兜底尝试）
@@ -628,83 +634,89 @@ class ScriptExtractor(BaseModule):
 
                 self.logger.info(f"Playwright 渲染: {share_url}")
                 try:
-                    page.goto(share_url, wait_until="domcontentloaded", timeout=30000)
-                    page.wait_for_timeout(3000)
-                except Exception as e:
-                    self.logger.debug(f"Playwright 页面加载超时: {str(e)[:80]}")
+                    try:
+                        page.goto(share_url, wait_until="domcontentloaded", timeout=30000)
+                        page.wait_for_timeout(3000)
+                    except Exception as e:
+                        self.logger.debug(f"Playwright 页面加载超时: {str(e)[:80]}")
 
-                # 滚动 + play() 触发视频懒加载（抖音视频默认不预加载流）
-                try:
-                    page.evaluate('window.scrollTo(0, 300)')
-                    page.wait_for_timeout(1000)
-                    page.evaluate(
-                        'var v=document.querySelector("video");'
-                        'if(v){v.muted=true; v.play().catch(function(){});}'
-                    )
-                    page.wait_for_timeout(4000)
-                except Exception as e:
-                    self.logger.debug(f"触发视频加载失败: {str(e)[:80]}")
-
-                # 提取文案：title 和 meta description
-                title = page.title() or ""
-                meta_desc = page.evaluate(
-                    'document.querySelector("meta[name=description]")?.getAttribute("content") || ""'
-                )
-
-                desc = ""
-                if title:
-                    desc = re.sub(r"\s*-\s*抖音\s*$", "", title).strip()
-                    desc = re.sub(r"#[\w]+$", "", desc).strip()
-                if meta_desc and len(meta_desc) > len(desc):
-                    desc = re.sub(r"\s*-\s*.*?于\d+.*?发布在抖音.*$", "", meta_desc).strip()
-                    desc = re.sub(r"#[\w]+$", "", desc).strip()
-
-                # 提取视频 URL：优先从网络请求捕获（douyinvod.com），其次从 video.currentSrc，最后从 RENDER_DATA
-                video_dl_url = ""
-                if captured_video_urls:
-                    video_dl_url = captured_video_urls[0]
-                    self.logger.info(f"Playwright 捕获视频流: {len(captured_video_urls)} 个")
-                else:
-                    cur = page.evaluate('document.querySelector("video")?.currentSrc || ""')
-                    if cur and ("douyinvod.com" in cur or "video/tos" in cur):
-                        video_dl_url = cur
-                        self.logger.info("从 video.currentSrc 提取视频 URL")
-
-                # 从 RENDER_DATA 提取 desc 和 video URL（兜底，抖音页面数据源）
-                render_data = page.evaluate(
-                    'document.getElementById("RENDER_DATA")?.textContent || ""'
-                )
-                if render_data:
-                    from urllib.parse import unquote
-                    decoded = unquote(render_data)
-                    # 提取 desc
-                    if not desc or len(desc) < 20:
-                        dm = re.search(r'"desc":"((?:[^"\\]|\\.)*)"', decoded)
-                        if dm:
-                            try:
-                                rd_desc = dm.group(1).encode().decode("unicode_escape", errors="ignore")
-                            except Exception:
-                                rd_desc = dm.group(1)
-                            if rd_desc and len(rd_desc) > len(desc):
-                                desc = rd_desc
-                    # 兜底提取视频 URL（网络捕获失败时）
-                    if not video_dl_url:
-                        vm = re.search(
-                            r'(https?://[^"\s\\]+\.douyinvod\.com/[^"\s\\]+)',
-                            decoded,
+                    # 滚动 + play() 触发视频懒加载（抖音视频默认不预加载流）
+                    try:
+                        page.evaluate('window.scrollTo(0, 300)')
+                        page.wait_for_timeout(1000)
+                        page.evaluate(
+                            'var v=document.querySelector("video");'
+                            'if(v){v.muted=true; v.play().catch(function(){});}'
                         )
-                        if vm:
-                            video_dl_url = vm.group(1)
-                            self.logger.info("从 RENDER_DATA 提取视频 URL")
+                        page.wait_for_timeout(4000)
+                    except Exception as e:
+                        self.logger.debug(f"触发视频加载失败: {str(e)[:80]}")
 
-                browser.close()
+                    # 提取文案：title 和 meta description
+                    title = page.title() or ""
+                    meta_desc = page.evaluate(
+                        'document.querySelector("meta[name=description]")?.getAttribute("content") || ""'
+                    )
 
-                if desc and len(desc) >= 10:
-                    self.logger.info(f"Playwright 提取: desc={len(desc)}字, video_url={'有' if video_dl_url else '无'}")
-                    return desc, video_dl_url
-                elif video_dl_url:
-                    self.logger.info(f"Playwright 仅提取到视频 URL（无文案），将做 ASR 转写")
-                    return "", video_dl_url
+                    desc = ""
+                    if title:
+                        desc = re.sub(r"\s*-\s*抖音\s*$", "", title).strip()
+                        desc = re.sub(r"#[\w]+$", "", desc).strip()
+                    if meta_desc and len(meta_desc) > len(desc):
+                        desc = re.sub(r"\s*-\s*.*?于\d+.*?发布在抖音.*$", "", meta_desc).strip()
+                        desc = re.sub(r"#[\w]+$", "", desc).strip()
+
+                    # 提取视频 URL：优先从网络请求捕获（douyinvod.com），其次从 video.currentSrc，最后从 RENDER_DATA
+                    video_dl_url = ""
+                    if captured_video_urls:
+                        video_dl_url = captured_video_urls[0]
+                        self.logger.info(f"Playwright 捕获视频流: {len(captured_video_urls)} 个")
+                    else:
+                        cur = page.evaluate('document.querySelector("video")?.currentSrc || ""')
+                        if cur and ("douyinvod.com" in cur or "video/tos" in cur):
+                            video_dl_url = cur
+                            self.logger.info("从 video.currentSrc 提取视频 URL")
+
+                    # 从 RENDER_DATA 提取 desc 和 video URL（兜底，抖音页面数据源）
+                    render_data = page.evaluate(
+                        'document.getElementById("RENDER_DATA")?.textContent || ""'
+                    )
+                    if render_data:
+                        from urllib.parse import unquote
+                        decoded = unquote(render_data)
+                        # 提取 desc
+                        if not desc or len(desc) < 20:
+                            dm = re.search(r'"desc":"((?:[^"\\]|\\.)*)"', decoded)
+                            if dm:
+                                try:
+                                    rd_desc = dm.group(1).encode().decode("unicode_escape", errors="ignore")
+                                except Exception:
+                                    rd_desc = dm.group(1)
+                                if rd_desc and len(rd_desc) > len(desc):
+                                    desc = rd_desc
+                        # 兜底提取视频 URL（网络捕获失败时）
+                        if not video_dl_url:
+                            vm = re.search(
+                                r'(https?://[^"\s\\]+\.douyinvod\.com/[^"\s\\]+)',
+                                decoded,
+                            )
+                            if vm:
+                                video_dl_url = vm.group(1)
+                                self.logger.info("从 RENDER_DATA 提取视频 URL")
+
+                    if desc and len(desc) >= 10:
+                        self.logger.info(f"Playwright 提取: desc={len(desc)}字, video_url={'有' if video_dl_url else '无'}")
+                        return desc, video_dl_url
+                    elif video_dl_url:
+                        self.logger.info(f"Playwright 仅提取到视频 URL（无文案），将做 ASR 转写")
+                        return "", video_dl_url
+                    self.logger.warning(f"Playwright 渲染完成但未提取到内容: title={len(title)}字, meta={len(meta_desc)}字, caps={len(captured_video_urls)}")
+                finally:
+                    # 确保 browser 关闭，避免 Edge 残留进程影响后续启动
+                    try:
+                        browser.close()
+                    except Exception:
+                        pass
         except Exception as e:
             self.logger.warning(f"Playwright 渲染失败: {str(e)[:120]}")
         return "", ""
