@@ -444,6 +444,18 @@
             </div>
             <div class="sub-page" id="wiz-script-ai">
               <div class="form-group">
+                <label class="form-label">爆款模板（可选）</label>
+                <div class="template-grid" id="wiz-template-grid">
+                  <div class="template-card active" data-tplid="">
+                    <i data-lucide="zap"></i>
+                    <span class="tpl-name">自由创作</span>
+                    <span class="tpl-desc">不套用模板</span>
+                  </div>
+                  <!-- 模板卡片由 JS 动态注入 -->
+                </div>
+                <div class="form-hint" id="wiz-tpl-hint" style="display:none;margin-top:8px"></div>
+              </div>
+              <div class="form-group">
                 <label class="form-label">创作主题 / 要点</label>
                 <input class="form-input" id="wiz-ai-topic" placeholder="如：3个提高短视频完播率的技巧">
               </div>

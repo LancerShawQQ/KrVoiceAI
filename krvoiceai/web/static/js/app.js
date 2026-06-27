@@ -757,6 +757,10 @@ async function loadWizardData() {
     document.getElementById('wiz-ai-generate-btn').addEventListener('click', wizardAiGenerate);
     document.getElementById('wiz-extract-btn').addEventListener('click', wizardExtractScript);
     bindShareTextPreview(); // 分享文本实时解析预览
+    // 自由创作卡片：取消模板选择
+    const freeCard = document.querySelector('#wiz-template-grid .template-card[data-tplid=""]');
+    if (freeCard) freeCard.addEventListener('click', () => selectScriptTemplate(freeCard, { name: '自由创作', structure: '不套用模板，由 AI 自由发挥' }));
+    loadScriptTemplates(); // 异步加载爆款模板卡片
     document.getElementById('wiz-script-process-btn').addEventListener('click', wizardScriptProcess);
     document.getElementById('wiz-generate-btn').addEventListener('click', wizardGenerate);
     document.getElementById('wiz-prev-btn').addEventListener('click', () => wizardGoToStep(wizardState.currentStep - 1));
@@ -1304,13 +1308,18 @@ async function wizardAiGenerate() {
   const topic = document.getElementById('wiz-ai-topic').value.trim();
   const style = document.getElementById('wiz-ai-style').value;
   if (!topic) { toast('请输入创作主题', 'error'); return; }
+  // 获取当前选中的爆款模板 ID
+  const activeTpl = document.querySelector('#wiz-template-grid .template-card.active');
+  const templateId = activeTpl ? activeTpl.dataset.tplid || '' : '';
   const btn = document.getElementById('wiz-ai-generate-btn');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> 生成中...';
   try {
+    const body = { script: topic, action: 'generate', style, topic };
+    if (templateId) body.template_id = templateId;
     const result = await api('/api/script/process', {
       method: 'POST',
-      body: { script: topic, action: 'generate', style, topic },
+      body,
     });
     if (result.success) {
       document.getElementById('wiz-script').value = result.script;
@@ -1326,6 +1335,47 @@ async function wizardAiGenerate() {
   } finally {
     btn.disabled = false;
     setBtnIcon(btn, 'lightbulb', '生成文案');
+  }
+}
+
+// 加载文案爆款模板库并渲染卡片网格
+async function loadScriptTemplates() {
+  const grid = document.getElementById('wiz-template-grid');
+  if (!grid) return;
+  try {
+    const result = await api('/api/script/templates', { method: 'GET' });
+    if (!result.success || !Array.isArray(result.templates)) return;
+    // 保留首张"自由创作"卡片，在其后追加模板卡片
+    const freeCard = grid.querySelector('.template-card[data-tplid=""]');
+    grid.innerHTML = '';
+    if (freeCard) grid.appendChild(freeCard);
+    result.templates.forEach(tpl => {
+      const card = document.createElement('div');
+      card.className = 'template-card';
+      card.dataset.tplid = tpl.id;
+      card.innerHTML = `
+        <i data-lucide="${tpl.icon || 'file-text'}"></i>
+        <span class="tpl-name">${tpl.name}</span>
+        <span class="tpl-desc">${tpl.desc || ''}</span>
+      `;
+      card.addEventListener('click', () => selectScriptTemplate(card, tpl));
+      grid.appendChild(card);
+    });
+    if (window.lucide) lucide.createIcons();
+  } catch (e) {
+    // 静默失败：模板不可用时仍可用自由创作
+  }
+}
+
+function selectScriptTemplate(card, tpl) {
+  // 切换选中态
+  document.querySelectorAll('#wiz-template-grid .template-card').forEach(c => c.classList.remove('active'));
+  card.classList.add('active');
+  // 显示模板结构提示
+  const hint = document.getElementById('wiz-tpl-hint');
+  if (hint) {
+    hint.style.display = 'block';
+    hint.innerHTML = `<strong>${tpl.name}：</strong>${tpl.structure}`;
   }
 }
 

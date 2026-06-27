@@ -89,6 +89,7 @@ class ScriptProcessRequest(BaseModel):
     style: Optional[str] = None  # 幽默/严肃/活泼/专业/口语化
     topic: Optional[str] = None  # generate 模式下的主题
     reference_url: Optional[str] = None  # extract 模式下的参考视频链接
+    template_id: Optional[str] = None  # generate 模式下使用的爆款模板 ID
 
 
 class ParseShareTextRequest(BaseModel):
@@ -746,6 +747,12 @@ def create_app() -> FastAPI:
 
     # ============ 文案 AI 处理 API ============
 
+    @app.get("/api/script/templates")
+    async def get_script_templates():
+        """获取文案爆款模板列表"""
+        from ..app import SCRIPT_TEMPLATES
+        return {"success": True, "templates": SCRIPT_TEMPLATES}
+
     @app.post("/api/script/process")
     async def process_script(req: ScriptProcessRequest):
         """AI 文案处理：润色/仿写/扩写/缩写/风格转换/生成/提取"""
@@ -757,6 +764,7 @@ def create_app() -> FastAPI:
                 script=req.script, action=req.action,
                 style=req.style, topic=req.topic,
                 reference_url=req.reference_url,
+                template_id=req.template_id,
             )
         )
         return result

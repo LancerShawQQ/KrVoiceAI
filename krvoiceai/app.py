@@ -32,6 +32,65 @@ from .pipeline.orchestrator import PipelineOrchestrator, StepDef
 from .pipeline.state import JobStatus, JobStore, PIPELINE_STEPS, StepStatus
 
 
+# 文案爆款模板库（对标万兴播爆/即梦AI灵感社区）
+SCRIPT_TEMPLATES = [
+    {
+        "id": "viral_hook",
+        "name": "爆款钩子型",
+        "icon": "flame",
+        "category": "通用",
+        "desc": "强钩子开场+痛点共鸣+解决方案+CTA",
+        "structure": "开场钩子（反差/数字/痛点，3秒内抓住注意力）→ 痛点共鸣（描述用户困境）→ 价值方案（3个核心要点）→ 行动号召",
+        "example": "90%的人不知道这个技巧...",
+    },
+    {
+        "id": "story_case",
+        "name": "故事案例型",
+        "icon": "book-open",
+        "category": "通用",
+        "desc": "真实案例+转折反转+经验总结+引导",
+        "structure": "故事开场（真实案例引入）→ 冲突转折（遇到什么问题）→ 解决过程（怎么做）→ 经验总结+CTA",
+        "example": "上周有个客户跟我说...",
+    },
+    {
+        "id": "knowledge",
+        "name": "知识科普型",
+        "icon": "graduation-cap",
+        "category": "教培",
+        "desc": "提出问题+原理解释+实操步骤+总结",
+        "structure": "提问开场（引发好奇）→ 原理解释（为什么）→ 实操步骤（怎么做，3步）→ 总结要点+关注引导",
+        "example": "为什么你发的视频没人看？",
+    },
+    {
+        "id": "contrast",
+        "name": "对比反差型",
+        "icon": "git-compare",
+        "category": "通用",
+        "desc": "错误做法VS正确做法+原理解析+建议",
+        "structure": "错误做法展示（引发共鸣）→ 正确做法对比 → 原理解析 → 实操建议+CTA",
+        "example": "别再用老方法了，正确做法是这样的...",
+    },
+    {
+        "id": "news_hot",
+        "name": "热点解读型",
+        "icon": "trending-up",
+        "category": "资讯",
+        "desc": "热点事件+深度解读+个人观点+互动",
+        "structure": "热点事件引入（蹭流量）→ 深度解读（为什么发生/影响）→ 个人观点（有态度）→ 互动引导",
+        "example": "今天这个事上了热搜...",
+    },
+    {
+        "id": "product_sell",
+        "name": "种草带货型",
+        "icon": "shopping-bag",
+        "category": "电商",
+        "desc": "痛点引入+产品展示+使用场景+促单",
+        "structure": "痛点引入（用户困境）→ 产品展示（解决什么问题）→ 使用场景（怎么用）→ 限时优惠+促单",
+        "example": "你是不是也遇到过这个问题？",
+    },
+]
+
+
 class KrVoiceAI:
     """KrVoiceAI 应用主入口"""
 
@@ -508,6 +567,7 @@ class KrVoiceAI:
         style: Optional[str] = None,
         topic: Optional[str] = None,
         reference_url: Optional[str] = None,
+        template_id: Optional[str] = None,
     ) -> dict:
         """AI 文案处理（独立于流水线，供文案工作台调用）
 
@@ -517,6 +577,7 @@ class KrVoiceAI:
             style: 风格转换时的目标风格（幽默/严肃/活泼/专业/口语化/煽情）
             topic: generate 模式下的主题
             reference_url: extract 模式下的参考视频链接
+            template_id: generate 模式下可选，使用爆款模板库中的结构生成
 
         Returns:
             {"success": bool, "script": str, "action": str, "error": str}
@@ -589,16 +650,31 @@ class KrVoiceAI:
 
         if action == "generate":
             input_text = topic or script or "短视频运营技巧"
+            # 模板生成：使用爆款模板的结构和示例指导 LLM 生成
+            if template_id:
+                tpl = next((t for t in SCRIPT_TEMPLATES if t["id"] == template_id), None)
+                if not tpl:
+                    return {"success": False, "error": f"未知模板: {template_id}", "action": action}
+                user_prompt = (
+                    f"请严格按以下爆款结构创作口播文案：\n"
+                    f"【结构】{tpl['structure']}\n"
+                    f"【参考示例】{tpl['example']}\n\n"
+                    f"【主题/要求】{input_text}\n\n"
+                    f"要求：严格遵循上述结构，开场钩子3秒内抓住注意力，"
+                    f"口语化、短句为主、150-300字，直接输出文案，不要解释。"
+                )
+            else:
+                user_prompt = action_map[action].format(input=input_text, style=style or "")
         elif action == "style":
             if not style:
                 return {"success": False, "error": "style 模式需要指定 style 参数"}
             input_text = script
+            user_prompt = action_map[action].format(input=input_text, style=style or "")
         else:
             if not script:
                 return {"success": False, "error": "文案不能为空"}
             input_text = script
-
-        user_prompt = action_map[action].format(input=input_text, style=style or "")
+            user_prompt = action_map[action].format(input=input_text, style=style or "")
 
         try:
             messages = [
@@ -629,6 +705,7 @@ class KrVoiceAI:
                 "script": result,
                 "action": action,
                 "style": style,
+                "template_id": template_id,
                 "char_count": len(result),
                 "mock": self.llm.is_mock,
             }

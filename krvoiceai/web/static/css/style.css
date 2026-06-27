@@ -957,6 +957,68 @@ body::before {
   color: white;
 }
 
+/* ---------- 文案爆款模板卡片网格 ---------- */
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.template-card {
+  padding: 12px 8px 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.template-card i {
+  width: 22px;
+  height: 22px;
+  color: var(--accent-primary);
+  margin-bottom: 2px;
+}
+
+.template-card .tpl-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.template-card .tpl-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.3;
+}
+
+.template-card:hover {
+  border-color: var(--accent-primary);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-glow);
+}
+
+.template-card.active {
+  background: var(--gradient-primary);
+  border-color: transparent;
+  color: white;
+}
+
+.template-card.active i,
+.template-card.active .tpl-name,
+.template-card.active .tpl-desc {
+  color: white;
+}
+
+.template-card.active .tpl-desc {
+  opacity: 0.85;
+}
+
 /* ---------- 滑块（range input） ---------- */
 .form-range {
   width: 100%;
@@ -2578,6 +2640,9 @@ input[type="color"]::-webkit-color-swatch {
   }
   .script-diff-grid {
     grid-template-columns: 1fr !important;
+  }
+  .template-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
