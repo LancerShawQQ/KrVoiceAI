@@ -1003,6 +1003,10 @@ function bindScriptToolbar() {
   if (expandBtn) expandBtn.addEventListener('click', () => wizardScriptQuickProcess('expand', null));
   const shortenBtn = document.getElementById('wiz-shorten-btn');
   if (shortenBtn) shortenBtn.addEventListener('click', () => wizardScriptQuickProcess('shorten', null));
+  const smoothBtn = document.getElementById('wiz-smooth-btn');
+  if (smoothBtn) smoothBtn.addEventListener('click', () => wizardScriptQuickProcess('smooth', null));
+  const hookBtn = document.getElementById('wiz-hook-btn');
+  if (hookBtn) hookBtn.addEventListener('click', () => wizardScriptQuickProcess('hook', null));
   const clearBtn = document.getElementById('wiz-clear-btn');
   if (clearBtn) clearBtn.addEventListener('click', () => {
     document.getElementById('wiz-script').value = '';
@@ -1023,7 +1027,7 @@ function bindScriptToolbar() {
 async function wizardScriptQuickProcess(action, style) {
   const script = document.getElementById('wiz-script').value.trim();
   if (!script) { toast('请先输入文案', 'error'); return; }
-  const actionLabel = {polish:'润色',expand:'扩写',shorten:'缩写'}[action] || action;
+  const actionLabel = {polish:'润色',expand:'扩写',shorten:'缩写',smooth:'顺滑',hook:'钩子优化'}[action] || action;
   toast(`正在执行 AI ${actionLabel}...`, 'info');
   try {
     const result = await api('/api/script/process', {
