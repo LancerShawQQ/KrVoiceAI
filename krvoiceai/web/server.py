@@ -1062,6 +1062,94 @@ def create_app() -> FastAPI:
         results = await loop.run_in_executor(None, run_batch)
         return {"total": len(req.items), "results": results}
 
+    @app.post("/api/batch/matrix")
+    async def batch_matrix(req: dict):
+        """矩阵批量生成（对标万兴播爆批量裂变）
+
+        笛卡尔积展开：1 文案 × M 数字人 × K 音色 × T 模板 = M×K×T 个变体
+        立即返回所有 job_ids，前端轮询 /api/jobs/{job_id} 查看进度
+
+        Body:
+        {
+          "script": "文案",
+          "avatar_ids": ["default", "anchor_female"],
+          "voice_ids": ["default", "xiaoxiao"],
+          "template_ids": [],  # 可选，模板只影响样式，不参与流水线
+          "script_mode": "polish",
+          "platform": "douyin",
+          "auto_publish": false,
+          "parallel": 2
+        }
+        """
+        import itertools
+        from concurrent.futures import ThreadPoolExecutor
+        krvoice = _get_app()
+
+        script = req.get("script", "")
+        avatar_ids = req.get("avatar_ids") or ["default"]
+        voice_ids = req.get("voice_ids") or ["default"]
+        template_ids = req.get("template_ids") or [None]
+        script_mode = req.get("script_mode", "polish")
+        platform = req.get("platform", "douyin")
+        auto_publish = bool(req.get("auto_publish", False))
+        parallel = max(1, min(int(req.get("parallel", 2)), 4))
+
+        if not script.strip():
+            raise HTTPException(400, "文案不能为空")
+        if not avatar_ids or not voice_ids:
+            raise HTTPException(400, "至少选择一个数字人和一个音色")
+
+        # 笛卡尔积展开
+        combos = list(itertools.product(avatar_ids, voice_ids, template_ids))
+
+        # 提交所有任务，收集 job_ids
+        job_ids = []
+        job_meta = []
+        for avatar_id, voice_id, template_id in combos:
+            metadata = {"platform": platform, "auto_publish": auto_publish}
+            if template_id:
+                metadata["template_id"] = template_id
+                metadata["matrix_template"] = template_id
+            job_id = krvoice.orchestrator.submit_job(
+                script=script,
+                avatar_id=avatar_id,
+                voice_id=voice_id,
+                script_mode=script_mode,
+                metadata=metadata,
+            )
+            job_ids.append(job_id)
+            job_meta.append({
+                "job_id": job_id,
+                "avatar_id": avatar_id,
+                "voice_id": voice_id,
+                "template_id": template_id,
+            })
+
+        # 后台并发执行（受限并发）
+        def _run_matrix():
+            with ThreadPoolExecutor(max_workers=parallel) as ex:
+                futures = [ex.submit(krvoice.orchestrator.run_job, jid) for jid in job_ids]
+                for f in futures:
+                    try:
+                        f.result()
+                    except Exception as e:
+                        logger.warning(f"矩阵任务执行失败: {e}")
+
+        loop = asyncio.get_event_loop()
+        loop.run_in_executor(None, _run_matrix)
+
+        return {
+            "success": True,
+            "total": len(job_ids),
+            "job_ids": job_ids,
+            "matrix": job_meta,
+            "dimensions": {
+                "avatars": len(avatar_ids),
+                "voices": len(voice_ids),
+                "templates": len([t for t in template_ids if t]),
+            },
+        }
+
     return app
 
 

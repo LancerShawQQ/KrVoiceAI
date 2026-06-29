@@ -3091,6 +3091,76 @@ function handleScriptClear() {
 
 // ========== 批量处理页面 ==========
 
+let _batchMode = 'simple'; // 'simple' | 'matrix'
+
+function switchBatchMode(mode) {
+  _batchMode = mode;
+  const simpleBtn = document.getElementById('batch-mode-simple');
+  const matrixBtn = document.getElementById('batch-mode-matrix');
+  const simpleFields = document.getElementById('batch-simple-fields');
+  const matrixFields = document.getElementById('batch-matrix-fields');
+  const hintSimple = document.getElementById('batch-mode-hint-simple');
+  const hintMatrix = document.getElementById('batch-mode-hint-matrix');
+  if (mode === 'matrix') {
+    simpleBtn.className = 'btn btn-sm btn-secondary';
+    matrixBtn.className = 'btn btn-sm btn-primary';
+    simpleFields.style.display = 'none';
+    matrixFields.style.display = '';
+    hintSimple.style.display = 'none';
+    hintMatrix.style.display = '';
+    loadMatrixOptions();
+    updateMatrixPreview();
+  } else {
+    simpleBtn.className = 'btn btn-sm btn-primary';
+    matrixBtn.className = 'btn btn-sm btn-secondary';
+    simpleFields.style.display = '';
+    matrixFields.style.display = 'none';
+    hintSimple.style.display = '';
+    hintMatrix.style.display = 'none';
+  }
+}
+
+async function loadMatrixOptions() {
+  // 加载数字人和音色列表到矩阵 checkbox 网格
+  const avatarsEl = document.getElementById('batch-matrix-avatars');
+  const voicesEl = document.getElementById('batch-matrix-voices');
+  if (!avatarsEl || !voicesEl) return;
+  if (avatarsEl.children.length) return; // 已加载过
+  try {
+    const avatars = await api('/api/avatars');
+    const avatarList = avatars.avatars || avatars || [];
+    avatarsEl.innerHTML = avatarList.map(a => `
+      <label class="matrix-checkbox-item">
+        <input type="checkbox" value="${a.id || a.avatar_id || 'default'}" onchange="updateMatrixPreview()" ${a.id === 'default' ? 'checked' : ''}>
+        <span>${a.name || a.id || 'default'}</span>
+      </label>
+    `).join('') || '<div class="hint">无可用数字人</div>';
+
+    const voices = await api('/api/voices');
+    const voiceList = voices.voices || voices || [];
+    voicesEl.innerHTML = voiceList.map(v => `
+      <label class="matrix-checkbox-item">
+        <input type="checkbox" value="${v.id || v.voice_id || 'default'}" onchange="updateMatrixPreview()" ${v.id === 'default' ? 'checked' : ''}>
+        <span>${v.name || v.id || 'default'}</span>
+      </label>
+    `).join('') || '<div class="hint">无可用音色</div>';
+  } catch (e) {
+    avatarsEl.innerHTML = `<div class="hint">加载失败: ${e.message}</div>`;
+    voicesEl.innerHTML = `<div class="hint">加载失败: ${e.message}</div>`;
+  }
+}
+
+function updateMatrixPreview() {
+  const preview = document.getElementById('batch-matrix-preview');
+  if (!preview) return;
+  const avatars = Array.from(document.querySelectorAll('#batch-matrix-avatars input:checked')).map(c => c.value);
+  const voices = Array.from(document.querySelectorAll('#batch-matrix-voices input:checked')).map(c => c.value);
+  const scriptsText = document.getElementById('batch-scripts').value.trim();
+  const scriptCount = scriptsText ? scriptsText.split(/\n\s*\n/).filter(s => s.trim()).length : 0;
+  const total = avatars.length * voices.length * Math.max(scriptCount, 1);
+  preview.textContent = `已选 ${avatars.length} 形象 × ${voices.length} 音色 × ${scriptCount || 1} 文案 = 共 ${total} 个视频变体`;
+}
+
 async function handleBatchGenerate() {
   const scriptsText = document.getElementById('batch-scripts').value.trim();
   if (!scriptsText) {
@@ -3105,10 +3175,18 @@ async function handleBatchGenerate() {
     return;
   }
 
-  const avatar = document.getElementById('batch-avatar').value;
-  const voice = document.getElementById('batch-voice').value;
   const mode = document.getElementById('batch-mode').value;
   const platform = document.getElementById('batch-platform').value;
+
+  // 矩阵模式
+  if (_batchMode === 'matrix') {
+    await handleMatrixGenerate(scripts, mode, platform);
+    return;
+  }
+
+  // 普通批量模式（原有逻辑）
+  const avatar = document.getElementById('batch-avatar').value;
+  const voice = document.getElementById('batch-voice').value;
 
   const btn = document.getElementById('batch-run-btn');
   btn.disabled = true;
@@ -3173,6 +3251,101 @@ async function handleBatchGenerate() {
     btn.disabled = false;
     setBtnIcon(btn, 'package', '开始批量生成');
   }
+}
+
+// 矩阵生成（对标万兴播爆批量裂变）
+async function handleMatrixGenerate(scripts, mode, platform) {
+  const avatarIds = Array.from(document.querySelectorAll('#batch-matrix-avatars input:checked')).map(c => c.value);
+  const voiceIds = Array.from(document.querySelectorAll('#batch-matrix-voices input:checked')).map(c => c.value);
+  const parallel = parseInt(document.getElementById('batch-matrix-parallel').value);
+
+  if (!avatarIds.length) { toast('请至少选择一个数字人', 'error'); return; }
+  if (!voiceIds.length) { toast('请至少选择一个音色', 'error'); return; }
+
+  const btn = document.getElementById('batch-run-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 矩阵生成中...';
+
+  const listEl = document.getElementById('batch-progress-list');
+  const badgeEl = document.getElementById('batch-progress-badge');
+
+  // 对每条文案提交矩阵生成
+  let allJobIds = [];
+  let allMatrixMeta = [];
+  for (const script of scripts) {
+    try {
+      const result = await api('/api/batch/matrix', {
+        method: 'POST',
+        body: {
+          script, avatar_ids: avatarIds, voice_ids: voiceIds,
+          script_mode: mode, platform, auto_publish: false, parallel,
+        },
+      });
+      if (result.success) {
+        allJobIds = allJobIds.concat(result.job_ids);
+        allMatrixMeta = allMatrixMeta.concat(result.matrix.map(m => ({...m, script: script.substring(0, 40)})));
+      }
+    } catch (e) {
+      toast(`矩阵提交失败: ${e.message}`, 'error');
+      btn.disabled = false;
+      setBtnIcon(btn, 'package', '开始批量生成');
+      return;
+    }
+  }
+
+  const total = allJobIds.length;
+  badgeEl.textContent = `0 / ${total}`;
+  listEl.innerHTML = allMatrixMeta.map((m, i) => `
+    <div class="batch-item" id="batch-item-${i}">
+      <div class="batch-item-index">${i + 1}</div>
+      <div class="batch-item-content">
+        <div class="batch-item-text">${escapeHtml(m.avatar_id)} × ${escapeHtml(m.voice_id)}${m.script ? ' · ' + escapeHtml(m.script) : ''}</div>
+        <div class="batch-item-meta">排队中...</div>
+      </div>
+    </div>
+  `).join('');
+
+  // 轮询每个 job 状态
+  let completed = 0;
+  const pollInterval = setInterval(async () => {
+    for (let i = 0; i < allJobIds.length; i++) {
+      const itemEl = document.getElementById(`batch-item-${i}`);
+      if (!itemEl || itemEl.classList.contains('success') || itemEl.classList.contains('failed')) continue;
+      try {
+        const job = await api(`/api/jobs/${allJobIds[i]}`);
+        const status = job.status || 'pending';
+        if (status === 'running') {
+          if (!itemEl.classList.contains('running')) {
+            itemEl.classList.add('running');
+            const step = job.current_step || job.steps?.find(s => s.status === 'running')?.name || '';
+            itemEl.querySelector('.batch-item-meta').textContent = step ? `执行中: ${step}` : '生成中...';
+          }
+        } else if (status === 'success' || status === 'completed') {
+          itemEl.classList.remove('running');
+          itemEl.classList.add('success');
+          const videoPath = job.video_path || job.output?.final_video || '';
+          itemEl.querySelector('.batch-item-meta').innerHTML = `<i data-lucide="check-circle"></i> 成功 ${videoPath ? `· <a href="/api/files?path=${encodeURIComponent(videoPath)}" target="_blank">查看</a>` : ''}`;
+          if (window.lucide) lucide.createIcons();
+          completed++;
+          badgeEl.textContent = `${completed} / ${total}`;
+        } else if (status === 'failed' || status === 'error') {
+          itemEl.classList.remove('running');
+          itemEl.classList.add('failed');
+          itemEl.querySelector('.batch-item-meta').innerHTML = `<i data-lucide="x-circle"></i> 失败: ${escapeHtml(job.error || '未知')}`;
+          if (window.lucide) lucide.createIcons();
+          completed++;
+          badgeEl.textContent = `${completed} / ${total}`;
+        }
+      } catch (e) {}
+    }
+    if (completed >= total) {
+      clearInterval(pollInterval);
+      const successCount = document.querySelectorAll('.batch-item.success').length;
+      toast(`矩阵完成：${successCount}/${total} 成功`, successCount === total ? 'success' : 'info');
+      btn.disabled = false;
+      setBtnIcon(btn, 'package', '开始批量生成');
+    }
+  }, 2000);
 }
 
 // ========== 初始化 ==========

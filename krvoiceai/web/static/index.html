@@ -1116,16 +1116,53 @@
                 <label class="form-label">文案列表 <span class="hint">每行一条文案，空行分隔</span></label>
                 <textarea class="form-textarea" id="batch-scripts" style="min-height:240px" placeholder="第一条文案内容...&#10;&#10;第二条文案内容...&#10;&#10;第三条文案内容..."></textarea>
               </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label class="form-label">数字人形象</label>
-                  <select class="form-select" id="batch-avatar"></select>
+
+              <!-- 模式切换 -->
+              <div class="form-group">
+                <div style="display:flex;gap:8px;margin-bottom:8px">
+                  <button type="button" class="btn btn-sm btn-primary" id="batch-mode-simple" onclick="switchBatchMode('simple')">普通批量</button>
+                  <button type="button" class="btn btn-sm btn-secondary" id="batch-mode-matrix" onclick="switchBatchMode('matrix')">矩阵生成</button>
                 </div>
-                <div class="form-group">
-                  <label class="form-label">音色</label>
-                  <select class="form-select" id="batch-voice"></select>
+                <div id="batch-mode-hint-simple" class="hint">N 条文案 × 1 组参数 = N 个视频</div>
+                <div id="batch-mode-hint-matrix" class="hint" style="display:none;color:#1a4d8f">1 文案 × M 数字人 × K 音色 = M×K 个变体（对标万兴播爆批量裂变）</div>
+              </div>
+
+              <!-- 普通模式：单选 -->
+              <div id="batch-simple-fields">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label">数字人形象</label>
+                    <select class="form-select" id="batch-avatar"></select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">音色</label>
+                    <select class="form-select" id="batch-voice"></select>
+                  </div>
                 </div>
               </div>
+
+              <!-- 矩阵模式：多选 checkbox 网格 -->
+              <div id="batch-matrix-fields" style="display:none">
+                <div class="form-group">
+                  <label class="form-label">数字人形象（多选）</label>
+                  <div id="batch-matrix-avatars" class="matrix-checkbox-grid"></div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">音色（多选）</label>
+                  <div id="batch-matrix-voices" class="matrix-checkbox-grid"></div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">并发数</label>
+                  <select class="form-select" id="batch-matrix-parallel">
+                    <option value="1">1（串行）</option>
+                    <option value="2" selected>2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                  </select>
+                </div>
+                <div class="hint" id="batch-matrix-preview" style="color:#1a4d8f;font-size:12px;padding:6px 0"></div>
+              </div>
+
               <div class="form-row">
                 <div class="form-group">
                   <label class="form-label">文案模式</label>
