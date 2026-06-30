@@ -1,4 +1,4 @@
-"""KrVoiceAI Web Server - FastAPI + 精美 Web UI
+"""EnlyAI Web Server - FastAPI + 精美 Web UI
 
 提供 REST API 和静态文件服务，替代 Gradio 作为主 UI。
 """
@@ -17,7 +17,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from ..app import KrVoiceAI
+from ..app import EnlyAI
 from ..core.logger import get_logger
 from ..core.settings_manager import get_settings_manager
 from ..modules.script_extractor import ScriptExtractor
@@ -25,13 +25,13 @@ from ..modules.script_extractor import ScriptExtractor
 logger = get_logger().bind(component="web_server")
 
 # 全局 app 实例（懒加载）
-_app_instance: Optional[KrVoiceAI] = None
+_app_instance: Optional[EnlyAI] = None
 
 
-def _get_app() -> KrVoiceAI:
+def _get_app() -> EnlyAI:
     global _app_instance
     if _app_instance is None:
-        _app_instance = KrVoiceAI()
+        _app_instance = EnlyAI()
     return _app_instance
 
 
@@ -119,7 +119,7 @@ class TemplateApplyRequest(BaseModel):
 # ============ FastAPI 应用 ============
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="KrVoiceAI", version="0.2.0")
+    app = FastAPI(title="EnlyAI", version="0.2.0")
 
     # CORS
     app.add_middleware(

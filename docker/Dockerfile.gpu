@@ -1,4 +1,4 @@
-# KrVoiceAI 云端 GPU 镜像
+# EnlyAI 云端 GPU 镜像
 #
 # 用途：在云 GPU 实例上运行 TTS / 数字人推理服务
 # 包含 PyTorch + GPT-SoVITS + MuseTalk + FunASR
@@ -43,7 +43,7 @@ WORKDIR /app
 RUN pip install --no-cache-dir torch==2.3.0 torchvision==0.18.0 torchaudio==2.3.0 \
     --index-url https://download.pytorch.org/whl/cu121
 
-# 复制项目文件并安装 KrVoiceAI
+# 复制项目文件并安装 EnlyAI
 COPY pyproject.toml ./
 COPY krvoiceai/ ./krvoiceai/
 COPY config/ ./config/

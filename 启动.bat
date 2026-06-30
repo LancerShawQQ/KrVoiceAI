@@ -3,7 +3,7 @@ chcp 65001 >nul
 setlocal EnableDelayedExpansion
 
 REM ============================================================
-REM KrVoiceAI 一键启动脚本（Windows）
+REM EnlyAI 一键启动脚本（Windows）
 REM
 REM 新用户使用：双击此文件即可，脚本会：
 REM   1. 检测/创建虚拟环境
@@ -22,7 +22,7 @@ if not "%~1"=="" set "PORT=%~1"
 cd /d "%~dp0"
 
 echo ============================================================
-echo   KrVoiceAI 虚拟人口播智能体
+echo   EnlyAI 虚拟人口播智能体
 echo   一键启动脚本
 echo ============================================================
 echo.

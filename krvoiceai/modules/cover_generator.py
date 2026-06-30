@@ -120,7 +120,7 @@ class CoverGenerator(BaseModule):
         self.templates_dir = Path(self.config.get("cover.templates_dir", "./config/cover_templates"))
         self.font_path = self.config.get("cover.font_path", "")
         self.title_max_chars = self.config.get("cover.title_max_chars", 20)
-        self.brand_name = self.config.get("cover.brand_name", "KrVoiceAI")
+        self.brand_name = self.config.get("cover.brand_name", "EnlyAI")
         res = self.config.get("avatar.output_resolution", [1080, 1920])
         self.resolution = tuple(res) if isinstance(res, list) else (1080, 1920)
         self.ffmpeg = ffmpeg or FFmpegRunner()

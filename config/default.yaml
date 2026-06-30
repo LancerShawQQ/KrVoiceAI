@@ -1,9 +1,9 @@
-# KrVoiceAI 默认配置
+# EnlyAI 默认配置
 # 所有配置项均可通过环境变量覆盖，环境变量格式：KRVOICEAI_<大写路径>
 # 例如：KRVOICEAI_LLM_API_KEY 覆盖 llm.api_key
 
 project:
-  name: KrVoiceAI
+  name: EnlyAI
   version: 0.1.0
   # 工作根目录，所有任务产物存放于此
   work_root: ./workspace_data
@@ -273,7 +273,7 @@ effects:
   # 水印
   watermark:
     enabled: false
-    text: "KrVoiceAI"
+    text: "EnlyAI"
     position: bottom_right
     opacity: 50
   # 片头

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Docker 镜像构建脚本
 #
-# 用途：构建 KrVoiceAI 的本地版和云端 GPU 版 Docker 镜像
+# 用途：构建 EnlyAI 的本地版和云端 GPU 版 Docker 镜像
 #
 # 使用方式：
 #   bash scripts/build_docker.sh local    # 构建本地 CPU 版

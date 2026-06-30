@@ -6,14 +6,14 @@ import json
 import sys
 from pathlib import Path
 
-from ..app import KrVoiceAI
+from ..app import EnlyAI
 from ..core.logger import get_logger
 
 
 def main():
     parser = argparse.ArgumentParser(
         prog="krvoiceai",
-        description="KrVoiceAI - 虚拟人口播智能体",
+        description="EnlyAI - 虚拟人口播智能体",
     )
     sub = parser.add_subparsers(dest="command", help="子命令")
 
@@ -75,7 +75,7 @@ def main():
         parser.print_help()
         return 1
 
-    app = KrVoiceAI()
+    app = EnlyAI()
     logger = get_logger()
 
     if args.command == "run":

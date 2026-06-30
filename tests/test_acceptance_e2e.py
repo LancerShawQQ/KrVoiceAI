@@ -27,7 +27,7 @@ from pathlib import Path
 
 import pytest
 
-from krvoiceai.app import KrVoiceAI
+from krvoiceai.app import EnlyAI
 
 
 # 测试文案（模拟真实口播内容）
@@ -51,7 +51,7 @@ class TestFullPipelineAcceptance:
 
     def test_full_9_module_pipeline(self, isolated_config):
         """验收测试：9 大模块全流程"""
-        app = KrVoiceAI()
+        app = EnlyAI()
 
         progress_log = []
 
@@ -122,7 +122,7 @@ class TestFullPipelineAcceptance:
 
     def test_pipeline_with_reference_url(self, isolated_config):
         """验收测试：带参考视频 URL（mock 提取文案）"""
-        app = KrVoiceAI()
+        app = EnlyAI()
 
         result = app.submit_and_run(
             script="",  # 留空，使用参考视频提取
@@ -139,7 +139,7 @@ class TestFullPipelineAcceptance:
 
     def test_pipeline_auto_publish(self, isolated_config):
         """验收测试：自动发布（manifest 模式）"""
-        app = KrVoiceAI()
+        app = EnlyAI()
 
         result = app.submit_and_run(
             script="测试自动发布功能。",
@@ -154,7 +154,7 @@ class TestFullPipelineAcceptance:
 
     def test_pipeline_all_platforms(self, isolated_config):
         """验收测试：所有平台"""
-        app = KrVoiceAI()
+        app = EnlyAI()
         platforms = ["douyin", "bilibili", "kuaishou", "wechat_video"]
 
         for platform in platforms:
@@ -168,7 +168,7 @@ class TestFullPipelineAcceptance:
 
     def test_pipeline_all_script_modes(self, isolated_config):
         """验收测试：所有文案模式"""
-        app = KrVoiceAI()
+        app = EnlyAI()
         modes = ["polish", "rewrite", "generate"]
 
         for mode in modes:
@@ -183,7 +183,7 @@ class TestFullPipelineAcceptance:
 
     def test_resume_from_failure(self, isolated_config):
         """验收测试：断点续跑"""
-        app = KrVoiceAI()
+        app = EnlyAI()
 
         # 第一次运行
         result1 = app.submit_and_run(
@@ -199,7 +199,7 @@ class TestFullPipelineAcceptance:
 
     def test_video_is_playable(self, isolated_config, tmp_path):
         """验收测试：视频可播放（FFmpeg 可探测时长）"""
-        app = KrVoiceAI()
+        app = EnlyAI()
         from krvoiceai.core.ffmpeg_utils import FFmpegRunner
 
         result = app.submit_and_run(
@@ -214,7 +214,7 @@ class TestFullPipelineAcceptance:
 
     def test_subtitle_is_valid_srt(self, isolated_config):
         """验收测试：字幕是合法 SRT 格式"""
-        app = KrVoiceAI()
+        app = EnlyAI()
 
         result = app.submit_and_run(
             script="测试字幕格式。",
@@ -231,7 +231,7 @@ class TestFullPipelineAcceptance:
 
     def test_cover_is_valid_image(self, isolated_config):
         """验收测试：封面是合法图片"""
-        app = KrVoiceAI()
+        app = EnlyAI()
         from PIL import Image
 
         result = app.submit_and_run(
@@ -245,7 +245,7 @@ class TestFullPipelineAcceptance:
 
     def test_title_is_meaningful(self, isolated_config):
         """验收测试：标题有意义"""
-        app = KrVoiceAI()
+        app = EnlyAI()
 
         result = app.submit_and_run(
             script="测试标题生成质量。",
@@ -263,7 +263,7 @@ class TestSingleModuleAcceptance:
 
     def test_each_module_executable(self, isolated_config):
         """验收测试：每个模块都能单独执行"""
-        app = KrVoiceAI()
+        app = EnlyAI()
         modules_to_test = [
             "script_write", "tts", "avatar",
             "subtitle", "compose", "title", "cover",
@@ -280,7 +280,7 @@ class TestSingleModuleAcceptance:
 
     def test_module_context_propagation(self, isolated_config):
         """验收测试：模块间上下文传递"""
-        app = KrVoiceAI()
+        app = EnlyAI()
 
         # 执行到 compose，验证上下文
         result = app.run_single_module(

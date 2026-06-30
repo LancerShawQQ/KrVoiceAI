@@ -253,7 +253,7 @@ def segments_to_ass(
 
     # 构建 ASS 头部
     header = f"""[Script Info]
-Title: KrVoiceAI Subtitles
+Title: EnlyAI Subtitles
 ScriptType: v4.00+
 PlayResX: {play_res_x}
 PlayResY: {play_res_y}

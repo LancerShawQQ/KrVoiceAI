@@ -1,6 +1,6 @@
 # 虚拟人口播智能体 - 技术设计与开发方案
 
-> 项目代号：**KrVoiceAI**
+> 项目代号：**EnlyAI**
 > 对标产品：旗博士（KrLongAI）口播自动生成智能体
 > 文档版本：v1.0
 > 更新日期：2026-06-19
@@ -458,7 +458,7 @@ Response: { "success": true }
 ### 7.3 本地编排 API（CLI/Gradio 共用）
 
 ```python
-class KrVoiceAI:
+class EnlyAI:
     def submit_job(self, script: str, avatar_id: str, 
                    voice_id: str) -> str  # 返回 job_id
     def get_job_status(self, job_id: str) -> JobStatus

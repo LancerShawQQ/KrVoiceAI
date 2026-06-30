@@ -1,5 +1,5 @@
 @echo off
-REM KrVoiceAI UI 启动脚本（双击运行即可，浏览器自动打开）
+REM EnlyAI UI 启动脚本（双击运行即可，浏览器自动打开）
 REM 用法：双击此文件，或命令行运行 start_ui.bat [端口号]
 
 setlocal
@@ -9,7 +9,7 @@ set PORT=7862
 if not "%~1"=="" set PORT=%~1
 
 echo ========================================
-echo  KrVoiceAI 虚拟人口播智能体 - 启动中...
+echo  EnlyAI 虚拟人口播智能体 - 启动中...
 echo  访问地址: http://localhost:%PORT%
 echo  按 Ctrl+C 停止服务
 echo ========================================

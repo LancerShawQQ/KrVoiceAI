@@ -1,7 +1,7 @@
 """GPT-SoVITS API 服务（云端 GPU 部署）
 
 在云 GPU 上启动此服务，提供 TTS 声音克隆 API。
-本地 KrVoiceAI 通过 GPURunner 调用此服务。
+本地 EnlyAI 通过 GPURunner 调用此服务。
 
 启动方式：
     python -m krvoiceai.api.tts_server --port 9880
@@ -24,7 +24,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-app = FastAPI(title="KrVoiceAI TTS Server", version="1.0")
+app = FastAPI(title="EnlyAI TTS Server", version="1.0")
 
 # GPT-SoVITS 模型实例（延迟加载）
 _tts_model = None
@@ -138,7 +138,7 @@ def register_voice(req: RegisterVoiceRequest):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="KrVoiceAI TTS Server")
+    parser = argparse.ArgumentParser(description="EnlyAI TTS Server")
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, default=9880)
     args = parser.parse_args()

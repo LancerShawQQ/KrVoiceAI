@@ -1,5 +1,5 @@
 /**
- * KrVoiceAI Web App
+ * EnlyAI Web App
  * 前端交互逻辑
  */
 
@@ -1839,13 +1839,14 @@ async function pollGenerateJob(payload) {
 
   // 3. 轮询任务状态
   const wizPipeline = document.getElementById('wiz-pipeline');
-  const maxWait = 3600000; // 最长等待 60 分钟（CPU 模式下 wav2lip 数字人合成可能耗时 20-30 分钟）
+  // 最长等待 120 分钟（与后端 wav2lip 子进程 timeout=7200s 对齐，CPU 模式长文案可能 60-90 分钟）
+  const maxWait = 7200000;
   const pollInterval = 1500;
   const t0 = Date.now();
 
   while (true) {
     if (Date.now() - t0 > maxWait) {
-      throw new Error('生成超时（超过 60 分钟），可能是数字人合成在 CPU 模式下耗时过长，建议减少文案长度或使用 GPU 服务器');
+      throw new Error('生成超时（超过 120 分钟），可能是数字人合成在 CPU 模式下耗时过长，建议减少文案长度、在设置中切换 resize_factor=2 快速模式，或使用 GPU 服务器');
     }
     await new Promise(r => setTimeout(r, pollInterval));
 

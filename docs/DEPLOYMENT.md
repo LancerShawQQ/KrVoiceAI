@@ -1,6 +1,6 @@
-# KrVoiceAI 部署指南
+# EnlyAI 部署指南
 
-本文档介绍 KrVoiceAI 的三种部署模式：本地 Mock 模式、本地 + 云端 GPU 模式、全 Docker 模式。
+本文档介绍 EnlyAI 的三种部署模式：本地 Mock 模式、本地 + 云端 GPU 模式、全 Docker 模式。
 
 ## 目录
 
@@ -20,7 +20,7 @@
 ┌─────────────────────────────────────────────────────────┐
 │  本地机器（CPU）                                          │
 │  ┌───────────────────────────────────────────────────┐  │
-│  │  KrVoiceAI App                                    │  │
+│  │  EnlyAI App                                    │  │
 │  │  ├── Web UI (8000)  ← 推荐                       │  │
 │  │  ├── Gradio UI (7860) ← 备用                     │  │
 │  │  ├── CLI                                          │  │
@@ -91,7 +91,7 @@ python -m krvoiceai.ui.cli health
 
 ## 模式二：本地 + 云端 GPU 模式（推荐生产）
 
-适用：实际生产。本地运行 KrVoiceAI，云端 GPU 运行 TTS 和数字人推理。
+适用：实际生产。本地运行 EnlyAI，云端 GPU 运行 TTS 和数字人推理。
 
 ### 步骤 1：租用云 GPU 实例
 
@@ -148,7 +148,7 @@ curl http://localhost:9880/health
 curl http://localhost:8010/health
 ```
 
-### 步骤 4：配置本地 KrVoiceAI
+### 步骤 4：配置本地 EnlyAI
 
 编辑本地 `config/default.yaml`：
 

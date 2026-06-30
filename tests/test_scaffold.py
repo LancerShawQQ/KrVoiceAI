@@ -13,7 +13,7 @@ from krvoiceai.pipeline.state import JobStore, JobStatus, PIPELINE_STEPS
 def test_config_load_default():
     """配置可加载默认文件"""
     cfg = Config.load()
-    assert cfg.get("project.name") == "KrVoiceAI"
+    assert cfg.get("project.name") == "EnlyAI"
     assert cfg.get("llm.provider") == "deepseek"
     # 默认 avatar provider 为 wav2lip（本地 CPU 友好），
     # 切云端高质量模式时改为 latentsync/musetalk

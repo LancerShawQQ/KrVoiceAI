@@ -5,7 +5,7 @@
 - MuseTalk：腾讯音乐开源，实时唇同步（备选，provider=musetalk）
 
 在云 GPU 上启动此服务，提供数字人口播生成 API。
-本地 KrVoiceAI 通过 GPURunner 调用此服务。
+本地 EnlyAI 通过 GPURunner 调用此服务。
 
 启动方式：
     python -m krvoiceai.api.avatar_server --port 8010 --backend latentsync
@@ -32,7 +32,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-app = FastAPI(title="KrVoiceAI Avatar Server", version="2.0")
+app = FastAPI(title="EnlyAI Avatar Server", version="2.0")
 
 # 推理后端实例（延迟加载）
 _avatar_backend: Optional[Any] = None
@@ -361,7 +361,7 @@ def _probe_duration(video_path: str) -> float:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="KrVoiceAI Avatar Server")
+    parser = argparse.ArgumentParser(description="EnlyAI Avatar Server")
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, default=8010)
     parser.add_argument(

@@ -1,6 +1,6 @@
-# KrVoiceAI 本地 CPU 镜像
+# EnlyAI 本地 CPU 镜像
 #
-# 用途：本地运行 KrVoiceAI（mock 模式或调用云端 GPU 服务）
+# 用途：本地运行 EnlyAI（mock 模式或调用云端 GPU 服务）
 # 不包含 GPU 依赖，镜像体积小
 #
 # 构建：

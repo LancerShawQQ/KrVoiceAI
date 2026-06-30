@@ -192,7 +192,7 @@ class TTSEngine(BaseModule):
         if Path(raw_repo).is_absolute():
             candidates.append(Path(raw_repo))
         else:
-            # 相对 PROJECT_ROOT（KrVoiceAI 目录）
+            # 相对 PROJECT_ROOT（EnlyAI 目录）
             candidates.append((PROJECT_ROOT / raw_repo).resolve())
             candidates.append((PROJECT_ROOT / "../MOSS-TTS-Nano").resolve())
             candidates.append(Path(raw_repo).resolve())

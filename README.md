@@ -1,4 +1,4 @@
-# KrVoiceAI · 虚拟人口播智能体
+# EnlyAI · 虚拟人口播智能体
 
 对标旗博士的**本地可运行**口播视频自动化生成系统。从文案到成片到发布，全流程一键化，支持纯 CPU 声音克隆 + Wav2Lip 视频驱动数字人。
 
@@ -41,8 +41,8 @@
 
 ```bash
 # 1. 下载代码
-git clone https://github.com/LancerShawQQ/KrVoiceAI.git
-cd KrVoiceAI
+git clone https://github.com/LancerShawQQ/EnlyAI.git
+cd EnlyAI
 
 # 2. 双击 启动.bat（或命令行运行）
 启动.bat
@@ -72,7 +72,7 @@ cd KrVoiceAI
 
 ```bash
 # 主环境（Python 3.12）
-cd KrVoiceAI
+cd EnlyAI
 pip install -e ".[local]"
 pip install fastapi uvicorn bilibili-api-python
 python -m playwright install chromium
@@ -139,7 +139,7 @@ avatar:
 ## 📂 项目结构
 
 ```
-KrVoiceAI/
+EnlyAI/
 ├── krvoiceai/
 │   ├── core/              # 基础设施（config/logger/ffmpeg/settings_manager）
 │   ├── modules/           # 业务模块

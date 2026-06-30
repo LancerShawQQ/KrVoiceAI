@@ -246,6 +246,26 @@ class AvatarEngine(BaseModule):
         audio_abs = Path(audio_path).resolve()
         output_abs = Path(output_path).resolve()
 
+        # 按音频时长自动选择 resize_factor（CPU 模式智能降速，避免长文案超时）
+        # 配置值作为"质量上限"：若配置 resize_factor=1 但音频超长，自动降速
+        cfg_resize = int(self.wav2lip_config.get("resize_factor", 1))
+        audio_dur = ctx.audio_duration or 0
+        if audio_dur > 120 and cfg_resize < 4:
+            # 超长文案(>2min)：强制 resize_factor=4（约16倍加速），避免超时
+            auto_resize = 4
+            self.logger.warning(
+                f"音频 {audio_dur:.0f}s 超长，自动切换 resize_factor={cfg_resize}→{auto_resize}（快速模式）"
+                f"以保证 60 分钟内完成；如需最高质量请缩短文案或使用 GPU"
+            )
+        elif audio_dur > 60 and cfg_resize < 2:
+            # 长文案(1-2min)：升到 resize_factor=2（约4倍加速）
+            auto_resize = 2
+            self.logger.info(
+                f"音频 {audio_dur:.0f}s 较长，自动切换 resize_factor={cfg_resize}→{auto_resize}（平衡模式）"
+            )
+        else:
+            auto_resize = cfg_resize
+
         # wav2lip_env 的 site-packages 在 PYTHONPATH，需保证用独立解释器
         cmd = [
             str(env_python), str(inference_script),
@@ -256,24 +276,31 @@ class AvatarEngine(BaseModule):
             "--pads", *[str(p) for p in self.wav2lip_config.get("pads", [0, 20, 0, 0])],
             "--face_det_batch_size", str(self.wav2lip_config.get("face_det_batch_size", 8)),
             "--wav2lip_batch_size", str(self.wav2lip_config.get("wav2lip_batch_size", 16)),
-            "--resize_factor", str(self.wav2lip_config.get("resize_factor", 1)),
+            "--resize_factor", str(auto_resize),
         ]
         if self.wav2lip_config.get("nosmooth", False):
             cmd.append("--nosmooth")
 
         self.logger.info(
-            f"运行 Wav2Lip 推理 (CPU模式, env={env_python.parent.parent.name})，"
-            f"音频 {ctx.audio_duration:.1f}s，预计耗时数分钟至数十分钟..."
+            f"运行 Wav2Lip 推理 (CPU模式, env={env_python.parent.parent.name}, "
+            f"resize_factor={auto_resize})，音频 {audio_dur:.1f}s，预计耗时数分钟至数十分钟..."
         )
         # Wav2Lip 推理脚本内部加载依赖文件用相对路径，必须在 Wav2Lip 根目录运行
         wav2lip_root = inference_script.parent
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=7200,  # 120分钟超时（resize_factor=1 CPU 模式长视频可能超过 60 分钟）
-            cwd=str(wav2lip_root),
-        )
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=7200,  # 120分钟超时（与前端 maxWait 对齐）
+                cwd=str(wav2lip_root),
+            )
+        except subprocess.TimeoutExpired:
+            self.logger.error(f"Wav2Lip 推理超时（120分钟），音频时长 {audio_dur:.1f}s")
+            raise RuntimeError(
+                f"Wav2Lip 推理超时（120分钟），音频 {audio_dur:.1f}s。"
+                f"建议：1) 缩短文案 2) 在设置中将 resize_factor 调高 3) 使用 GPU"
+            )
 
         if result.returncode != 0:
             self.logger.error(f"Wav2Lip 推理失败: {result.stderr[-500:]}")
@@ -593,7 +620,7 @@ class AvatarEngine(BaseModule):
             )
 
         # 底部标识
-        footer = "KrVoiceAI · Mock Mode"
+        footer = "EnlyAI · Mock Mode"
         try:
             bbox = draw.textbbox((0, 0), footer, font=font_small)
             tw = bbox[2] - bbox[0]

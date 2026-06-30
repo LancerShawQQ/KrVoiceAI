@@ -1,6 +1,6 @@
-# KrVoiceAI Docker Compose 编排
+# EnlyAI Docker Compose 编排
 #
-# 用途：一键启动本地 KrVoiceAI + 云端 GPU 服务
+# 用途：一键启动本地 EnlyAI + 云端 GPU 服务
 #
 # 使用方式：
 #   docker-compose up -d                    # 启动本地服务

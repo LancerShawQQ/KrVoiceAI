@@ -1,5 +1,5 @@
 /**
- * KrVoiceAI Settings Center
+ * EnlyAI Settings Center
  * 设置中心：模型配置 / 视频设置 / 发布设置
  */
 

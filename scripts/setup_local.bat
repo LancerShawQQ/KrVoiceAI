@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================
-REM KrVoiceAI 本地环境一键安装脚本（Windows）
+REM EnlyAI 本地环境一键安装脚本（Windows）
 REM
 REM 用法：
 REM   scripts\setup_local.bat           完整安装（基础 + 本地增强）
@@ -16,7 +16,7 @@ if "%MODE%"=="" set "MODE=local"
 
 cd /d "%~dp0\.."
 echo ============================================================
-echo  KrVoiceAI 本地环境安装  [模式: %MODE%]
+echo  EnlyAI 本地环境安装  [模式: %MODE%]
 echo  Python: .venv\Scripts\python.exe
 echo ============================================================
 

@@ -1,4 +1,4 @@
-"""Gradio Web UI - KrVoiceAI 虚拟人口播智能体（单页引导式工作流，对标旗博士）
+"""Gradio Web UI - EnlyAI 虚拟人口播智能体（单页引导式工作流，对标旗博士）
 
 界面结构：单页竖向全展开，5 步引导 + 顶部状态 + 底部高级区
   ① 文案来源   - 抖音/视频链接提取 或 直接输入
@@ -23,7 +23,7 @@ try:
 except ImportError:
     gr = None
 
-from ..app import KrVoiceAI
+from ..app import EnlyAI
 from ..core.settings_manager import get_settings_manager
 from ..core.logger import get_logger
 
@@ -61,13 +61,13 @@ PUBLISH_URLS = {
     "wechat_video": "https://channels.weixin.qq.com/platform/post/create",
 }
 
-_app: Optional[KrVoiceAI] = None
+_app: Optional[EnlyAI] = None
 
 
-def _get_app() -> KrVoiceAI:
+def _get_app() -> EnlyAI:
     global _app
     if _app is None:
-        _app = KrVoiceAI()
+        _app = EnlyAI()
     return _app
 
 
@@ -147,11 +147,11 @@ def _build_ui() -> "gr.Blocks":
     """构建单页引导式 Gradio 界面"""
     app = _get_app()
 
-    with gr.Blocks(title="KrVoiceAI 虚拟人口播智能体") as demo:
+    with gr.Blocks(title="EnlyAI 虚拟人口播智能体") as demo:
         # ===== Hero banner =====
         gr.HTML("""
         <div style="text-align: center; padding: 18px 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; margin-bottom: 12px;">
-            <h1 style="color: white; margin: 0; font-size: 26px;">KrVoiceAI 虚拟人口播智能体</h1>
+            <h1 style="color: white; margin: 0; font-size: 26px;">EnlyAI 虚拟人口播智能体</h1>
             <p style="color: rgba(255,255,255,0.92); margin: 6px 0 0 0;">本地声音克隆 · Wav2Lip 数字人 · 一键多平台发布 —— 5 步生成口播视频</p>
         </div>
         """)

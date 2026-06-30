@@ -1,4 +1,4 @@
-"""KrVoiceAI 核心应用入口
+"""EnlyAI 核心应用入口
 
 统一封装所有功能，供 CLI / Gradio / API 调用。
 """
@@ -91,8 +91,8 @@ SCRIPT_TEMPLATES = [
 ]
 
 
-class KrVoiceAI:
-    """KrVoiceAI 应用主入口"""
+class EnlyAI:
+    """EnlyAI 应用主入口"""
 
     def __init__(self, config=None):
         self.config = config or get_config()
@@ -116,7 +116,7 @@ class KrVoiceAI:
         get_settings_manager().add_listener(self._on_settings_changed)
 
         self.logger.info(
-            f"KrVoiceAI 初始化完成 "
+            f"EnlyAI 初始化完成 "
             f"gpu_available={self.gpu.is_gpu_available()} "
             f"llm_mock={self.llm.is_mock}"
         )

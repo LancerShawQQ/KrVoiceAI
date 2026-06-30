@@ -15,7 +15,7 @@ from krvoiceai.pipeline.parallel_runner import BatchResult, ParallelRunner
 
 
 def _make_app_mock(concurrency_cfg=1, gpu_enabled=False):
-    """构造一个轻量 app mock（不实例化 KrVoiceAI，避免初始化开销）"""
+    """构造一个轻量 app mock（不实例化 EnlyAI，避免初始化开销）"""
     app = MagicMock()
     app.config = MagicMock()
     app.config.get = lambda key, default=None: {

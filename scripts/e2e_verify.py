@@ -254,8 +254,8 @@ def test_full():
     # 启用微动作
     cfg.set("avatar.micro_motion.enabled", True)
 
-    from krvoiceai.app import KrVoiceAI
-    app = KrVoiceAI()
+    from krvoiceai.app import EnlyAI
+    app = EnlyAI()
 
     # 读取抖音文案作为参考
     douyin_text = (INPUT_DIR / "douyin.txt").read_text(encoding="utf-8").strip()

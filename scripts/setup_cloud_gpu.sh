@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 云 GPU 环境一键安装脚本
 #
-# 用途：在租用的云 GPU 实例上执行，安装 KrVoiceAI 云端推理所需依赖
+# 用途：在租用的云 GPU 实例上执行，安装 EnlyAI 云端推理所需依赖
 # 适用：Ubuntu 22.04 + NVIDIA GPU（CUDA 12.1+）
 #
 # 使用方式：
@@ -15,7 +15,7 @@
 #   5. LatentSync 1.5（数字人口型同步，推荐，质量最高）
 #   6. MuseTalk（数字人口型同步，备选，实时性强）
 #   7. FunASR（ASR，可选）
-#   8. KrVoiceAI API 服务
+#   8. EnlyAI API 服务
 
 set -euo pipefail
 
@@ -88,8 +88,8 @@ else
         --index-url https://download.pytorch.org/whl/cpu
 fi
 
-# 5. 安装 KrVoiceAI API 依赖
-log "安装 KrVoiceAI API 依赖..."
+# 5. 安装 EnlyAI API 依赖
+log "安装 EnlyAI API 依赖..."
 pip install fastapi==0.111.0 uvicorn[standard]==0.30.1 \
     pydantic==2.7.1 httpx==0.27.0 loguru==0.7.2 \
     Pillow==10.3.0 numpy==1.26.4 soundfile==0.12.1
@@ -162,6 +162,6 @@ echo " 2. source .venv/bin/activate"
 echo " 3. 启动 TTS 服务: python -m krvoiceai.api.tts_server --port 9880"
 echo " 4. 启动数字人服务（默认 LatentSync）: python -m krvoiceai.api.avatar_server --port 8010 --backend latentsync"
 echo "    备选 MuseTalk: python -m krvoiceai.api.avatar_server --port 8010 --backend musetalk"
-echo " 5. 本地 KrVoiceAI 配置 gpu_runner.tts_endpoint 和 avatar_endpoint 指向本机"
+echo " 5. 本地 EnlyAI 配置 gpu_runner.tts_endpoint 和 avatar_endpoint 指向本机"
 echo " 6. 本地切换高质量模式：config 中 avatar.provider 改为 latentsync"
 echo "=========================================="

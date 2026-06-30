@@ -2,7 +2,7 @@
 REM ============================================================
 REM Wav2Lip 独立环境一键安装脚本（Windows，CPU 推理）
 REM
-REM 用途：为 KrVoiceAI 搭建真实唇形同步（嘴会动）的本地推理环境
+REM 用途：为 EnlyAI 搭建真实唇形同步（嘴会动）的本地推理环境
 REM 位置：在 D:\cursor_project\koubo 下创建 wav2lip_env 和 Wav2Lip
 REM
 REM 前置：需安装 uv（https://github.com/astral-sh/uv）
@@ -63,7 +63,7 @@ echo  目录结构:
 echo    wav2lip_env\          Python 3.8 + torch CPU
 echo    Wav2Lip\              推理脚本 + 模型
 echo.
-echo  KrVoiceAI 已配置 avatar.provider: wav2lip 自动使用此环境。
+echo  EnlyAI 已配置 avatar.provider: wav2lip 自动使用此环境。
 echo  CPU 推理耗时：1分钟视频约 20-60 分钟。
 echo ============================================================
 exit /b 0

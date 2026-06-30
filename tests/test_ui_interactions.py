@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from krvoiceai.app import KrVoiceAI
+from krvoiceai.app import EnlyAI
 from krvoiceai.ui.gradio_app import (
     STEP_NAMES,
     STEP_ORDER,
@@ -72,7 +72,7 @@ class TestUIBuild:
         # gradio Blocks 内部会记录子组件
         demo = _build_ui()
         # 验证 Blocks 对象创建成功
-        assert demo.title == "KrVoiceAI 虚拟人口播智能体"
+        assert demo.title == "EnlyAI 虚拟人口播智能体"
 
 
 # ========== 一键生成交互测试 ==========
@@ -83,7 +83,7 @@ class TestOneClickGeneration:
     def test_full_pipeline_with_progress(self, isolated_config):
         """全流程执行应触发进度回调"""
         import krvoiceai.ui.gradio_app as mod
-        mod._app = KrVoiceAI()
+        mod._app = EnlyAI()
         app = mod._app
 
         progress_events = []
@@ -110,7 +110,7 @@ class TestOneClickGeneration:
     def test_output_contains_video(self, isolated_config):
         """生成的结果应包含视频路径"""
         import krvoiceai.ui.gradio_app as mod
-        mod._app = KrVoiceAI()
+        mod._app = EnlyAI()
         app = mod._app
 
         result = app.submit_and_run(
@@ -125,7 +125,7 @@ class TestOneClickGeneration:
     def test_output_contains_script(self, isolated_config):
         """生成的结果应包含文案"""
         import krvoiceai.ui.gradio_app as mod
-        mod._app = KrVoiceAI()
+        mod._app = EnlyAI()
         app = mod._app
 
         result = app.submit_and_run(
@@ -140,7 +140,7 @@ class TestOneClickGeneration:
     def test_steps_in_result(self, isolated_config):
         """结果应包含每步状态"""
         import krvoiceai.ui.gradio_app as mod
-        mod._app = KrVoiceAI()
+        mod._app = EnlyAI()
         app = mod._app
 
         result = app.submit_and_run(
@@ -160,7 +160,7 @@ class TestStepByStep:
 
     def test_run_single_module_script_write(self, isolated_config):
         """单模块执行：文案仿写"""
-        app = KrVoiceAI()
+        app = EnlyAI()
         result = app.run_single_module(
             module_name="script_write",
             script="这是一段测试文案，用于验证单模块执行。",
@@ -173,7 +173,7 @@ class TestStepByStep:
 
     def test_run_single_module_tts(self, isolated_config):
         """单模块执行：TTS（含前置 script_write）"""
-        app = KrVoiceAI()
+        app = EnlyAI()
         result = app.run_single_module(
             module_name="tts",
             script="测试语音合成。",
@@ -185,7 +185,7 @@ class TestStepByStep:
 
     def test_run_single_module_avatar(self, isolated_config):
         """单模块执行：数字人（含前置 script_write + tts）"""
-        app = KrVoiceAI()
+        app = EnlyAI()
         result = app.run_single_module(
             module_name="avatar",
             script="测试数字人生成。",
@@ -197,7 +197,7 @@ class TestStepByStep:
 
     def test_run_single_module_compose(self, isolated_config):
         """单模块执行：视频合成（含全部前置）"""
-        app = KrVoiceAI()
+        app = EnlyAI()
         result = app.run_single_module(
             module_name="compose",
             script="测试完整合成。",
@@ -209,7 +209,7 @@ class TestStepByStep:
 
     def test_run_single_module_unknown(self, isolated_config):
         """未知模块应返回错误"""
-        app = KrVoiceAI()
+        app = EnlyAI()
         result = app.run_single_module(
             module_name="nonexistent",
             script="测试",
@@ -225,7 +225,7 @@ class TestJobManagement:
 
     def test_list_jobs(self, isolated_config):
         """列出任务"""
-        app = KrVoiceAI()
+        app = EnlyAI()
         # 创建一个任务
         app.submit_and_run(script="测试任务列表。", script_mode="polish")
         jobs = app.list_jobs(limit=10)
@@ -233,7 +233,7 @@ class TestJobManagement:
 
     def test_get_job_detail(self, isolated_config):
         """查看任务详情"""
-        app = KrVoiceAI()
+        app = EnlyAI()
         result = app.submit_and_run(script="测试详情。", script_mode="polish")
         job_id = result["job_id"]
         detail = app.get_job(job_id)
@@ -248,7 +248,7 @@ class TestJobManagement:
 
     def test_delete_job(self, isolated_config):
         """删除任务"""
-        app = KrVoiceAI()
+        app = EnlyAI()
         result = app.submit_and_run(script="测试删除。", script_mode="polish")
         job_id = result["job_id"]
         ok = app.delete_job(job_id)
@@ -258,7 +258,7 @@ class TestJobManagement:
 
     def test_rerun_job(self, isolated_config):
         """断点续跑"""
-        app = KrVoiceAI()
+        app = EnlyAI()
         result = app.submit_and_run(script="测试续跑。", script_mode="polish")
         job_id = result["job_id"]
         ok = app.rerun_job(job_id)
@@ -272,13 +272,13 @@ class TestAssetManagement:
 
     def test_list_avatars(self, isolated_config):
         """列出形象（空列表也应正常返回）"""
-        app = KrVoiceAI()
+        app = EnlyAI()
         avatars = app.list_avatars()
         assert isinstance(avatars, list)
 
     def test_list_voices(self, isolated_config):
         """列出音色"""
-        app = KrVoiceAI()
+        app = EnlyAI()
         voices = app.list_voices()
         assert isinstance(voices, list)
 
@@ -286,7 +286,7 @@ class TestAssetManagement:
         """注册形象"""
         from krvoiceai.core.audio_utils import generate_silent_wav
         from krvoiceai.core.ffmpeg_utils import FFmpegRunner
-        app = KrVoiceAI()
+        app = EnlyAI()
         # 生成一个测试视频（图片 + 静音音频）
         ff = FFmpegRunner()
         from PIL import Image
@@ -306,7 +306,7 @@ class TestAssetManagement:
     def test_register_voice(self, isolated_config, tmp_path):
         """注册音色"""
         from krvoiceai.core.audio_utils import generate_silent_wav
-        app = KrVoiceAI()
+        app = EnlyAI()
         # 生成测试音频
         test_audio = tmp_path / "sample.wav"
         generate_silent_wav(test_audio, duration=3.0)
@@ -325,7 +325,7 @@ class TestSystemHealth:
 
     def test_health_check(self, isolated_config):
         """健康检查应返回完整状态"""
-        app = KrVoiceAI()
+        app = EnlyAI()
         health = app.health_check()
         assert "ffmpeg" in health
         assert "gpu_tts" in health

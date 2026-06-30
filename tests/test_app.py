@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from krvoiceai.app import KrVoiceAI
+from krvoiceai.app import EnlyAI
 from krvoiceai.core.audio_utils import generate_silent_wav
 from krvoiceai.core.ffmpeg_utils import FFmpegRunner
 
@@ -21,7 +21,7 @@ def app(isolated_config):
     isolated_config.set("asr.provider", "mock")
     isolated_config.set("publisher.mode", "manual")
     isolated_config.set("publisher.publish_interval", 0)
-    return KrVoiceAI()
+    return EnlyAI()
 
 
 def test_app_init(app):

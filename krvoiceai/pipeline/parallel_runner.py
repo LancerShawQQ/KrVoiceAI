@@ -42,12 +42,12 @@ class ParallelRunner:
 
     def __init__(
         self,
-        app,  # KrVoiceAI 实例（避免循环 import 用鸭子类型）
+        app,  # EnlyAI 实例（避免循环 import 用鸭子类型）
         max_workers: Optional[int] = None,
     ):
         """
         Args:
-            app: KrVoiceAI 应用实例
+            app: EnlyAI 应用实例
             max_workers: 最大并发数。None 表示从配置读取 pipeline.concurrency，
                          默认 min(4, CPU 核数)。GPU 任务会强制串行（=1）。
         """
@@ -137,7 +137,7 @@ class ParallelRunner:
     def _run_single(self, index: int, kwargs: dict) -> BatchResult:
         """执行单个 job（线程池 worker 调用）
 
-        注意：KrVoiceAI 内部的 orchestrator / JobStore 每次调用都创建
+        注意：EnlyAI 内部的 orchestrator / JobStore 每次调用都创建
         新的 SQLite 连接，线程安全。共享的 self.app 只用于读配置。
         """
         start = time.time()

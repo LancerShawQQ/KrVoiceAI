@@ -91,7 +91,7 @@ class VideoComposer(BaseModule):
         # 水印配置
         wm_cfg = self.config.get("effects.watermark", {})
         self.watermark_enabled = wm_cfg.get("enabled", False)
-        self.watermark_text = wm_cfg.get("text", "KrVoiceAI")
+        self.watermark_text = wm_cfg.get("text", "EnlyAI")
         self.watermark_position = wm_cfg.get("position", "bottom_right")
         self.watermark_opacity = wm_cfg.get("opacity", 50)
 
