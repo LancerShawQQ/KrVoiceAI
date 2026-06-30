@@ -180,8 +180,8 @@ subtitle:
   animation: fade
   # 字体名称（系统字体）
   font_name: "Source Han Sans CN"
-  # 字号（1080x1920 下 36 较醒目）
-  font_size: 36
+  # 字号（1080x1920 下 56 较醒目，对标剪映抖音爆款）
+  font_size: 56
   # 主色（ASS 格式 &HBBGGRR）
   primary_color: "&H00FFFFFF"
   # 描边色
