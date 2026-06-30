@@ -1287,6 +1287,54 @@ def create_app() -> FastAPI:
             return {"success": True, "deleted": True}
         return {"success": True, "deleted": False, "message": "Cookie 不存在"}
 
+    # ============ 傻瓜化登录：扫码/浏览器登录自动获取 Cookie ============
+
+    @app.post("/api/publish/login/bilibili/qrcode")
+    async def bilibili_qrcode_login():
+        """B站扫码登录 - 生成二维码，用户用B站APP扫码后自动获取Cookie
+
+        流程：
+        1. 调此接口生成二维码
+        2. 用B站APP扫码
+        3. 轮询 /api/publish/login/bilibili/check 检查状态
+        4. 扫码确认后Cookie自动保存
+        """
+        from ..modules.publisher import Publisher
+        publisher = Publisher()
+        result = publisher.login_bilibili_qrcode()
+        if not result.get("success"):
+            raise HTTPException(500, result.get("error", "生成二维码失败"))
+        # 保存 publisher 实例到全局供轮询使用
+        app.state.bilibili_publisher = publisher
+        return result
+
+    @app.get("/api/publish/login/bilibili/check")
+    async def bilibili_login_check():
+        """检查B站扫码登录状态（配合 /api/publish/login/bilibili/qrcode 使用）"""
+        publisher = getattr(app.state, "bilibili_publisher", None)
+        if not publisher:
+            raise HTTPException(400, "请先调用 /api/publish/login/bilibili/qrcode 生成二维码")
+        result = publisher.check_bilibili_login()
+        if result.get("status") == "success":
+            app.state.bilibili_publisher = None
+        return result
+
+    @app.post("/api/publish/login/{platform}")
+    async def browser_login(platform: str):
+        """抖音/快手/视频号浏览器登录 - 弹出浏览器让用户登录，自动提取Cookie
+
+        调用后阻塞等待用户登录（最长5分钟），登录成功后自动保存Cookie。
+        """
+        from ..modules.publisher import Publisher
+        if platform not in ("douyin", "kuaishou", "wechat_video"):
+            raise HTTPException(400, f"不支持的平台: {platform}（仅支持 douyin/kuaishou/wechat_video）")
+
+        publisher = Publisher()
+        # 浏览器登录是阻塞操作，在线程池中执行避免阻塞事件循环
+        import asyncio
+        result = await asyncio.to_thread(publisher.login_browser_platform, platform)
+        return result
+
     return app
 
 
