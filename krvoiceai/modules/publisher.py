@@ -187,7 +187,11 @@ class Publisher(BaseModule):
         return results
 
     def _publish_bilibili(self, target: PublishTarget) -> dict:
-        """B站 API 发布"""
+        """B站 API 发布（基于 bilibili-api-python 库真实上传）
+
+        需要 Cookie 文件 config/cookies/bilibili.json，包含：
+            SESSDATA, bili_jct, DedeUserID, buvid3
+        """
         cookie_file = self.cookies_dir / "bilibili.json"
         if not cookie_file.exists():
             target.status = "skipped"
@@ -196,26 +200,73 @@ class Publisher(BaseModule):
             return {"status": "skipped", "error": target.error}
 
         try:
-            # 尝试使用 bilibili-api-python 库
-            from bilibili_api import video_uploader, login
+            import asyncio
+            from bilibili_api import video_uploader, Credential
+
             cookies = json.loads(cookie_file.read_text(encoding="utf-8"))
+            # 校验必要字段
+            for k in ("SESSDATA", "bili_jct", "DedeUserID"):
+                if not cookies.get(k):
+                    raise ValueError(f"bilibili Cookie 缺少字段: {k}")
 
-            self.logger.info(f"B站发布: {target.title}")
-            # 实际发布逻辑（需要完整实现，此处为框架）
-            # page = video_uploader.VideoUploaderPage(...)
-            # uploader = video_uploader.VideoUploader([page], meta, login.VCredential())
-            # result = uploader.start()
+            # 1. 创建凭据
+            credential = Credential(
+                sessdata=cookies["SESSDATA"],
+                bili_jct=cookies["bili_jct"],
+                dedeuserid=cookies["DedeUserID"],
+            )
 
-            target.status = "success"
-            target.url = "https://www.bilibili.com/video/（待填充）"
-            return {"status": "success", "url": target.url}
+            self.logger.info(f"B站发布开始: {target.title}")
+
+            # 2. 创建上传分P
+            page = video_uploader.VideoUploaderPage(
+                path=str(target.video_path),
+                title=target.title,
+                description=target.description,
+            )
+
+            # 3. 视频元信息
+            # tid 分区：122=野生技术协会（适合口播/知识）
+            # copyright: 1=自制 2=转载
+            meta = {
+                "title": target.title,
+                "desc": target.description,
+                "tid": 122,
+                "tag": ",".join(target.tags) if target.tags else "知识,口播",
+                "copyright": 1,
+            }
+
+            # 4. 创建上传器（封面可选）
+            cover_path = str(target.cover_path) if target.cover_path and Path(target.cover_path).exists() else ""
+            uploader = video_uploader.VideoUploader(
+                pages=[page],
+                meta=meta,
+                credential=credential,
+                cover=cover_path,
+            )
+
+            # 5. 异步执行上传
+            result = asyncio.run(uploader.start())
+
+            # result 示例: {"bvid": "BV1xxx...", "aid": 123456}
+            bvid = result.get("bvid", "") if isinstance(result, dict) else ""
+            if bvid:
+                url = f"https://www.bilibili.com/video/{bvid}"
+                target.status = "success"
+                target.url = url
+                self.logger.info(f"B站发布成功: {url}")
+                return {"status": "success", "url": url, "bvid": bvid}
+            else:
+                raise RuntimeError(f"上传完成但未返回 bvid: {result}")
+
         except ImportError:
             target.status = "skipped"
-            target.error = "bilibili-api-python 未安装"
+            target.error = "bilibili-api-python 未安装（pip install bilibili-api-python）"
             return {"status": "skipped", "error": target.error}
         except Exception as e:
             target.status = "failed"
             target.error = str(e)
+            self.logger.error(f"B站发布失败: {e}")
             return {"status": "failed", "error": str(e)}
 
     def _publish_playwright(self, target: PublishTarget) -> dict:
