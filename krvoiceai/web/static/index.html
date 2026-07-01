@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5.0">
   <title>EnlyAI · 虚拟人口播智能体</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=20260701light">
+  <link rel="stylesheet" href="/static/css/style.css?v=20260701light3">
   <script src="https://unpkg.com/lucide@latest"></script>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
   <!-- 移动端点击修复（内联确保优先级，避免外部CSS缓存导致失效） -->
@@ -511,13 +511,13 @@
             <div class="form-group">
               <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
                 <span>自动去静音</span>
-                <label class="toggle-switch"><input type="checkbox" id="wiz-remove-silence"><span class="toggle-slider"></span></label>
+                <label class="toggle-switch"><input type="checkbox" id="wiz-remove-silence" checked><span class="toggle-slider"></span></label>
               </label>
             </div>
             <div class="form-group">
               <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
                 <span>人声增强</span>
-                <label class="toggle-switch"><input type="checkbox" id="wiz-voice-enhance"><span class="toggle-slider"></span></label>
+                <label class="toggle-switch"><input type="checkbox" id="wiz-voice-enhance" checked><span class="toggle-slider"></span></label>
               </label>
             </div>
           </div>
@@ -547,21 +547,21 @@
                 </select>
               </div>
               <div class="form-group">
-                <label class="form-label">字号 <span class="hint" id="wiz-sub-size-val">24</span></label>
-                <input type="range" class="form-range" id="wiz-sub-size" min="12" max="60" step="1" value="24" oninput="document.getElementById('wiz-sub-size-val').textContent=this.value">
+                <label class="form-label">字号 <span class="hint" id="wiz-sub-size-val">56</span></label>
+                <input type="range" class="form-range" id="wiz-sub-size" min="12" max="80" step="1" value="56" oninput="document.getElementById('wiz-sub-size-val').textContent=this.value">
               </div>
             </div>
             <div class="form-row">
               <div class="form-group">
                 <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
                   <span>双行字幕</span>
-                  <label class="toggle-switch"><input type="checkbox" id="wiz-sub-dual"><span class="toggle-slider"></span></label>
+                  <label class="toggle-switch"><input type="checkbox" id="wiz-sub-dual" checked><span class="toggle-slider"></span></label>
                 </label>
               </div>
               <div class="form-group">
                 <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
                   <span>卡拉OK逐字</span>
-                  <label class="toggle-switch"><input type="checkbox" id="wiz-sub-karaoke"><span class="toggle-slider"></span></label>
+                  <label class="toggle-switch"><input type="checkbox" id="wiz-sub-karaoke" checked><span class="toggle-slider"></span></label>
                 </label>
               </div>
             </div>
@@ -574,7 +574,7 @@
           <div class="card">
             <div class="card-header">
               <div class="card-title"><span class="card-title-icon"><i data-lucide="music"></i></span> 背景音乐 (BGM)</div>
-              <label class="toggle-switch"><input type="checkbox" id="wiz-bgm-enabled"><span class="toggle-slider"></span></label>
+              <label class="toggle-switch"><input type="checkbox" id="wiz-bgm-enabled" checked><span class="toggle-slider"></span></label>
             </div>
             <div id="wiz-bgm-group">
               <div class="form-row">
@@ -583,8 +583,8 @@
                   <select class="form-select" id="wiz-bgm-track"></select>
                 </div>
                 <div class="form-group">
-                  <label class="form-label">音量 <span class="hint" id="wiz-bgm-vol-val">15</span></label>
-                  <input type="range" class="form-range" id="wiz-bgm-vol" min="0" max="100" step="5" value="15" oninput="document.getElementById('wiz-bgm-vol-val').textContent=this.value">
+                  <label class="form-label">音量 <span class="hint" id="wiz-bgm-vol-val">25</span></label>
+                  <input type="range" class="form-range" id="wiz-bgm-vol" min="0" max="100" step="5" value="25" oninput="document.getElementById('wiz-bgm-vol-val').textContent=this.value">
                 </div>
               </div>
               <div class="form-row">
@@ -2459,7 +2459,7 @@
   <!-- Toast 容器 -->
   <div class="toast-container" id="toast-container"></div>
 
-  <script src="/static/js/app.js?v=20260626c"></script>
+  <script src="/static/js/app.js?v=20260701light3"></script>
   <script src="/static/js/settings.js?v=20260621d"></script>
 </body>
 </html>

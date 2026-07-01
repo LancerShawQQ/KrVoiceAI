@@ -605,7 +605,7 @@ const EMOTION_ICONS = { neutral: '😐', calm: '😌', excited: '🤩', gentle: 
 let wizardState = {
   currentStep: 1,
   selectedTemplate: null,
-  selectedSubtitleStyle: null,
+  selectedSubtitleStyle: 'douyin_hot',
   wizScriptTab: 'manual',
   wizScriptAction: 'polish',
   initialized: false,
@@ -765,7 +765,7 @@ async function loadWizardData() {
     bindBtnCardGrid('wiz-emotion-grid');
 
     // 步骤5：字幕样式预设
-    renderSubtitleStyleGrid('wiz-subtitle-style-grid', presets.subtitle_styles, null, (key) => {
+    renderSubtitleStyleGrid('wiz-subtitle-style-grid', presets.subtitle_styles, 'douyin_hot', (key) => {
       wizardState.selectedSubtitleStyle = key;
       applySubtitleStylePreset(key);
     });
@@ -1255,7 +1255,7 @@ function collectWizardAudioWithBgm() {
 
 function collectWizardSubtitle() {
   return {
-    preset: wizardState.selectedSubtitleStyle || 'minimal_white',
+    preset: wizardState.selectedSubtitleStyle || 'douyin_hot',
     animation: document.getElementById('wiz-sub-anim').value,
     position: document.getElementById('wiz-sub-position').value,
     font_size: parseInt(document.getElementById('wiz-sub-size').value),

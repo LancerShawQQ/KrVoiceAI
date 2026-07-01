@@ -217,6 +217,9 @@ class EnlyAI:
             包含 job_id/success/elapsed/stages/video_path/subtitle_path/title/cover_path 等
             用户友好字段的结果字典
         """
+        # avatar_id 为 "default" 时，从配置读取 default_id（如 e2e_anchor）
+        if avatar_id == "default":
+            avatar_id = self.config.get("avatar.default_avatar", "default")
         meta = {"platform": platform, "auto_publish": auto_publish}
         if metadata:
             meta.update(metadata)

@@ -3028,7 +3028,7 @@ input[type="color"]::-webkit-color-swatch {
   font-weight: 700;
   padding: 24px 12px;
   margin: 0;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  background: linear-gradient(135deg, #1d1d1f 0%, #2c2c2e 100%);
   min-height: 70px;
   display: flex;
   align-items: center;
@@ -3293,7 +3293,7 @@ input[type="color"]::-webkit-color-swatch {
 /* ---------- 时间轴剪辑编辑器 ---------- */
 .timeline-container {
   background: var(--bg-elevated, #1a1d24);
-  border: 1px solid var(--border-default, #2a2d34);
+  border: 1px solid var(--border-default, #d2d2d7);
   border-radius: 8px;
   padding: 12px;
   overflow-x: auto;
@@ -3731,7 +3731,7 @@ input[type="color"]::-webkit-color-swatch {
   align-items: center;
   gap: 8px;
   padding: 8px;
-  border: 1px solid var(--border-default, #2a2d34);
+  border: 1px solid var(--border-default, #d2d2d7);
   border-radius: 6px;
   margin-bottom: 6px;
   cursor: pointer;
@@ -3792,7 +3792,7 @@ input[type="color"]::-webkit-color-swatch {
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  border: 1px solid var(--border-default, #2a2d34);
+  border: 1px solid var(--border-default, #d2d2d7);
   border-radius: 6px;
   margin-bottom: 6px;
   font-size: 12px;
@@ -3862,10 +3862,10 @@ input[type="color"]::-webkit-color-swatch {
   max-width: 560px;
   max-height: 90vh;
   overflow-y: auto;
-  background: var(--bg-surface, #1a1d24);
-  border: 1px solid var(--border-default, #2a2d34);
+  background: var(--bg-surface, #ffffff);
+  border: 1px solid var(--border-default, #d2d2d7);
   border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.15);
 }
 
 .modal-header {
@@ -3873,7 +3873,7 @@ input[type="color"]::-webkit-color-swatch {
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  border-bottom: 1px solid var(--border-default, #2a2d34);
+  border-bottom: 1px solid var(--border-default, #d2d2d7);
 }
 
 .modal-title {
@@ -3905,7 +3905,7 @@ input[type="color"]::-webkit-color-swatch {
   justify-content: flex-end;
   gap: 8px;
   padding: 16px 20px;
-  border-top: 1px solid var(--border-default, #2a2d34);
+  border-top: 1px solid var(--border-default, #d2d2d7);
 }
 
 /* ============================================

@@ -181,11 +181,15 @@ def create_app() -> FastAPI:
     async def generate_async(req: GenerateRequest):
         """异步提交视频生成任务，立即返回 job_id，前端轮询 /api/jobs/{job_id} 获取进度"""
         krvoice = _get_app()
+        # avatar_id 为 "default" 时，从配置读取 default_id（如 e2e_anchor）
+        avatar_id = req.avatar_id
+        if avatar_id == "default":
+            avatar_id = krvoice.config.get("avatar.default_avatar", "default")
         # 提交任务（仅创建，不阻塞）
         job_id = krvoice.orchestrator.submit_job(
             script=req.script,
             reference_video_url=req.reference_video_url,
-            avatar_id=req.avatar_id,
+            avatar_id=avatar_id,
             voice_id=req.voice_id,
             script_mode=req.script_mode,
             metadata={"platform": req.platform, "auto_publish": req.auto_publish},
