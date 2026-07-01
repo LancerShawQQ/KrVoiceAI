@@ -505,31 +505,59 @@ class EnlyAI:
         return result
 
     def list_voices(self) -> list[dict]:
-        """列出所有可用音色（含已注册音色 + 当前 provider 默认音色）"""
+        """列出所有可用音色（含预制音色 + 已注册克隆音色 + 当前 provider 默认音色）"""
         voices_dir = Path(self.config.get("tts.voices_dir", "./config/voices"))
         result = []
         seen_ids = set()
+        provider = self.config.get("tts.provider", "edge_tts")
 
-        # 1. 当前 provider 的默认音色（确保用户始终能看到可选音色）
-        provider = self.config.get("tts.provider", "mock")
-        default_voice = self.config.get("tts.default_voice", "default")
+        # 1. 预制音色库（从 avatar_voice_library.yaml 加载，edge_tts provider 下全部可用）
+        preset_file = Path("./config/presets/avatar_voice_library.yaml")
+        if preset_file.exists():
+            try:
+                import yaml
+                with open(preset_file, "r", encoding="utf-8") as f:
+                    data = yaml.safe_load(f) or {}
+                for vid, info in (data.get("voices", {}) or {}).items():
+                    if vid in seen_ids:
+                        continue
+                    result.append({
+                        "voice_id": vid,
+                        "label": info.get("label", vid),
+                        "gender": info.get("gender", ""),
+                        "description": info.get("description", ""),
+                        "type": "preset",
+                        "provider": "edge_tts",
+                    })
+                    seen_ids.add(vid)
+            except Exception:
+                pass
+
+        # 2. 当前 provider 的默认音色（若不在预制库中则补充）
+        default_voice = self.config.get("tts.default_voice", "zh-CN-XiaoxiaoNeural")
         if default_voice and default_voice not in seen_ids:
             result.append({
                 "voice_id": default_voice,
+                "label": default_voice,
                 "type": "provider_default",
                 "provider": provider,
             })
             seen_ids.add(default_voice)
 
-        # 2. 已注册的自定义音色（用户上传的音色样本）
+        # 3. 已注册的自定义克隆音色（用户上传的音色样本）
         if voices_dir.exists():
             for d in sorted(voices_dir.iterdir()):
                 if not d.is_dir():
                     continue
                 if d.name in seen_ids:
                     continue
-                info = {"voice_id": d.name, "type": "custom", "provider": provider}
-                for ext in (".wav", ".mp3", ".flac"):
+                info = {
+                    "voice_id": d.name,
+                    "label": d.name + "（克隆）",
+                    "type": "custom",
+                    "provider": provider,
+                }
+                for ext in (".wav", ".mp3", ".flac", ".m4a"):
                     samples = list(d.glob(f"*{ext}"))
                     if samples:
                         info["sample"] = str(samples[0])

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5.0">
   <title>EnlyAI · 虚拟人口播智能体</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=20260701light4">
+  <link rel="stylesheet" href="/static/css/style.css?v=20260701voice5">
   <script src="https://unpkg.com/lucide@latest"></script>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
   <!-- 移动端点击修复（内联确保优先级，避免外部CSS缓存导致失效） -->
@@ -478,8 +478,24 @@
               <span class="hint">点击卡片选中，<i data-lucide="play"></i> 试听音色</span>
             </div>
             <div class="voice-card-grid" id="wiz-voice-grid"></div>
-            <input type="hidden" id="wiz-voice" value="default">
+          <input type="hidden" id="wiz-voice" value="zh-CN-XiaoxiaoNeural">
+          <!-- 声音克隆上传入口（对标必火AI 60秒克隆） -->
+          <div style="margin-top:12px;padding:12px;border:1px dashed var(--border-default, #d2d2d7);border-radius:12px;background:var(--bg-surface, #f5f5f7)">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <i data-lucide="upload-cloud" style="width:18px;height:18px;color:var(--accent-primary, #0071e3)"></i>
+              <span style="font-size:14px;font-weight:600;color:var(--text-primary, #1d1d1f)">声音克隆</span>
+              <span class="hint" style="font-size:12px">上传5-10秒干净人声样本</span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <input type="text" class="form-input" id="wiz-clone-voice-id" placeholder="音色名称（如：我的音色）" style="flex:1;min-width:120px">
+              <button class="btn btn-secondary" type="button" onclick="document.getElementById('wiz-clone-file').click()">
+                <i data-lucide="upload" style="width:16px;height:16px"></i> 选择音频
+              </button>
+              <input type="file" id="wiz-clone-file" accept=".wav,.mp3,.m4a,.flac" style="display:none" onchange="onWizardVoiceClone(this)">
+            </div>
+            <div id="wiz-clone-status" style="font-size:12px;color:var(--text-secondary, #6e6e73);min-height:18px;margin-top:6px"></div>
           </div>
+        </div>
           <div class="card">
             <div class="card-header">
               <div class="card-title"><span class="card-title-icon"><i data-lucide="settings"></i></span> 语音高级设置</div>
@@ -578,9 +594,14 @@
             </div>
             <div id="wiz-bgm-group">
               <div class="form-row">
-                <div class="form-group">
+                <div class="form-group" style="flex:1">
                   <label class="form-label">曲目</label>
-                  <select class="form-select" id="wiz-bgm-track"></select>
+                  <div style="display:flex;gap:8px;align-items:center">
+                    <select class="form-select" id="wiz-bgm-track" style="flex:1"></select>
+                    <button class="btn btn-sm btn-secondary" type="button" id="wiz-bgm-preview-btn" onclick="previewBgm()" title="试听BGM">
+                      <i data-lucide="play" style="width:14px;height:14px"></i>
+                    </button>
+                  </div>
                 </div>
                 <div class="form-group">
                   <label class="form-label">音量 <span class="hint" id="wiz-bgm-vol-val">25</span></label>

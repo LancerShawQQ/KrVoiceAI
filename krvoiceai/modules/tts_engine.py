@@ -513,11 +513,31 @@ class TTSEngine(BaseModule):
             f"kwargs={kwargs}"
         )
 
+        # edge-tts 总是输出 MP3 流，先保存到临时 mp3 再用 ffmpeg 转 wav
+        # （pcm_s16le 16kHz mono，符合下游 Wav2Lip 对音频格式的要求）
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        mp3_path = output_path.with_suffix(".mp3")
+
         async def _synth():
             communicate = edge_tts.Communicate(text, self.edge_voice, **kwargs)
-            await communicate.save(str(output_path))
+            await communicate.save(str(mp3_path))
 
         asyncio.run(_synth())
+
+        # 用 ffmpeg 将 mp3 转为 wav（与 MiMo 分支保持一致）
+        final_path = mp3_path
+        try:
+            import subprocess
+            subprocess.run(
+                ["ffmpeg", "-y", "-i", str(mp3_path), "-acodec", "pcm_s16le",
+                 "-ar", "16000", "-ac", "1", str(output_path)],
+                capture_output=True, timeout=30,
+            )
+            if output_path.exists():
+                mp3_path.unlink(missing_ok=True)
+                final_path = output_path
+        except Exception as e:
+            self.logger.warning(f"edge-tts ffmpeg 转 wav 失败，使用 mp3: {e}")
 
         # edge-tts 不直接返回时间戳，按分句估算
         segments = split_text_to_segments(text)
@@ -532,8 +552,11 @@ class TTSEngine(BaseModule):
             })
             offset += seg_dur
 
-        duration = get_wav_duration(output_path) if output_path.exists() else offset
-        return output_path, duration, timestamps
+        duration = get_wav_duration(final_path) if final_path.suffix == ".wav" else offset
+        self.logger.info(
+            f"edge-tts 合成完成 duration={duration:.2f}s segments={len(segments)}"
+        )
+        return final_path, duration, timestamps
 
     def _synth_mock(
         self, text: str, voice_id: str, output_path: Path,

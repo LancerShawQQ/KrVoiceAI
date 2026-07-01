@@ -30,7 +30,7 @@ llm:
 
 # TTS 配置（声音克隆）
 tts:
-  provider: moss_nano  # moss_nano / mimo / gpt_sovits / edge_tts / mock
+  provider: edge_tts  # edge_tts(默认,免费,10音色) / moss_nano(本地克隆) / mimo / gpt_sovits / mock
   # GPT-SoVITS 云端服务地址
   api_base: http://localhost:9880
   api_key: ""
@@ -41,7 +41,8 @@ tts:
   edge_voice: zh-CN-XiaoxiaoNeural
   # 音色库目录
   voices_dir: ./config/voices
-  default_voice: default
+  # 默认音色（edge_tts 的预制音色，10个可选）
+  default_voice: zh-CN-XiaoxiaoNeural
   # MOSS-TTS-Nano 配置（provider=moss_nano 时使用，本地 CPU 声音克隆）
   moss_nano:
     # MOSS-TTS-Nano 仓库根目录（含 onnx_tts_runtime.py）

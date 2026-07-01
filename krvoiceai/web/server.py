@@ -649,6 +649,17 @@ def create_app() -> FastAPI:
         cfg = _get_app().config
         return cfg.get("bgm_library", {}) or {}
 
+    @app.get("/api/bgm/preview/{track}")
+    async def preview_bgm(track: str):
+        """预览 BGM 文件（用于 UI 试听按钮）"""
+        from pathlib import Path as _Path
+        bgm_dir = _Path(_get_app().config.get("composer.bgm_dir", "./config/bgm"))
+        for ext in (".mp3", ".m4a", ".wav"):
+            p = bgm_dir / f"{track}{ext}"
+            if p.exists():
+                return FileResponse(str(p), media_type="audio/mpeg")
+        return JSONResponse({"error": "BGM not found"}, status_code=404)
+
     # ============ 场景化预制模板 API（对标腾讯智影/万兴播爆） ============
 
     @app.get("/api/scene/templates")

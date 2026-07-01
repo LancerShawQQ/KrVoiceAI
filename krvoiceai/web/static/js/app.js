@@ -895,22 +895,27 @@ function renderWizardAvatarGrid(avatars) {
 function renderWizardVoiceGrid(voices) {
   const grid = document.getElementById('wiz-voice-grid');
   if (!grid) return;
-  const list = voices && voices.length ? voices : [{ voice_id: 'default', type: 'provider_default', provider: 'mock' }];
+  const list = voices && voices.length ? voices : [{ voice_id: 'zh-CN-XiaoxiaoNeural', label: '晓晓（女·温暖）', type: 'preset', provider: 'edge_tts' }];
   grid.innerHTML = list.map(v => {
     const id = v.voice_id;
     const type = v.type || 'custom';
-    const provider = v.provider || 'mock';
-    const typeLabel = type === 'provider_default' || type === 'default' ? '默认' : '自定义';
-    const typeClass = type === 'provider_default' || type === 'default' ? 'type-default' : 'type-custom';
+    const provider = v.provider || 'edge_tts';
+    // 显示名称：优先用 label，否则用 voice_id
+    const displayName = v.label || v.voice_id;
+    const desc = v.description || '';
+    const gender = v.gender || '';
+    const typeLabel = type === 'preset' ? '预制' : (type === 'provider_default' || type === 'default' ? '默认' : '克隆');
+    const typeClass = type === 'preset' ? 'type-preset' : (type === 'provider_default' || type === 'default' ? 'type-default' : 'type-custom');
     return `
       <div class="voice-card" data-id="${id}">
         <div class="voice-card-header">
           <div class="voice-card-info">
-            <div class="voice-card-name">${id}</div>
+            <div class="voice-card-name">${displayName}</div>
             <div class="voice-card-tags">
               <span class="voice-card-tag ${typeClass}">${typeLabel}</span>
-              <span class="voice-card-tag provider">${provider}</span>
+              ${gender ? `<span class="voice-card-tag provider">${gender}</span>` : ''}
             </div>
+            ${desc ? `<div class="voice-card-desc">${desc}</div>` : ''}
           </div>
           <button class="voice-preview-btn" data-voice="${id}" type="button" title="试听"><i data-lucide="play"></i></button>
         </div>
@@ -2977,6 +2982,91 @@ async function handleRegisterVoice() {
   } finally {
     btn.disabled = false;
     setBtnIcon(btn, 'download', '注册音色');
+  }
+}
+
+// ========== 向导内声音克隆上传（对标必火AI） ==========
+async function onWizardVoiceClone(fileInput) {
+  const statusEl = document.getElementById('wiz-clone-status');
+  const voiceIdInput = document.getElementById('wiz-clone-voice-id');
+  const file = fileInput.files[0];
+  if (!file) return;
+
+  // 自动生成音色ID（若用户未输入）
+  let voiceId = voiceIdInput.value.trim();
+  if (!voiceId) {
+    voiceId = 'clone_' + Date.now().toString(36);
+    voiceIdInput.value = voiceId;
+  }
+  // 确保ID合法（仅字母数字）
+  voiceId = voiceId.replace(/[^a-zA-Z0-9_]/g, '_');
+
+  if (statusEl) statusEl.textContent = '上传中...';
+  const formData = new FormData();
+  formData.append('voice_id', voiceId);
+  formData.append('file', file);
+
+  try {
+    const resp = await fetch('/api/voices/register', { method: 'POST', body: formData });
+    const result = await resp.json();
+    if (result.success) {
+      if (statusEl) statusEl.textContent = '✓ 克隆成功！音色已添加到列表';
+      toast('声音克隆成功，已添加到音色列表', 'success');
+      // 刷新向导音色列表
+      const voices = await api('/api/voices').catch(() => []);
+      renderWizardVoiceGrid(voices);
+      // 自动选中新克隆的音色
+      setTimeout(() => {
+        const grid = document.getElementById('wiz-voice-grid');
+        if (grid) {
+          const newCard = grid.querySelector(`[data-id="${voiceId}"]`);
+          if (newCard) {
+            grid.querySelectorAll('.voice-card').forEach(c => c.classList.remove('selected'));
+            newCard.classList.add('selected');
+            document.getElementById('wiz-voice').value = voiceId;
+          }
+        }
+      }, 200);
+    } else {
+      if (statusEl) statusEl.textContent = '✗ 克隆失败：' + (result.error || '未知错误');
+      toast('声音克隆失败', 'error');
+    }
+  } catch (e) {
+    if (statusEl) statusEl.textContent = '✗ 上传失败：' + e.message;
+    toast('上传失败: ' + e.message, 'error');
+  } finally {
+    fileInput.value = '';
+  }
+}
+
+// ========== BGM 试听 ==========
+let _bgmPreviewAudio = null;
+async function previewBgm() {
+  const trackSel = document.getElementById('wiz-bgm-track');
+  const btn = document.getElementById('wiz-bgm-preview-btn');
+  if (!trackSel || !trackSel.value) { toast('请先选择BGM曲目', 'error'); return; }
+
+  // 如果正在播放，停止
+  if (_bgmPreviewAudio && !_bgmPreviewAudio.paused) {
+    _bgmPreviewAudio.pause();
+    if (btn) setBtnIcon(btn, 'play', '');
+    return;
+  }
+
+  try {
+    const url = `/api/bgm/preview/${trackSel.value}`;
+    _bgmPreviewAudio = new Audio(url);
+    _bgmPreviewAudio.volume = 0.5;
+    if (btn) setBtnIcon(btn, 'square', '');
+    _bgmPreviewAudio.play();
+    _bgmPreviewAudio.onended = () => { if (btn) setBtnIcon(btn, 'play', ''); };
+    _bgmPreviewAudio.onerror = () => {
+      toast('BGM 试听失败', 'error');
+      if (btn) setBtnIcon(btn, 'play', '');
+    };
+  } catch (e) {
+    toast('BGM 试听失败: ' + e.message, 'error');
+    if (btn) setBtnIcon(btn, 'play', '');
   }
 }
 

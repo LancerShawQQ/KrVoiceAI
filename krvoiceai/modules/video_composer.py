@@ -283,10 +283,22 @@ class VideoComposer(BaseModule):
         if bgm and Path(bgm).exists():
             inputs += ["-i", str(bgm)]
             bgm_input_idx = len(inputs) // 2 - 1
+            # BGM 滤镜链：音量 + 淡入 + 淡出（afade）
+            bgm_chain = f"[{bgm_input_idx}:a]volume={self.bgm_volume}"
+            if self.bgm_fade_in > 0:
+                bgm_chain += f",afade=t=in:st=0:d={self.bgm_fade_in}"
+            if self.bgm_fade_out > 0:
+                # 获取视频时长以计算淡出起始时间
+                bgm_info = self.ffmpeg.probe_video_info(Path(main_video))
+                bgm_dur = bgm_info.duration if bgm_info else 0
+                if bgm_dur > self.bgm_fade_out:
+                    fade_out_st = bgm_dur - self.bgm_fade_out
+                    bgm_chain += f",afade=t=out:st={fade_out_st:.2f}:d={self.bgm_fade_out}"
+            bgm_chain += "[bgm]"
             # 人声(TTS,含封面延迟) + BGM 混音
             audio_filter = (
                 _voice_chain("voice") + ";"
-                f"[{bgm_input_idx}:a]volume={self.bgm_volume}[bgm];"
+                + bgm_chain + ";"
                 f"[voice][bgm]amix=inputs=2:duration=first:dropout_transition=0[aout]"
             )
         elif voice_audio and Path(voice_audio).exists():
