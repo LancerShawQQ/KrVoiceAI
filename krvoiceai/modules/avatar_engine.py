@@ -58,6 +58,11 @@ class AvatarEngine(BaseModule):
         self.gfpgan_cfg = self.config.get("avatar.gfpgan", {}) or {}
         self.gpu = gpu_runner or GPURunner()
         self.ffmpeg = ffmpeg or FFmpegRunner()
+        # Scene 配置（背景类型）
+        scene_cfg = self.config.get("scene", {}) or {}
+        self.scene_bg_type = scene_cfg.get("background_type", "transparent")
+        self.scene_bg_color = scene_cfg.get("background_color", "#1A1A2E")
+        self.scene_bg_image = scene_cfg.get("background_image", "")
 
     def setup(self) -> None:
         if self.provider == "wav2lip":
@@ -312,13 +317,30 @@ class AvatarEngine(BaseModule):
         # Wav2Lip 输出尺寸 = face 输入尺寸（通常横屏，如 1920x1080）
         # 转成竖屏 1080x1920（人脸居中 + 模糊背景，主流口播做法）
         portrait_path = ctx.work_dir / "avatar_portrait.mp4"
+        # 根据 scene 配置选择背景填充方式
+        bg_mode = "blur"  # 默认模糊背景
+        bg_color = "#000000"
+        bg_image = ""
+        if self.scene_bg_type == "solid":
+            bg_mode = "solid"
+            bg_color = self.scene_bg_color
+        elif self.scene_bg_type == "image" and self.scene_bg_image:
+            bg_image = self.scene_bg_image
+            if Path(bg_image).exists():
+                bg_mode = "image"
+            else:
+                self.logger.warning(f"背景图片不存在，回退到模糊背景: {bg_image}")
+                bg_mode = "blur"
+        # transparent 和其他情况保持 blur
         try:
             self.ffmpeg.to_portrait(
                 video=output_path,
                 output=portrait_path,
                 target_resolution=self.output_resolution,
                 fps=self.output_fps,
-                background="blur",
+                background=bg_mode,
+                bg_color=bg_color,
+                bg_image=bg_image,
             )
             return portrait_path
         except Exception as e:

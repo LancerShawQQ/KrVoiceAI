@@ -740,6 +740,8 @@ class FFmpegRunner:
         target_resolution: tuple[int, int] = (1080, 1920),
         fps: int = 30,
         background: str = "blur",
+        bg_color: str = "#000000",
+        bg_image: str = "",
     ) -> Path:
         """横屏视频转竖屏（口播标准做法：人脸居中 + 背景填充）
 
@@ -751,6 +753,10 @@ class FFmpegRunner:
             background: 背景填充方式
                 - blur: 原视频放大+模糊作背景（最自然，主流口播做法）
                 - black: 纯黑背景
+                - solid: 纯色背景（配合 bg_color，如 "#1A1A2E"）
+                - image: 图片背景（配合 bg_image，图片文件路径）
+            bg_color: solid 背景色（十六进制 "#RRGGBB"），仅 background="solid" 生效
+            bg_image: image 背景图路径，仅 background="image" 生效
         """
         video = Path(video)
         output = Path(output)
@@ -801,6 +807,94 @@ class FFmpegRunner:
                 "-f", "lavfi", "-i", "anullsrc=channel_layout=mono:sample_rate=44100",
                 "-filter_complex", vf,
                 "-map", "[v]", "-map", "1:a",
+                "-c:v", "libx264", "-preset", "medium", "-pix_fmt", "yuv420p",
+                "-r", str(fps),
+                "-c:a", "aac", "-b:a", "192k",
+                "-shortest", "-movflags", "+faststart",
+                str(output),
+            ]
+            self.run(args_silent)
+        elif background == "solid":
+            # 纯色背景：用 color 源生成纯色背景，叠加居中数字人
+            # bg_color 格式 "#1A1A2E" → ffmpeg 需要 "0x1A1A2E"
+            hex_color = bg_color.lstrip("#")
+            vf = (
+                f"color=c=0x{hex_color}:s={tw}x{th}:r={fps}[bg];"
+                f"[0:v]scale={tw}:{th}:force_original_aspect_ratio=decrease[fg];"
+                f"[bg][fg]overlay=(W-w)/2:(H-h)/2[v]"
+            )
+            args = [
+                "-i", str(video),
+                "-filter_complex", vf,
+                "-map", "[v]", "-map", "0:a?",
+                "-c:v", "libx264", "-preset", "medium", "-pix_fmt", "yuv420p",
+                "-r", str(fps),
+                "-c:a", "aac", "-b:a", "192k",
+                "-movflags", "+faststart",
+                str(output),
+            ]
+            # 同 blur 分支，先试带音频，失败用静音轨
+            try:
+                self.run(args)
+                import subprocess as _sp
+                r = _sp.run(
+                    [self.ffprobe, "-v", "error", "-select_streams", "a",
+                     "-show_entries", "stream=codec_type", "-of", "csv=p=0", str(output)],
+                    capture_output=True, text=True,
+                )
+                if "audio" in r.stdout:
+                    return output
+            except Exception:
+                pass
+            args_silent = [
+                "-i", str(video),
+                "-f", "lavfi", "-i", "anullsrc=channel_layout=mono:sample_rate=44100",
+                "-filter_complex", vf,
+                "-map", "[v]", "-map", "1:a",
+                "-c:v", "libx264", "-preset", "medium", "-pix_fmt", "yuv420p",
+                "-r", str(fps),
+                "-c:a", "aac", "-b:a", "192k",
+                "-shortest", "-movflags", "+faststart",
+                str(output),
+            ]
+            self.run(args_silent)
+        elif background == "image" and bg_image and Path(bg_image).exists():
+            # 图片背景：背景图缩放铺满，数字人居中叠加
+            vf = (
+                f"[1:v]scale={tw}:{th}:force_original_aspect_ratio=increase,"
+                f"crop={tw}:{th}[bg];"
+                f"[0:v]scale={tw}:{th}:force_original_aspect_ratio=decrease[fg];"
+                f"[bg][fg]overlay=(W-w)/2:(H-h)/2[v]"
+            )
+            args = [
+                "-i", str(video),
+                "-i", str(bg_image),
+                "-filter_complex", vf,
+                "-map", "[v]", "-map", "0:a?",
+                "-c:v", "libx264", "-preset", "medium", "-pix_fmt", "yuv420p",
+                "-r", str(fps),
+                "-c:a", "aac", "-b:a", "192k",
+                "-movflags", "+faststart",
+                str(output),
+            ]
+            try:
+                self.run(args)
+                import subprocess as _sp
+                r = _sp.run(
+                    [self.ffprobe, "-v", "error", "-select_streams", "a",
+                     "-show_entries", "stream=codec_type", "-of", "csv=p=0", str(output)],
+                    capture_output=True, text=True,
+                )
+                if "audio" in r.stdout:
+                    return output
+            except Exception:
+                pass
+            args_silent = [
+                "-i", str(video),
+                "-i", str(bg_image),
+                "-f", "lavfi", "-i", "anullsrc=channel_layout=mono:sample_rate=44100",
+                "-filter_complex", vf,
+                "-map", "[v]", "-map", "2:a",
                 "-c:v", "libx264", "-preset", "medium", "-pix_fmt", "yuv420p",
                 "-r", str(fps),
                 "-c:a", "aac", "-b:a", "192k",

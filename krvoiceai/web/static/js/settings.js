@@ -637,6 +637,17 @@ async function loadSceneEffectSettings() {
   // 数字人场景
   if (presets) {
     renderBtnCardGrid('scene-pose-grid', presets.poses, POSE_ICONS);
+    // 非 half_body 姿态标注“即将支持”（当前仅 half_body 可用）
+    document.querySelectorAll('#scene-pose-grid .btn-card').forEach(btn => {
+      if (btn.dataset.value !== 'half_body') {
+        btn.disabled = true;
+        btn.title = '即将支持';
+        const label = btn.querySelector('.btn-card-label');
+        if (label && !label.textContent.includes('即将支持')) {
+          label.textContent = label.textContent + ' (即将支持)';
+        }
+      }
+    });
     fillSelect('effect-transition', presets.transitions);
     fillSelect('effect-filter', presets.filters);
     renderBtnCardGrid('audio-emotion-grid', presets.emotions, EMOTION_ICONS);
@@ -726,6 +737,7 @@ async function saveSceneEffectSettings() {
     background_image: document.getElementById('scene-bg-image').value,
     show_logo: document.getElementById('scene-show-logo').checked,
     logo_position: document.getElementById('scene-logo-position').value,
+    logo_image: document.getElementById('settings-logo-image')?.value || '',
   };
   const audioData = {
     speed: parseFloat(document.getElementById('audio-speed').value),
