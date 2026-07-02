@@ -1151,10 +1151,10 @@ body::after {
 }
 
 .sub-tab.active {
-  background: #ffffff;
-  color: #1d1d1f;
+  background: #1d1d1f;
+  color: white;
   font-weight: 600;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.10), 0 1px 1px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
 .sub-page {
@@ -1214,12 +1214,12 @@ body::after {
 }
 
 .action-btn {
-  padding: 6px 5px;
+  padding: 5px 4px;
   background: rgba(0, 0, 0, 0.03);
   border: 1px solid rgba(0, 0, 0, 0.08);
   color: var(--text-primary);
   font-family: var(--font-body);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   cursor: pointer;
   border-radius: 6px;
@@ -1228,7 +1228,7 @@ body::after {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
 }
 
 .action-btn:hover {
