@@ -671,7 +671,11 @@ async function loadSceneEffectSettings() {
   document.getElementById('scene-bg-image').value = scene.background_image || '';
   document.getElementById('scene-show-logo').checked = !!scene.show_logo;
   document.getElementById('scene-logo-position').value = scene.logo_position || 'bottom-right';
+  const logoImgInput = document.getElementById('settings-logo-image');
+  if (logoImgInput) logoImgInput.value = scene.logo_image || '';
   document.getElementById('scene-logo-position-group').style.display = scene.show_logo ? 'block' : 'none';
+  const logoImgGroup = document.getElementById('settings-logo-image-group');
+  if (logoImgGroup) logoImgGroup.style.display = scene.show_logo ? 'block' : 'none';
   document.getElementById('scene-bg-color-group').style.display = (scene.background_type === 'solid') ? 'block' : 'none';
   document.getElementById('scene-bg-image-group').style.display = (scene.background_type === 'image') ? 'block' : 'none';
 
@@ -720,6 +724,8 @@ async function loadSceneEffectSettings() {
     logoCheck._bound = true;
     logoCheck.addEventListener('change', e => {
       document.getElementById('scene-logo-position-group').style.display = e.target.checked ? 'block' : 'none';
+      const lig = document.getElementById('settings-logo-image-group');
+      if (lig) lig.style.display = e.target.checked ? 'block' : 'none';
     });
     document.getElementById('effect-watermark-enabled').addEventListener('change', e => {
       document.getElementById('effect-watermark-group').style.display = e.target.checked ? 'block' : 'none';
