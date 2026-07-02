@@ -110,6 +110,15 @@ class VideoComposer(BaseModule):
         self._nvenc_available = detect_nvenc()
         self._vcodec, self._vpreset, self._vextra = get_video_encoder()
 
+        # Scene 配置（数字人位置/大小/Logo）
+        scene_cfg = self.config.get("scene", {}) or {}
+        self.scene_position = scene_cfg.get("position", "center")
+        self.scene_scale = float(scene_cfg.get("scale", 1.0))
+        self.scene_bg_type = scene_cfg.get("background_type", "transparent")
+        self.show_logo = bool(scene_cfg.get("show_logo", False))
+        self.logo_position = scene_cfg.get("logo_position", "top_right")
+        self.logo_image = scene_cfg.get("logo_image", "")
+
     def setup(self) -> None:
         if not self.ffmpeg.available():
             raise RuntimeError("FFmpeg 不可用，视频合成模块无法工作")
@@ -305,18 +314,54 @@ class VideoComposer(BaseModule):
             # 只有人声，无 BGM（含封面延迟补偿）
             audio_filter = _voice_chain("aout")
 
+        # Logo 叠加输入（scene 配置）：在音频输入之后追加，索引动态计算
+        # Logo overlay 需要多输入，必须走 -filter_complex 路径
+        logo_input_idx = -1
+        logo_overlay_chain = None
+        if self.show_logo and self.logo_image and Path(self.logo_image).exists():
+            inputs += ["-i", str(self.logo_image)]
+            logo_input_idx = len(inputs) // 2 - 1
+            lx, ly = self._get_logo_overlay_pos(self.logo_position)
+            # logo 链：确保 png 透明通道（rgba），再 overlay 到主视频
+            logo_overlay_chain = (
+                f"[{logo_input_idx}:v]format=rgba[logo];"
+                f"[vbase][logo]overlay={lx}:{ly}[vout]"
+            )
+            self.logger.info(
+                f"Logo 叠加启用 image={self.logo_image} "
+                f"position={self.logo_position} overlay={lx}:{ly}"
+            )
+
         # 构建命令
         args = list(inputs)
+        use_logo_filter_complex = logo_input_idx >= 0 and logo_overlay_chain
 
-        if audio_filter:
-            args += ["-filter_complex", audio_filter]
-            if vf_filters:
-                # 视频滤镜与音频滤镜共存
-                args += ["-vf", vf_filters]
-            args += ["-map", "0:v", "-map", "[aout]"]
+        if use_logo_filter_complex:
+            # Logo 叠加：多输入 overlay 必须用 -filter_complex
+            # 视频链：[0:v]<vf_filters>[vbase]; logo overlay -> [vout]
+            video_chain = (
+                f"[0:v]{vf_filters}[vbase]"
+                if vf_filters
+                else "[0:v]null[vbase]"
+            )
+            filter_complex = video_chain + ";" + logo_overlay_chain
+            if audio_filter:
+                filter_complex += ";" + audio_filter
+            args += ["-filter_complex", filter_complex]
+            args += ["-map", "[vout]"]
+            if audio_filter:
+                args += ["-map", "[aout]"]
         else:
-            if vf_filters:
-                args += ["-vf", vf_filters]
+            # 原有逻辑（无 Logo，保持不变）
+            if audio_filter:
+                args += ["-filter_complex", audio_filter]
+                if vf_filters:
+                    # 视频滤镜与音频滤镜共存
+                    args += ["-vf", vf_filters]
+                args += ["-map", "0:v", "-map", "[aout]"]
+            else:
+                if vf_filters:
+                    args += ["-vf", vf_filters]
 
         args += [
             "-c:v", self._vcodec,
@@ -349,10 +394,29 @@ class VideoComposer(BaseModule):
         filters: list[str] = []
         # 统一分辨率
         w, h = self.output_resolution
-        filters.append(
-            f"scale={w}:{h}:force_original_aspect_ratio=decrease"
-        )
-        filters.append(f"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2")
+        # 根据 scene_scale 调整（仅当 scale != 1.0 时改变行为）
+        # scale=1.0 时保持原有铺满逻辑，避免影响现有行为
+        if abs(self.scene_scale - 1.0) > 0.01:
+            # 缩放后用 pad 填充（黑边），position 影响偏移
+            # scale<1.0 数字人缩小露出黑边；scale>1.0 放大裁切
+            scaled_w = int(w * self.scene_scale)
+            scaled_h = int(h * self.scene_scale)
+            if self.scene_position == "left":
+                x_offset, y_offset = "0", "(oh-ih)/2"
+            elif self.scene_position == "right":
+                x_offset, y_offset = "(ow-iw)", "(oh-ih)/2"
+            else:  # center
+                x_offset, y_offset = "(ow-iw)/2", "(oh-ih)/2"
+            filters.append(
+                f"scale={scaled_w}:{scaled_h}:force_original_aspect_ratio=decrease"
+            )
+            filters.append(f"pad={w}:{h}:{x_offset}:{y_offset}:black")
+        else:
+            # scale=1.0 时保持原有铺满逻辑
+            filters.append(
+                f"scale={w}:{h}:force_original_aspect_ratio=decrease"
+            )
+            filters.append(f"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2")
         filters.append(f"fps={self.output_fps}")
 
         # 滤镜效果（对标剪映滤镜，8+ 种）
@@ -531,6 +595,22 @@ class VideoComposer(BaseModule):
         # 转义水印文字中的特殊字符
         text = self.watermark_text.replace(":", r"\:").replace("'", r"\'")
         return f"drawtext=text='{text}':fontcolor=white@{alpha}:fontsize={max(16, w//40)}:{pos}:box=1:boxcolor=black@{alpha*0.5}"
+
+    def _get_logo_overlay_pos(self, position: str) -> tuple:
+        """返回 Logo overlay 的 x, y 坐标表达式
+
+        坐标用 overlay 滤镜的内置变量：W/w 为主视频/overlay 宽，H/h 为主视频/overlay 高。
+        兼容连字符(top-right)与下划线(top_right)两种命名（前端发送连字符）。
+        """
+        # 统一为下划线
+        pos = (position or "").replace("-", "_")
+        positions = {
+            "top_left": ("20", "20"),
+            "top_right": ("W-w-20", "20"),
+            "bottom_left": ("20", "H-h-20"),
+            "bottom_right": ("W-w-20", "H-h-20"),
+        }
+        return positions.get(pos, positions["top_right"])
 
     def _prepend_cover(
         self, video: Path, cover: Path, work_dir: Path

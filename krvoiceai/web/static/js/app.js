@@ -722,6 +722,15 @@ async function loadWizardData() {
     renderBtnCardGrid('wiz-pose-grid', presets.poses, POSE_ICONS);
     setBtnCardValue('wiz-pose-grid', 'half_body');
     bindBtnCardGrid('wiz-pose-grid');
+    // 非 half_body 的 pose 暂未支持，标注即将支持并禁用
+    document.querySelectorAll('#wiz-pose-grid .btn-card').forEach(btn => {
+      if (btn.dataset.value !== 'half_body') {
+        const label = btn.querySelector('.btn-card-label');
+        if (label) label.textContent += ' (即将支持)';
+        btn.disabled = true;
+        btn.title = '即将支持';
+      }
+    });
     bindBtnCardGrid('wiz-position-grid');
     bindBtnCardGrid('wiz-bg-type-grid', (val) => {
       document.getElementById('wiz-bg-color-group').style.display = val === 'solid' ? 'block' : 'none';
@@ -786,6 +795,7 @@ async function loadWizardData() {
     // 开关联动
     document.getElementById('wiz-show-logo').addEventListener('change', e => {
       document.getElementById('wiz-logo-position-group').style.display = e.target.checked ? 'block' : 'none';
+      document.getElementById('wiz-logo-image-group').style.display = e.target.checked ? 'block' : 'none';
     });
     document.getElementById('wiz-bgm-enabled').addEventListener('change', e => {
       document.getElementById('wiz-bgm-group').style.display = e.target.checked ? 'block' : 'none';
@@ -1236,6 +1246,7 @@ function collectWizardScene() {
     background_image: document.getElementById('wiz-bg-image').value,
     show_logo: document.getElementById('wiz-show-logo').checked,
     logo_position: document.getElementById('wiz-logo-position').value,
+    logo_image: document.getElementById('wiz-logo-image')?.value || '',
   };
 }
 

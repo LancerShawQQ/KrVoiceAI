@@ -308,7 +308,7 @@
                   <button class="btn-card active" data-value="transparent" type="button"><div class="btn-card-label">透明</div></button>
                   <button class="btn-card" data-value="solid" type="button"><div class="btn-card-label">纯色</div></button>
                   <button class="btn-card" data-value="image" type="button"><div class="btn-card-label">图片</div></button>
-                  <button class="btn-card" data-value="green_screen" type="button"><div class="btn-card-label">绿幕</div></button>
+                  <button class="btn-card" data-value="green_screen" type="button" disabled title="即将支持"><div class="btn-card-label">绿幕 (即将支持)</div></button>
                 </div>
               </div>
               <div class="form-group" id="wiz-bg-color-group" style="display:none">
@@ -333,6 +333,10 @@
                   <option value="bottom-left">左下</option>
                   <option value="bottom-right" selected>右下</option>
                 </select>
+              </div>
+              <div class="form-group" id="wiz-logo-image-group" style="display:none">
+                <label class="form-label">Logo 图片路径</label>
+                <input class="form-input" id="wiz-logo-image" placeholder="./config/logo.png">
               </div>
             </div>
           </div>
@@ -2142,7 +2146,7 @@
                 <button class="btn-card active" data-value="transparent" type="button"><div class="btn-card-label">透明</div></button>
                 <button class="btn-card" data-value="solid" type="button"><div class="btn-card-label">纯色</div></button>
                 <button class="btn-card" data-value="image" type="button"><div class="btn-card-label">图片</div></button>
-                <button class="btn-card" data-value="green_screen" type="button"><div class="btn-card-label">绿幕</div></button>
+                <button class="btn-card" data-value="green_screen" type="button" disabled title="即将支持"><div class="btn-card-label">绿幕 (即将支持)</div></button>
               </div>
             </div>
             <div class="form-group" id="scene-bg-color-group" style="display:none">
