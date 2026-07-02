@@ -2010,6 +2010,7 @@ async function wizardGenerate() {
       api('/api/settings/audio', { method: 'PUT', body: { section: 'audio', data: collectWizardAudioWithBgm() } }).catch(() => {}),
       api('/api/settings/subtitle', { method: 'PUT', body: { section: 'subtitle', data: collectWizardSubtitle() } }).catch(() => {}),
       api('/api/settings/effects', { method: 'PUT', body: { section: 'effects', data: collectWizardEffects() } }).catch(() => {}),
+      api('/api/settings/cover', { method: 'PUT', body: { section: 'cover', data: { style_id: _coverSelectedStyle } } }).catch(() => {}),
     ]);
 
     const result = await pollGenerateJob({
