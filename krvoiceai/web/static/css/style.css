@@ -50,12 +50,12 @@
   --state-info: #64d2ff;
   --state-info-light: rgba(100, 210, 255, 0.15);
 
-  /* 文字色阶 — Apple 字阶 */
+  /* 文字色阶 — Apple 字阶（对比度满足 WCAG AA） */
   --text-primary: #1d1d1f;
   --text-secondary: #6e6e73;
-  --text-tertiary: #86868b;
+  --text-tertiary: #6e6e73;
   --text-quaternary: rgba(29, 29, 31, 0.25);
-  --text-muted: #86868b;
+  --text-muted: #6e6e73;
   --text-inverse: #f5f5f7;
 
   /* 边框 — Apple 细线分隔 */
@@ -547,7 +547,8 @@ body::after {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 10px 20px;
+  padding: 11px 22px;
+  min-height: 44px;
   border: none;
   border-radius: 980px;
   font-size: 14px;
@@ -606,21 +607,23 @@ body::after {
 }
 
 .btn-secondary {
-  background: rgba(0, 0, 0, 0.08);
+  background: rgba(0, 0, 0, 0.06);
   color: var(--text-primary);
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
   backdrop-filter: blur(20px);
 }
 
 .btn-secondary:hover {
-  background: rgba(0, 0, 0, 0.12);
-  border-color: rgba(0, 0, 0, 0.15);
+  background: rgba(0, 0, 0, 0.10);
+  border-color: var(--border-strong);
 }
 
 .btn-ghost {
   background: transparent;
   color: var(--text-secondary);
   border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
 }
 
 .btn-ghost:hover {
@@ -630,17 +633,20 @@ body::after {
 }
 
 .btn-danger {
-  background: rgba(239, 68, 68, 0.15);
-  color: var(--color-error);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(255, 69, 58, 0.12);
+  color: #d70015;
+  border: 1px solid rgba(255, 69, 58, 0.3);
+  border-radius: var(--radius-md);
 }
 
 .btn-danger:hover {
-  background: rgba(239, 68, 68, 0.25);
+  background: rgba(255, 69, 58, 0.20);
+  border-color: rgba(255, 69, 58, 0.45);
 }
 
 .btn-sm {
-  padding: 6px 14px;
+  padding: 7px 16px;
+  min-height: 36px;
   font-size: 12px;
 }
 
@@ -857,28 +863,28 @@ body::after {
 }
 
 .badge-success {
-  background: rgba(16, 185, 129, 0.15);
-  color: var(--color-success);
+  background: rgba(48, 209, 88, 0.15);
+  color: #1a7f37;
 }
 
 .badge-error {
-  background: rgba(239, 68, 68, 0.15);
-  color: var(--color-error);
+  background: rgba(255, 69, 58, 0.15);
+  color: #d70015;
 }
 
 .badge-warning {
-  background: rgba(245, 158, 11, 0.15);
-  color: var(--color-warning);
+  background: rgba(255, 159, 10, 0.15);
+  color: #c46400;
 }
 
 .badge-info {
-  background: rgba(59, 130, 246, 0.15);
-  color: var(--color-info);
+  background: rgba(0, 113, 227, 0.12);
+  color: #0071e3;
 }
 
 .badge-muted {
   background: rgba(107, 114, 128, 0.15);
-  color: var(--color-skipped);
+  color: #4b5563;
 }
 
 /* ---------- 上传区 ---------- */
@@ -983,23 +989,30 @@ body::after {
 }
 
 .toast {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  padding: 14px 20px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 14px 18px;
   box-shadow: var(--shadow-lg);
   display: flex;
   align-items: center;
   gap: 12px;
   min-width: 300px;
-  animation: slideIn 0.3s ease;
-  backdrop-filter: blur(12px);
-  pointer-events: auto; /* 单条 toast 可交互 */
+  animation: slideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  pointer-events: auto;
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
+}
+
+.toast:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-float);
 }
 
 .toast.success { border-left: 3px solid var(--color-success); }
 .toast.error { border-left: 3px solid var(--color-error); }
-.toast.info { border-left: 3px solid var(--color-info); }
+.toast.info { border-left: 3px solid #0071e3; }
 
 @keyframes slideIn {
   from { transform: translateX(100%); opacity: 0; }
@@ -1022,7 +1035,7 @@ body::after {
   padding: 32px 40px;
   max-width: 960px;
   margin: 0 auto;
-  animation: fadeInUp 0.4s var(--transition-spring);
+  animation: fadeInUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .page.active {
@@ -3404,7 +3417,7 @@ input[type="color"]::-webkit-color-swatch {
   height: 100%;
   background: var(--gradient-primary);
   border-radius: 5px;
-  transition: width 0.5s ease;
+  transition: width 0.6s cubic-bezier(0.25, 0.1, 0.25, 1);
   box-shadow: var(--shadow-glow);
 }
 
