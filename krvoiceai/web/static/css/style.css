@@ -77,7 +77,7 @@
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12);
   --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.16);
   --shadow-float: 0 20px 60px rgba(0, 0, 0, 0.18);
-  --shadow-glow: 0 0 20px rgba(0, 113, 227, 0.3);
+  --shadow-glow: 0 2px 8px rgba(0, 0, 0, 0.12);
 
   /* 字体 — Apple SF Pro 美学 */
   --font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Sora', 'Helvetica Neue', sans-serif;
@@ -4974,7 +4974,7 @@ input[type="color"]::-webkit-color-swatch {
 #wiz-timeline .timeline-track-label { width: 60px; font-size: 11px; color: var(--text-tertiary); flex-shrink: 0; }
 #wiz-timeline .timeline-track-content { position: relative; height: 32px; background: var(--bg-elevated); border-radius: 6px; overflow: hidden; }
 #wiz-timeline .tl-subtitle-segment { position: absolute; top: 4px; height: 24px; background: var(--color-primary-light); border: 1px solid var(--color-primary); border-radius: 4px; font-size: 10px; color: var(--color-primary); padding: 0 4px; line-height: 24px; overflow: hidden; white-space: nowrap; }
-#wiz-timeline .tl-insert-plus { position: absolute; top: 8px; width: 18px; height: 18px; background: var(--color-primary); color: #fff; border-radius: 50%; font-size: 14px; line-height: 18px; text-align: center; cursor: pointer; z-index: 2; box-shadow: 0 0 8px rgba(0, 113, 227, 0.5); }
+#wiz-timeline .tl-insert-plus { position: absolute; top: 8px; width: 18px; height: 18px; background: var(--color-primary); color: #fff; border-radius: 50%; font-size: 14px; line-height: 18px; text-align: center; cursor: pointer; z-index: 2; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15); }
 #wiz-timeline .tl-insert-plus:hover { transform: scale(1.2); }
 
 
