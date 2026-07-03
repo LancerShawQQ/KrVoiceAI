@@ -624,8 +624,8 @@
       </div>
       <div class="tech-card">
         <div class="tech-header"><h4>🧑 数字人</h4><span class="tech-tag core">核心</span></div>
-        <div class="tech-name">Wav2Lip 视频驱动</div>
-        <div class="tech-desc">羽化嘴部聚焦融合 + 居中平滑窗口，唇形同步达商用标准。保留原视频头动/表情/眨眼，仅替换嘴形</div>
+        <div class="tech-name">Wav2Lip 视频驱动 + CUDA 加速</div>
+        <div class="tech-desc">羽化嘴部聚焦融合 + 居中平滑窗口，唇形同步达商用标准。CUDA GPU 加速（MX450 2GB 可用），56s 音频 29 分钟完成，GPU 利用率 100%。保留原视频头动/表情/眨眼，仅替换嘴形。推理前自动抽帧预检查参考视频人脸，提前拦截"部分帧无人脸"问题</div>
       </div>
       <div class="tech-card">
         <div class="tech-header"><h4>✨ 人脸增强</h4><span class="tech-tag">可选</span></div>
@@ -746,6 +746,42 @@
       <div class="verified-item"><div class="check">✓</div><span>一键启动脚本（自动装依赖+检测FFmpeg）</span></div>
       <div class="verified-item"><div class="check">✓</div><span>7 标签页 GUI + 26 个 API 端点</span></div>
       <div class="verified-item"><div class="check">✓</div><span>SQLite 断点续跑 + 指数退避重试</span></div>
+      <div class="verified-item"><div class="check">✓</div><span>Wav2Lip CUDA GPU 加速（MX450 利用率 100%）</span></div>
+      <div class="verified-item"><div class="check">✓</div><span>参考视频抽帧预检查（提前拦截无人脸帧）</span></div>
+      <div class="verified-item"><div class="check">✓</div><span>E2E 全流程跑通（32 分钟，成片 12.8MB）</span></div>
+      <div class="verified-item"><div class="check">✓</div><span>文案提取 3 秒完成 + 24 小时缓存</span></div>
+      <div class="verified-item"><div class="check">✓</div><span>音色试听 3.5 秒即时响应</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- 7. E2E 测试 -->
+<section>
+  <div class="container">
+    <h2 class="section-title"><span class="num">7</span>E2E 全流程实测验证</h2>
+    <p class="section-desc">不是 PPT 创意，是已跑通的完整流水线（job_20260703_140605）</p>
+    <div class="compare-wrap" style="margin-top:20px;">
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th>流水线步骤</th>
+            <th style="color:var(--success)">耗时</th>
+            <th>状态</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="dim">文案润色</td><td class="col-kr">17.4s</td><td>✅</td></tr>
+          <tr><td class="dim">原创度检测</td><td class="col-kr">8.9s</td><td>✅</td></tr>
+          <tr><td class="dim">TTS 合成</td><td class="col-kr">9.2s</td><td>✅ 56.1s 音频</td></tr>
+          <tr><td class="dim">数字人 Wav2Lip (GPU)</td><td class="col-kr">1755.3s</td><td>✅ GPU 100%</td></tr>
+          <tr><td class="dim">字幕生成</td><td class="col-kr">44.9s</td><td>✅</td></tr>
+          <tr><td class="dim">B-roll 插入</td><td class="col-kr">15.3s</td><td>✅</td></tr>
+          <tr><td class="dim">标题生成</td><td class="col-kr">19.5s</td><td>✅</td></tr>
+          <tr><td class="dim">封面生成</td><td class="col-kr">1.8s</td><td>✅</td></tr>
+          <tr><td class="dim">视频合成</td><td class="col-kr">46.8s</td><td>✅</td></tr>
+          <tr><td class="dim"><strong>总计</strong></td><td class="col-kr"><strong>约 32 分钟</strong></td><td>✅ 12.8MB</td></tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </section>
