@@ -661,10 +661,13 @@ class ScriptExtractor(BaseModule):
                 self.logger.info(f"Playwright 渲染: {share_url}")
                 try:
                     try:
-                        page.goto(share_url, wait_until="domcontentloaded", timeout=20000)
+                        page.goto(share_url, wait_until="domcontentloaded", timeout=15000)
                         page.wait_for_timeout(1500)
                     except Exception as e:
-                        self.logger.debug(f"Playwright 页面加载超时: {str(e)[:80]}")
+                        # goto 超时后页面可能仍在加载，后续 evaluate 无 timeout 保护会无限等待
+                        # 直接降级，让降级链（分享文本描述/mock）接管
+                        self.logger.warning(f"Playwright 页面加载超时，跳过渲染提取: {str(e)[:80]}")
+                        return "", ""
 
                     # 滚动 + play() 触发视频懒加载（抖音视频默认不预加载流）
                     try:
@@ -680,9 +683,12 @@ class ScriptExtractor(BaseModule):
 
                     # 提取文案：title 和 meta description
                     title = page.title() or ""
-                    meta_desc = page.evaluate(
-                        'document.querySelector("meta[name=description]")?.getAttribute("content") || ""'
-                    )
+                    try:
+                        meta_desc = page.evaluate(
+                            'document.querySelector("meta[name=description]")?.getAttribute("content") || ""'
+                        )
+                    except Exception:
+                        meta_desc = ""
 
                     desc = ""
                     if title:
@@ -698,15 +704,21 @@ class ScriptExtractor(BaseModule):
                         video_dl_url = captured_video_urls[0]
                         self.logger.info(f"Playwright 捕获视频流: {len(captured_video_urls)} 个")
                     else:
-                        cur = page.evaluate('document.querySelector("video")?.currentSrc || ""')
-                        if cur and ("douyinvod.com" in cur or "video/tos" in cur):
-                            video_dl_url = cur
-                            self.logger.info("从 video.currentSrc 提取视频 URL")
+                        try:
+                            cur = page.evaluate('document.querySelector("video")?.currentSrc || ""')
+                            if cur and ("douyinvod.com" in cur or "video/tos" in cur):
+                                video_dl_url = cur
+                                self.logger.info("从 video.currentSrc 提取视频 URL")
+                        except Exception:
+                            pass
 
                     # 从 RENDER_DATA 提取 desc 和 video URL（兜底，抖音页面数据源）
-                    render_data = page.evaluate(
-                        'document.getElementById("RENDER_DATA")?.textContent || ""'
-                    )
+                    try:
+                        render_data = page.evaluate(
+                            'document.getElementById("RENDER_DATA")?.textContent || ""'
+                        )
+                    except Exception:
+                        render_data = ""
                     if render_data:
                         from urllib.parse import unquote
                         decoded = unquote(render_data)
