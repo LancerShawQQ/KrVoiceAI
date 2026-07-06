@@ -158,15 +158,22 @@ asr:
   timeout: 120
   # faster-whisper 本地配置（provider=whisper_local 时使用）
   whisper:
-    model_size: small       # tiny/base/small/medium/large-v3（small 平衡质量与速度；medium 更准但慢2-3倍）
+    # model_size: medium 准确度显著优于 small（中文专有名词/同音字识别更准），CPU 慢 2-3 倍
+    # 适合文案提取场景（对准确度要求高，可接受较慢速度）
+    model_size: medium     # tiny/base/small/medium/large-v3
     device: cpu             # MX450 2GB 用 cpu；有 6GB+ GPU 可改 cuda
     compute_type: int8      # CPU 用 int8（最快）；GPU 用 float16
-    beam_size: 5            # 解码 beam 宽度，越大越准越慢（5 平衡，10 最准）
+    beam_size: 10           # 解码 beam 宽度，越大越准越慢（文案提取用 10 最准）
     vad_filter: true        # 启用 VAD 静音过滤，提升字幕对齐精度
     download_root: ""       # 模型下载根目录（空则用 ~/AppData/Local/cache 或 HuggingFace 默认）
-    # 热词：提示 whisper 关注特定词汇，减少专有名词/术语识别错误
-    # 例："脓毒症 造影 动脉 医疗事故 卫健局"
-    hotwords: "脓毒症 造影 动脉 医疗事故 卫健局 立案 调查 鉴定"
+    # 静态热词（硬编码，对所有视频生效）。留空则仅依赖动态热词（从分享文本话题标签自动提取）
+    # 示例："脓毒症 造影 动脉 医疗事故 卫健局"（医疗领域专用）
+    hotwords: ""
+    # 动态热词开关：开启后自动从分享文本提取 #话题标签 作为 hotwords（针对具体视频主题）
+    dynamic_hotwords: true
+    # LLM 后处理纠错：ASR 转写后用 LLM 结合视频标题/话题标签纠正错别字（同音字/形近字）
+    # 显著提升中文识别准确度，+5-10 秒 LLM 调用。需配置 llm.provider（agnes/deepseek 等）
+    llm_correct: true
   # 字幕基础样式
   subtitle:
     font_size: 24

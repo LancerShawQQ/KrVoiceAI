@@ -26,6 +26,7 @@ import httpx
 
 from ..core.base_module import BaseModule, JobContext, ModuleResult
 from ..core.ffmpeg_utils import FFmpegRunner
+from ..core.llm_client import LLMClient, get_llm_client
 
 
 # 语气词与无意义填充词（用于清洗）
@@ -57,7 +58,8 @@ class ScriptExtractor(BaseModule):
     name = "script_extract"
     requires_gpu = False
 
-    def __init__(self, config=None, ffmpeg: FFmpegRunner | None = None):
+    def __init__(self, config=None, ffmpeg: FFmpegRunner | None = None,
+                 llm_client: LLMClient | None = None):
         super().__init__(config)
         self.asr_provider = self.config.get("asr.provider", "mock")
         self.ffmpeg = ffmpeg or FFmpegRunner()
@@ -72,6 +74,10 @@ class ScriptExtractor(BaseModule):
         # yt-dlp 自动从本机浏览器读取 cookies（用户无感知，无需手动上传）
         # 支持 chrome/edge/firefox 等，优先级高于 cookies_file
         self.cookies_from_browser = self.config.get("asr.cookies_from_browser", "")
+        # LLM 客户端（用于 ASR 转写后的错别字纠错）
+        self.llm = llm_client or get_llm_client()
+        # 当前提取上下文（供 _transcribe_local 读取，用于动态热词和 LLM 纠错上下文）
+        self._current_share_text: str = ""
 
     def setup(self) -> None:
         # yt-dlp 检测：优先命令行，其次 Python 模块
@@ -167,6 +173,8 @@ class ScriptExtractor(BaseModule):
         self._last_extract_degraded = False
         # === 优先检测本地文件 ===
         cleaned_input = video_url.strip().strip('"').strip("'")
+        # 保存原始分享文本上下文，供 _transcribe_local 提取动态热词和 LLM 纠错使用
+        self._current_share_text = cleaned_input
         local_path = Path(cleaned_input)
         if local_path.exists() and local_path.is_file():
             return self._extract_from_local_file(local_path)
@@ -307,6 +315,7 @@ class ScriptExtractor(BaseModule):
         """使用 faster-whisper 本地转写（CPU int8）
 
         用于本地文件文案提取；whisper_local provider 不可用时降级 mock。
+        集成动态热词（从分享文本话题标签提取）和 LLM 后处理纠错（纠正同音字/形近字）。
         """
         try:
             from faster_whisper import WhisperModel
@@ -319,9 +328,28 @@ class ScriptExtractor(BaseModule):
         device = whisper_cfg.get("device", "cpu")
         compute_type = whisper_cfg.get("compute_type", "int8")
         beam_size = whisper_cfg.get("beam_size", 5)
-        # 热词：提示 whisper 关注特定词汇，减少专有名词/术语识别错误
-        hotwords = whisper_cfg.get("hotwords", "")
+        # 静态热词（配置文件硬编码）
+        static_hotwords = whisper_cfg.get("hotwords", "")
+        # 动态热词开关：从分享文本提取 #话题标签
+        dynamic_enabled = whisper_cfg.get("dynamic_hotwords", True)
+        # LLM 后处理纠错开关
+        llm_correct_enabled = whisper_cfg.get("llm_correct", True)
         download_root = whisper_cfg.get("download_root", "") or None
+
+        # 动态热词：从当前分享文本提取话题标签（如 "#乒乓趣事 #乒乓球技术" → "乒乓趣事 乒乓球技术"）
+        dynamic_hotwords = ""
+        if dynamic_enabled and self._current_share_text:
+            dynamic_hotwords = self._extract_hotwords_from_share_text(self._current_share_text)
+            if dynamic_hotwords:
+                self.logger.info(f"动态热词（从话题标签提取）: {dynamic_hotwords}")
+
+        # 合并静态 + 动态热词
+        hotwords_parts = []
+        if static_hotwords:
+            hotwords_parts.append(static_hotwords)
+        if dynamic_hotwords:
+            hotwords_parts.append(dynamic_hotwords)
+        hotwords = " ".join(hotwords_parts).strip()
 
         self.logger.info(
             f"faster-whisper 本地转写: {audio_path.name} model={model_size} beam={beam_size}"
@@ -343,8 +371,104 @@ class ScriptExtractor(BaseModule):
             compression_ratio_threshold=2.4,   # 压缩比阈值（防乱码）
         )
         text = "".join(seg.text for seg in segments).strip()
-        self.logger.info(f"转写完成: {len(text)} 字, 预览: {text[:80]}")
+        self.logger.info(f"ASR 转写完成: {len(text)} 字, 预览: {text[:80]}")
+
+        # LLM 后处理纠错：结合视频标题/话题标签上下文纠正同音字/形近字
+        if llm_correct_enabled and text and not self.llm.is_mock:
+            try:
+                corrected = self._llm_correct_text(text, self._current_share_text, hotwords)
+                if corrected and len(corrected) >= len(text) * 0.5:  # 防止 LLM 返回过短异常结果
+                    self.logger.info(
+                        f"LLM 纠错完成: {len(corrected)} 字 (原 {len(text)} 字), 预览: {corrected[:80]}"
+                    )
+                    return corrected
+                else:
+                    self.logger.warning("LLM 纠错返回结果异常，保留 ASR 原文")
+            except Exception as e:
+                self.logger.warning(f"LLM 纠错失败，保留 ASR 原文: {e}")
         return text
+
+    @staticmethod
+    def _extract_hotwords_from_share_text(share_text: str) -> str:
+        """从分享文本提取 #话题标签 作为动态热词
+
+        抖音分享文本示例："8.20 复制打开抖音，看看【南风的作品】为什么现在右脚在前 #乒乓趣事 #乒乓球技术交..."
+        提取结果："乒乓趣事 乒乓球技术交"
+
+        这些话题标签天然包含视频主题的关键词，作为 whisper hotwords 可显著提升
+        专有名词/术语的识别准确度。
+        """
+        if not share_text:
+            return ""
+        # 匹配 #后跟中文/英文/数字的标签（排除 # 后紧跟空格或标点的情况）
+        # 排除字符集含英文句点 . 和中文省略号 …，避免 "乒乓球技术交..." 末尾带省略号
+        tags = re.findall(r"#([^\s#【】<>\"'`，。；！？、（）()\[\]{}.…]{1,30})", share_text)
+        # 去重并截断（避免热词过多影响 whisper）
+        seen = set()
+        unique_tags = []
+        for tag in tags:
+            tag = tag.strip().rstrip('.…')  # 二次清理末尾可能残留的句点/省略号
+            if tag and tag not in seen and len(tag) >= 2:
+                seen.add(tag)
+                unique_tags.append(tag)
+            if len(unique_tags) >= 8:  # 最多 8 个热词
+                break
+        return " ".join(unique_tags)
+
+    def _llm_correct_text(self, asr_text: str, share_text: str, hotwords: str) -> str:
+        """用 LLM 对 ASR 转写文本进行错别字纠错
+
+        结合视频标题/话题标签作为上下文，纠正同音字、形近字、专有名词错误。
+        例如："右角在前" → "右脚在前"（结合话题标签 #乒乓趣事 #乒乓球技术）
+
+        mock 模式（无 LLM api_key）直接返回原文，不纠错。
+        """
+        if self.llm.is_mock or not asr_text:
+            return asr_text
+
+        # 构建上下文提示：视频作者 + 视频描述 + 话题标签
+        context_parts = []
+        share_text = share_text or ""
+        # 从分享文本提取【...】内的作者名
+        author_match = re.search(r"【([^】]{2,50})】", share_text)
+        if author_match:
+            context_parts.append(f"作者：{author_match.group(1)}")
+        # 提取【...】后到 # 之前的视频描述/标题（含关键语义信息）
+        desc_match = re.search(r"】([^#【】]{2,80}?)(?:\s*#|$)", share_text)
+        if desc_match:
+            desc = desc_match.group(1).strip().rstrip('.…')
+            if desc:
+                context_parts.append(f"视频描述：{desc}")
+        if hotwords:
+            context_parts.append(f"话题标签/热词：{hotwords}")
+        context = "\n".join(context_parts) if context_parts else "（无上下文信息）"
+
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "你是中文语音转写（ASR）纠错专家。给定 ASR 转写文本和视频上下文信息，"
+                    "请纠正转写文本中的错别字（同音字、形近字、专有名词错误），"
+                    "使其符合上下文语义。\n\n"
+                    "规则：\n"
+                    "1. 只纠正明显错误，不要改写句子结构或删减内容\n"
+                    "2. 保持原文的口语化风格和标点符号\n"
+                    "3. 结合上下文（视频标题、话题标签）判断专有名词正确写法\n"
+                    "4. 直接输出纠正后的纯文本，不要加任何解释、前后缀、引号或 markdown\n"
+                    "5. 如果原文无明显错误，原样返回"
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"上下文信息：\n{context}\n\n"
+                    f"ASR 转写文本（需纠错）：\n{asr_text}"
+                ),
+            },
+        ]
+        result = self.llm.chat(messages, temperature=0.1, max_tokens=max(2000, len(asr_text) * 2))
+        # 清理可能的引号包裹或前后空白
+        return result.strip().strip("\"'""''「」『』").strip()
 
     @staticmethod
     def _is_video_url(url: str) -> bool:
