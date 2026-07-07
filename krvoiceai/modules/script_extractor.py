@@ -78,6 +78,10 @@ class ScriptExtractor(BaseModule):
         self.llm = llm_client or get_llm_client()
         # 当前提取上下文（供 _transcribe_local 读取，用于动态热词和 LLM 纠错上下文）
         self._current_share_text: str = ""
+        # Playwright 获取的 cookies 文件路径（Netscape 格式，供 yt-dlp 使用）
+        # 当用户浏览器运行时锁定 cookies 数据库，yt-dlp 无法从浏览器读取，
+        # 但 Playwright 启动独立实例能获取新鲜 cookies（不一定要登录），让 yt-dlp 能下载视频
+        self._playwright_cookies_file: str = ""
 
     def setup(self) -> None:
         # yt-dlp 检测：优先命令行，其次 Python 模块
@@ -874,6 +878,17 @@ class ScriptExtractor(BaseModule):
                         return "", video_dl_url
                     self.logger.warning(f"Playwright 渲染完成但未提取到内容: title={len(title)}字, meta={len(meta_desc)}字, caps={len(captured_video_urls)}")
                 finally:
+                    # 导出 Playwright cookies 为 Netscape 格式，供 yt-dlp 使用
+                    # （用户浏览器运行时锁定 cookies 数据库，Playwright 独立实例可获取新鲜 cookies）
+                    try:
+                        cookies = context.cookies()
+                        if cookies:
+                            self._playwright_cookies_file = self._save_cookies_as_netscape(
+                                cookies, prefix="playwright_douyin"
+                            )
+                            self.logger.info(f"Playwright 导出 {len(cookies)} 条 cookies → {self._playwright_cookies_file}")
+                    except Exception as e:
+                        self.logger.debug(f"导出 Playwright cookies 失败: {e}")
                     # 确保 browser 关闭，避免 Edge 残留进程影响后续启动
                     try:
                         browser.close()
@@ -1121,6 +1136,35 @@ class ScriptExtractor(BaseModule):
             self.logger.debug(f"字幕下载失败: {e}")
             return ""
 
+    def _save_cookies_as_netscape(self, cookies: list, prefix: str = "playwright") -> str:
+        """将 Playwright cookies 列表保存为 Netscape 格式文件（供 yt-dlp --cookies 使用）
+
+        Args:
+            cookies: Playwright context.cookies() 返回的 dict 列表
+            prefix: 文件名前缀
+
+        Returns:
+            保存的文件路径
+        """
+        import tempfile
+        tmp_dir = tempfile.gettempdir()
+        tmp_file = os.path.join(tmp_dir, f"{prefix}_cookies_{int(time.time())}.txt")
+        lines = ["# Netscape HTTP Cookie File", "# Generated from Playwright context cookies"]
+        for c in cookies:
+            domain = c.get("domain", "")
+            if not domain:
+                continue
+            include_subdomains = "TRUE" if domain.startswith(".") else "FALSE"
+            path = c.get("path", "/")
+            secure = "TRUE" if c.get("secure", False) else "FALSE"
+            expires = int(c.get("expires", 0))
+            name = c.get("name", "")
+            value = c.get("value", "")
+            lines.append(f"{domain}\t{include_subdomains}\t{path}\t{secure}\t{expires}\t{name}\t{value}")
+        with open(tmp_file, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+        return tmp_file
+
     def _ytdlp_download_audio(self, url: str, output_template: str) -> Optional[Path]:
         """用 yt-dlp 下载音频，返回下载的文件路径
 
@@ -1159,10 +1203,14 @@ class ScriptExtractor(BaseModule):
         try:
             import yt_dlp
             last_err = ""
-            # 尝试配置的浏览器（多浏览器回退），再尝试 cookies 文件
+            # 尝试配置的浏览器（多浏览器回退），再尝试 Playwright cookies，再尝试手动 cookies 文件
             attempts = []
             for b in all_browsers:
                 attempts.append(("browser", b))
+            # Playwright 获取的新鲜 cookies（用户浏览器锁定时的可靠回退）
+            if self._playwright_cookies_file and os.path.exists(self._playwright_cookies_file):
+                attempts.append(("file", self._playwright_cookies_file))
+                self.logger.info(f"将使用 Playwright cookies 重试: {self._playwright_cookies_file}")
             if use_cookies_file:
                 attempts.append(("file", str(cookies_path)))
             attempts.append(("none", None))  # 最后无 cookies 尝试一次
