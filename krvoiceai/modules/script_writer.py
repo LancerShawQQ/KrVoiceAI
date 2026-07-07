@@ -131,13 +131,20 @@ class ScriptWriter(BaseModule):
 
         Args:
             raw_text: 原始文案/主题
-            mode: polish | rewrite | generate
+            mode: raw | polish | rewrite | generate
+                  raw 表示文案已在前端处理过（提取/AI润色/手动输入确认），
+                  直接返回原文仅做格式清理，不调用 LLM，避免重复处理。
 
         Returns:
             处理后的文案文本
         """
-        if mode not in ("polish", "rewrite", "generate"):
+        if mode not in ("raw", "polish", "rewrite", "generate"):
             raise ValueError(f"不支持的 mode: {mode}")
+
+        # raw 模式：文案已在前端处理过（提取/润色/手动确认），跳过 LLM 调用
+        if mode == "raw":
+            self.logger.info(f"文案 raw 模式：跳过 LLM，直接返回原文 input_len={len(raw_text)}")
+            return self._postprocess(raw_text)
 
         templates = {
             "polish": POLISH_PROMPT,

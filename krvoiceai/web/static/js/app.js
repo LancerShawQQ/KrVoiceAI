@@ -612,6 +612,7 @@ let wizardState = {
   wizScriptAction: 'polish',
   initialized: false,
   sceneCategory: null,  // 从首页场景卡带入的分类
+  scriptProcessed: false,  // 文案是否已经过提取/AI处理（true=生成时跳过重复polish和重复提取）
 };
 
 // 场景分类 → 推荐默认配置（对标旗博士/万兴播爆"选场景即配好参数"）
@@ -1076,6 +1077,7 @@ function bindScriptToolbar() {
   if (clearBtn) clearBtn.addEventListener('click', () => {
     document.getElementById('wiz-script').value = '';
     updateScriptStats('');
+    wizardState.scriptProcessed = false;  // 清空后重置标记，下次生成需重新处理
     toast('已清空文案', 'info');
   });
   const analyzeBtn = document.getElementById('wiz-analyze-btn');
@@ -1117,6 +1119,7 @@ function showScriptDiff(original, modified, actionLabel, isMock) {
     // 降级：直接替换
     document.getElementById('wiz-script').value = modified;
     updateScriptStats(modified);
+    wizardState.scriptProcessed = true;
     toast(`处理成功${isMock ? '（Mock 模式）' : ''}`, 'success');
     return;
   }
@@ -1146,6 +1149,7 @@ function showScriptDiff(original, modified, actionLabel, isMock) {
   document.getElementById('diff-accept').addEventListener('click', () => {
     document.getElementById('wiz-script').value = modified;
     updateScriptStats(modified);
+    wizardState.scriptProcessed = true;
     panel.style.display = 'none';
     toast(`已接受 AI${actionLabel}结果`, 'success');
   });
@@ -1387,6 +1391,8 @@ async function wizardAiGenerate() {
     if (result.success) {
       document.getElementById('wiz-script').value = result.script;
       updateScriptStats(result.script);
+      // 标记文案已处理：AI生成的文案不需要再 polish
+      wizardState.scriptProcessed = true;
       // AI 生成成功后切换到"手动输入"标签页，让用户看到生成的文案
       switchWizardScriptTab('manual');
       toast(`生成成功${result.mock ? '（Mock 模式）' : ''}`, 'success');
@@ -1559,6 +1565,8 @@ async function wizardExtractScript() {
     if (result.success) {
       document.getElementById('wiz-script').value = result.script;
       updateScriptStats(result.script);
+      // 标记文案已处理：生成视频时跳过重复的 script_extract 和 script_write
+      wizardState.scriptProcessed = true;
       // 提取成功后自动切换到"手动输入"标签页，让用户看到提取的文案
       switchWizardScriptTab('manual');
       if (result.mock) {
@@ -1804,6 +1812,8 @@ async function wizardScriptProcess() {
     if (result.success) {
       document.getElementById('wiz-script').value = result.script;
       updateScriptStats(result.script);
+      // 标记文案已处理：生成视频时跳过重复的 script_extract 和 script_write
+      wizardState.scriptProcessed = true;
       // AI 处理成功后切换到"手动输入"标签页，让用户看到处理结果
       switchWizardScriptTab('manual');
       toast(`处理成功${result.mock ? '（Mock 模式）' : ''}`, 'success');
@@ -2008,10 +2018,16 @@ async function wizardGenerate() {
       api('/api/settings/cover', { method: 'PUT', body: { section: 'cover', data: { style_id: _coverSelectedStyle } } }).catch(() => {}),
     ]);
 
+    // 前后联动：文案已在前端处理过（提取/AI润色/AI生成）时，跳过重复的 script_extract 和 script_write
+    // script_mode=raw：后端直接使用前端传来的文案，不再调用 LLM 润色
+    // reference_video_url=null：已有文案时不再触发后端重复提取（省去 Playwright+ASR 数分钟耗时）
+    const scriptMode = wizardState.scriptProcessed ? 'raw' : 'polish';
+    const refUrlForGen = (wizardState.scriptProcessed && script) ? null : (refUrl || null);
+
     const result = await pollGenerateJob({
-      script, reference_video_url: refUrl || null,
+      script, reference_video_url: refUrlForGen,
       avatar_id: avatar, voice_id: voice,
-      script_mode: 'polish', platform, auto_publish: autoPublish,
+      script_mode: scriptMode, platform, auto_publish: autoPublish,
       broll_clips: getWizardBrollClips(),
     });
 
