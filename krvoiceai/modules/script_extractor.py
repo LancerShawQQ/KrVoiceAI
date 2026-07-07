@@ -15,6 +15,7 @@ mock 模式：不下载，返回模拟的口播文案。
 from __future__ import annotations
 
 import base64
+import os
 import re
 import shutil
 import subprocess
@@ -258,13 +259,16 @@ class ScriptExtractor(BaseModule):
             except Exception as e:
                 self.logger.warning(f"文章提取失败，降级到 mock: {e}")
                 text = self._extract_mock(video_url)
-        # 写入缓存
-        try:
-            _cache_dir.mkdir(parents=True, exist_ok=True)
-            _cache_file.write_text(text, encoding='utf-8')
-            self.logger.info(f'提取结果已缓存（URL hash={_url_hash}）')
-        except Exception:
-            pass
+        # 写入缓存（仅缓存非降级的完整文案，避免降级文案被缓存导致后续永远返回降级结果）
+        if not getattr(self, "_last_extract_degraded", False):
+            try:
+                _cache_dir.mkdir(parents=True, exist_ok=True)
+                _cache_file.write_text(text, encoding='utf-8')
+                self.logger.info(f'提取结果已缓存（URL hash={_url_hash}）')
+            except Exception:
+                pass
+        else:
+            self.logger.info(f'降级文案不写入缓存（URL hash={_url_hash}），下次将重新提取完整文案')
         return self._clean_text(text)
 
     def _extract_from_local_file(self, path: Path) -> str:
@@ -674,14 +678,16 @@ class ScriptExtractor(BaseModule):
         Returns: (desc, video_dl_url)
         """
         # 优先：Playwright 无头浏览器（最可靠，绕过所有 JS 挑战）
-        # 重试机制：偶发页面加载超时，重试一次提升成功率
+        # 重试机制：抖音页面加载偶发超时/反爬空白，重试2次提升成功率
         desc, video_url = "", ""
-        for attempt in (1,):  # 单次尝试，失败直接降级（避免翻倍耗时）
-            desc, video_url = self._fetch_with_playwright(url, "douyin")
+        for attempt in (1, 2):  # 最多2次尝试（第2次延长等待时间）
+            desc, video_url = self._fetch_with_playwright(url, "douyin", retry=attempt - 1)
             if (desc and len(desc) >= 10) or video_url:
                 self.logger.info(f"抖音 Playwright 提取成功（第{attempt}次）: desc={len(desc)}字, video_url={'有' if video_url else '无'}")
                 break
-            self.logger.warning(f"抖音 Playwright 第{attempt}次尝试未提取到内容，{'重试' if attempt == 1 else '降级'}")
+            self.logger.warning(f"抖音 Playwright 第{attempt}次尝试未提取到内容，{'重试' if attempt < 2 else '降级'}")
+            if attempt < 2:
+                time.sleep(2)  # 重试前等待2秒，避免连续请求触发反爬
         if desc and len(desc) >= 10:
             return desc, video_url
 
@@ -726,9 +732,11 @@ class ScriptExtractor(BaseModule):
 
         return "", ""
 
-    def _fetch_with_playwright(self, url: str, platform: str = "douyin") -> tuple[str, str]:
+    def _fetch_with_playwright(self, url: str, platform: str = "douyin", retry: int = 0) -> tuple[str, str]:
         """用 Playwright 无头浏览器渲染页面并提取文案 + 视频 URL（用户无感知）
 
+        Args:
+            retry: 重试次数（0=首次，1=第1次重试），重试时延长等待时间
         Returns: (desc, video_dl_url)
         """
         try:
@@ -786,11 +794,15 @@ class ScriptExtractor(BaseModule):
                         captured_video_urls.append(u)
                 page.on("response", _capture_video)
 
-                self.logger.info(f"Playwright 渲染: {share_url}")
+                # 重试时延长等待时间（首次：15s+1.5s+2s，重试：25s+3s+4s）
+                _goto_timeout = 25000 if retry > 0 else 15000
+                _init_wait = 3000 if retry > 0 else 1500
+                _video_wait = 4000 if retry > 0 else 2000
+                self.logger.info(f"Playwright 渲染: {share_url} (retry={retry}, goto_timeout={_goto_timeout}s)")
                 try:
                     try:
-                        page.goto(share_url, wait_until="domcontentloaded", timeout=15000)
-                        page.wait_for_timeout(1500)
+                        page.goto(share_url, wait_until="domcontentloaded", timeout=_goto_timeout)
+                        page.wait_for_timeout(_init_wait)
                     except Exception as e:
                         # goto 超时后页面可能仍在加载，后续 evaluate 无 timeout 保护会无限等待
                         # 直接降级，让降级链（分享文本描述/mock）接管
@@ -805,7 +817,7 @@ class ScriptExtractor(BaseModule):
                             'var v=document.querySelector("video");'
                             'if(v){v.muted=true; v.play().catch(function(){});}'
                         )
-                        page.wait_for_timeout(2000)
+                        page.wait_for_timeout(_video_wait)
                     except Exception as e:
                         self.logger.debug(f"触发视频加载失败: {str(e)[:80]}")
 
@@ -826,7 +838,7 @@ class ScriptExtractor(BaseModule):
                         desc = re.sub(r"\s*-\s*.*?于\d+.*?发布在抖音.*$", "", meta_desc).strip()
                         desc = re.sub(r"#[\w]+$", "", desc).strip()
 
-                    # 提取视频 URL：优先从网络请求捕获（douyinvod.com），其次从 video.currentSrc，最后从 RENDER_DATA
+                    # 提取视频 URL：优先从网络请求捕获（douyinvod.com），其次从 video.currentSrc，最后从 RENDER_DATA / 页面 HTML
                     video_dl_url = ""
                     if captured_video_urls:
                         video_dl_url = captured_video_urls[0]
@@ -850,6 +862,7 @@ class ScriptExtractor(BaseModule):
                     if render_data:
                         from urllib.parse import unquote
                         decoded = unquote(render_data)
+                        self.logger.info(f"RENDER_DATA 长度: {len(decoded)} 字符")
                         # 提取 desc
                         if not desc or len(desc) < 20:
                             dm = re.search(r'"desc":"((?:[^"\\]|\\.)*)"', decoded)
@@ -860,15 +873,46 @@ class ScriptExtractor(BaseModule):
                                     rd_desc = dm.group(1)
                                 if rd_desc and len(rd_desc) > len(desc):
                                     desc = rd_desc
-                        # 兜底提取视频 URL（网络捕获失败时）
+                        # 兜底提取视频 URL（网络捕获失败时）—— 多模式匹配
                         if not video_dl_url:
+                            # 模式1: douyinvod.com 直链
                             vm = re.search(
                                 r'(https?://[^"\s\\]+\.douyinvod\.com/[^"\s\\]+)',
                                 decoded,
                             )
                             if vm:
                                 video_dl_url = vm.group(1)
-                                self.logger.info("从 RENDER_DATA 提取视频 URL")
+                                self.logger.info("从 RENDER_DATA 提取视频 URL (douyinvod)")
+                            else:
+                                # 模式2: playApi / play_addr / download 中的 URL
+                                for _pat in (
+                                    r'"playApi"\s*:\s*"([^"]+)"',
+                                    r'"play_addr".*?"url_list"\s*:\s*\["([^"]+)"',
+                                    r'(https?://[^"\s\\]+/video/tos/[^"\s\\]+)',
+                                ):
+                                    _m = re.search(_pat, decoded)
+                                    if _m:
+                                        video_dl_url = _m.group(1)
+                                        # URL 转义还原
+                                        video_dl_url = video_dl_url.replace("\\u002F", "/").replace("\\/", "/")
+                                        self.logger.info(f"从 RENDER_DATA 提取视频 URL (pattern: {_pat[:30]})")
+                                        break
+
+                    # 最终兜底：从整个页面 HTML 中搜索视频 URL
+                    if not video_dl_url:
+                        try:
+                            html = page.content()
+                            for _pat in (
+                                r'(https?://[^"\s\\]+\.douyinvod\.com/[^"\s\\]+)',
+                                r'(https?://[^"\s\\]+/video/tos/[^"\s\\]+)',
+                            ):
+                                _m = re.search(_pat, html)
+                                if _m:
+                                    video_dl_url = _m.group(1).replace("\\u002F", "/").replace("\\/", "/")
+                                    self.logger.info("从页面 HTML 提取视频 URL")
+                                    break
+                        except Exception as _e:
+                            self.logger.debug(f"页面 HTML 提取失败: {_e}")
 
                     if desc and len(desc) >= 10:
                         self.logger.info(f"Playwright 提取: desc={len(desc)}字, video_url={'有' if video_dl_url else '无'}")
@@ -888,7 +932,7 @@ class ScriptExtractor(BaseModule):
                             )
                             self.logger.info(f"Playwright 导出 {len(cookies)} 条 cookies → {self._playwright_cookies_file}")
                     except Exception as e:
-                        self.logger.debug(f"导出 Playwright cookies 失败: {e}")
+                        self.logger.warning(f"导出 Playwright cookies 失败: {e}")
                     # 确保 browser 关闭，避免 Edge 残留进程影响后续启动
                     try:
                         browser.close()

@@ -1556,7 +1556,19 @@ async function wizardExtractScript() {
   setFieldSuccess(refInput);
   const btn = document.getElementById('wiz-extract-btn');
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> 提取中...';
+  btn.innerHTML = '<span class="spinner"></span> 提取中（约3-5分钟）...';
+  // 提取文案耗时较长（下载视频+ASR转写），增加计时提示避免用户以为卡住
+  const _extractStart = Date.now();
+  const _extractTimer = setInterval(() => {
+    if (btn.disabled) {
+      const _elapsed = Math.floor((Date.now() - _extractStart) / 1000);
+      const _mins = Math.floor(_elapsed / 60);
+      const _secs = _elapsed % 60;
+      btn.innerHTML = `<span class="spinner"></span> 提取中（${_mins}分${_secs.toString().padStart(2,'0')}秒 / 约3-5分钟）...`;
+    } else {
+      clearInterval(_extractTimer);
+    }
+  }, 1000);
   try {
     const result = await api('/api/script/process', {
       method: 'POST',
@@ -1583,6 +1595,7 @@ async function wizardExtractScript() {
     toast(`提取失败: ${e.message}`, 'error');
   } finally {
     btn.disabled = false;
+    clearInterval(_extractTimer);
     setBtnIcon(btn, 'link', '提取文案');
   }
 }
