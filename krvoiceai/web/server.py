@@ -138,6 +138,14 @@ def create_app() -> FastAPI:
     @app.on_event("startup")
     async def _preinit_app():
         _get_app()
+        # 清理上次服务异常退出时卡在 running/pending 状态的任务
+        # 这些任务的子进程（如 Wav2Lip）已随服务进程一起被杀，无法继续执行
+        try:
+            app_obj = _get_app()
+            if hasattr(app_obj, 'orchestrator') and app_obj.orchestrator:
+                app_obj.orchestrator.cleanup_stale_jobs()
+        except Exception as e:
+            logger.warning(f"清理卡住任务时异常: {e}")
 
     # ============ 页面路由 ============
 

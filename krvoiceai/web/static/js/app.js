@@ -1912,14 +1912,16 @@ async function pollGenerateJob(payload) {
 
   // 3. 轮询任务状态
   const wizPipeline = document.getElementById('wiz-pipeline');
-  // 最长等待 120 分钟（与后端 wav2lip 子进程 timeout=7200s 对齐，CPU 模式长文案可能 60-90 分钟）
-  const maxWait = 7200000;
+  // 最长等待 180 分钟（Wav2Lip GPU 模式约 20-30 分钟，CPU 模式长文案可达 90-120 分钟，留充足余量）
+  const maxWait = 10800000;
   const pollInterval = 1500;
   const t0 = Date.now();
+  let lastUpdatedAt = 0;  // 跟踪后端 updated_at，判断任务是否还在推进
 
   while (true) {
     if (Date.now() - t0 > maxWait) {
-      throw new Error('生成超时（超过 120 分钟），可能是数字人合成在 CPU 模式下耗时过长，建议减少文案长度、在设置中切换 resize_factor=2 快速模式，或使用 GPU 服务器');
+      throw new Error('生成超时（超过 180 分钟）。任务可能仍在后台运行，可在"任务"页面查看状态；'
+        + '如需加速，建议减少文案长度、在设置中切换 resize_factor=2 快速模式，或使用 GPU 服务器');
     }
     await new Promise(r => setTimeout(r, pollInterval));
 
@@ -1929,6 +1931,12 @@ async function pollGenerateJob(payload) {
     } catch (e) {
       // 轮询失败不中断，继续重试
       continue;
+    }
+
+    // 跟踪后端 updated_at 变化，判断任务是否在推进
+    const jobUpdatedAt = job.updated_at || 0;
+    if (jobUpdatedAt > lastUpdatedAt) {
+      lastUpdatedAt = jobUpdatedAt;
     }
 
     // 构建 stepsState

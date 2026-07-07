@@ -102,6 +102,46 @@ class PipelineOrchestrator:
         self.logger.info(f"任务已提交 job_id={job_id}")
         return job_id
 
+    def cleanup_stale_jobs(self) -> int:
+        """清理服务重启前卡在 running/pending 状态的任务
+
+        服务异常退出时，正在执行的任务（Wav2Lip 子进程等）会被杀死，
+        但数据库中状态仍为 running/pending。这些任务无法自动恢复，
+        需标记为 failed 并提示用户重跑。
+
+        Returns:
+            清理的任务数量
+        """
+        cleaned = 0
+        try:
+            jobs = self.store.list_jobs(limit=200)
+            for job_summary in jobs:
+                status = job_summary.get("status")
+                if status in ("running", "pending"):
+                    job_id = job_summary.get("job_id")
+                    # 获取完整任务信息（含 steps）
+                    job = self.store.get_job(job_id)
+                    self.store.update_job_status(
+                        job_id, JobStatus.FAILED,
+                        error="服务重启导致任务中断，请点击\"重跑\"恢复（支持断点续跑）",
+                    )
+                    # 标记当前 running 步骤为 failed
+                    if job and job.get("steps"):
+                        for s in job["steps"]:
+                            if s.get("status") == "running":
+                                self.store.update_step(
+                                    job_id, s["step"], StepStatus.FAILED,
+                                    error="服务重启中断",
+                                )
+                                break
+                    cleaned += 1
+                    self.logger.warning(f"清理卡住任务: {job_id} (原状态={status})")
+        except Exception as e:
+            self.logger.error(f"cleanup_stale_jobs 异常: {e}")
+        if cleaned:
+            self.logger.info(f"共清理 {cleaned} 个卡住的任务")
+        return cleaned
+
     def run_job(
         self, job_id: str,
         progress_callback: Optional[Callable[[str, str, dict], None]] = None,

@@ -148,6 +148,11 @@ class JobStore:
                     step_name,
                 ),
             )
+            # 同步更新 jobs.updated_at，让前端轮询能感知到任务在推进（避免误判超时）
+            c.execute(
+                "UPDATE jobs SET updated_at=? WHERE job_id=?",
+                (now, job_id),
+            )
 
     def get_job(self, job_id: str) -> Optional[dict[str, Any]]:
         with self._conn() as c:
