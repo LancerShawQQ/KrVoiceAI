@@ -239,29 +239,51 @@ async function testLLMConnection() {
 function loadTTSSettings() {
   if (!_currentSettings) return;
   const tts = _currentSettings.tts || {};
-  document.getElementById('tts-provider').value = tts.provider || 'mock';
+  document.getElementById('tts-provider').value = tts.provider || 'moss_nano';
   onTTSProviderChange();
   document.getElementById('tts-api-base').value = tts.api_base || '';
   document.getElementById('tts-api-key').value = tts.api_key || '';
   document.getElementById('tts-edge-voice').value = tts.edge_voice || 'zh-CN-XiaoxiaoNeural';
-  document.getElementById('tts-default-voice').value = tts.default_voice || 'default';
+  // MOSS NANO 内置音色回填
+  const mossVoice = (tts.moss_nano && tts.moss_nano.builtin_voice) || tts.default_voice || 'Junhao';
+  const mossSel = document.getElementById('tts-moss-voice');
+  if (mossSel) mossSel.value = mossVoice;
+  document.getElementById('tts-default-voice').value = tts.default_voice || 'Junhao';
   document.getElementById('tts-timeout').value = tts.timeout || 120;
 }
 
 function onTTSProviderChange() {
   const provider = document.getElementById('tts-provider').value;
   const edgeGroup = document.getElementById('tts-edge-voice-group');
+  const mossGroup = document.getElementById('tts-moss-voice-group');
   const apiBaseGroup = document.getElementById('tts-api-base-group');
   const apiKeyGroup = document.getElementById('tts-api-key-group');
+  const defaultVoiceInput = document.getElementById('tts-default-voice');
 
   edgeGroup.style.display = provider === 'edge_tts' ? 'block' : 'none';
-  apiBaseGroup.style.display = provider === 'gpt_sovits' ? 'block' : 'none';
-  apiKeyGroup.style.display = provider === 'gpt_sovits' ? 'block' : 'none';
+  mossGroup.style.display = provider === 'moss_nano' ? 'block' : 'none';
+  apiBaseGroup.style.display = (provider === 'gpt_sovits' || provider === 'mimo') ? 'block' : 'none';
+  apiKeyGroup.style.display = (provider === 'gpt_sovits' || provider === 'mimo') ? 'block' : 'none';
+
+  // 根据 provider 自动同步 default_voice
+  if (provider === 'edge_tts') {
+    defaultVoiceInput.value = document.getElementById('tts-edge-voice').value;
+  } else if (provider === 'moss_nano') {
+    defaultVoiceInput.value = document.getElementById('tts-moss-voice').value;
+  }
+
+  // 音色下拉变化时同步 default_voice
+  document.getElementById('tts-edge-voice').onchange = () => {
+    if (document.getElementById('tts-provider').value === 'edge_tts') defaultVoiceInput.value = document.getElementById('tts-edge-voice').value;
+  };
+  document.getElementById('tts-moss-voice').onchange = () => {
+    if (document.getElementById('tts-provider').value === 'moss_nano') defaultVoiceInput.value = document.getElementById('tts-moss-voice').value;
+  };
 
   // 自动填充默认地址
   if (_presets && _presets.tts[provider]) {
     const preset = _presets.tts[provider];
-    if (preset.default_api_base && provider === 'gpt_sovits') {
+    if (preset.default_api_base && (provider === 'gpt_sovits' || provider === 'mimo')) {
       const cur = document.getElementById('tts-api-base').value;
       if (!cur) document.getElementById('tts-api-base').value = preset.default_api_base;
     }
@@ -269,14 +291,26 @@ function onTTSProviderChange() {
 }
 
 async function saveTTSSettings() {
+  const provider = document.getElementById('tts-provider').value;
+  // 根据 provider 确定 default_voice
+  let defaultVoice = document.getElementById('tts-default-voice').value;
+  if (provider === 'edge_tts') {
+    defaultVoice = document.getElementById('tts-edge-voice').value;
+  } else if (provider === 'moss_nano') {
+    defaultVoice = document.getElementById('tts-moss-voice').value;
+  }
   const data = {
-    provider: document.getElementById('tts-provider').value,
+    provider: provider,
     api_base: document.getElementById('tts-api-base').value,
     api_key: document.getElementById('tts-api-key').value,
     edge_voice: document.getElementById('tts-edge-voice').value,
-    default_voice: document.getElementById('tts-default-voice').value,
+    default_voice: defaultVoice,
     timeout: parseInt(document.getElementById('tts-timeout').value),
   };
+  // MOSS NANO 额外保存 builtin_voice
+  if (provider === 'moss_nano') {
+    data.moss_nano = { builtin_voice: document.getElementById('tts-moss-voice').value };
+  }
   try {
     const result = await api('/api/settings/tts', {
       method: 'PUT', body: { section: 'tts', data },
@@ -285,6 +319,11 @@ async function saveTTSSettings() {
       toast('TTS 配置已保存', 'success');
       _currentSettings = await api('/api/settings');
       updateModelStatusBadges();
+      // provider 切换后使向导音色库缓存失效，下次进入向导时重新拉取对应音色
+      if (typeof window !== 'undefined') {
+        window._wizardVoiceList = null;
+        window._wizardVoiceProvider = data.provider;
+      }
     } else {
       toast(`保存失败: ${result.message}`, 'error');
     }
@@ -425,6 +464,8 @@ async function saveAvatarSettings() {
       toast('数字人配置已保存', 'success');
       _currentSettings = await api('/api/settings');
       updateModelStatusBadges();
+      // 设置变更后使向导缓存失效，下次进入向导时重新加载设置回填
+      if (typeof window !== 'undefined') window._wizardVoiceList = null;
     } else {
       toast(`保存失败: ${result.message}`, 'error');
     }
@@ -601,6 +642,8 @@ async function saveVideoSettings() {
     await api('/api/settings/cover', { method: 'PUT', body: { section: 'cover', data: coverData } });
     toast('视频设置已保存', 'success');
     _currentSettings = await api('/api/settings');
+    // 设置变更后使向导缓存失效，下次进入向导时重新加载设置回填（字幕/BGM/视频输出）
+    if (typeof window !== 'undefined') window._wizardVoiceList = null;
   } catch (e) {
     toast(`保存失败: ${e.message}`, 'error');
   }
@@ -782,6 +825,8 @@ async function saveSceneEffectSettings() {
     await api('/api/settings/effects', { method: 'PUT', body: { section: 'effects', data: effectsData } });
     toast('场景与效果设置已保存', 'success');
     _currentSettings = await api('/api/settings');
+    // 设置变更后使向导缓存失效，下次进入向导时重新加载设置回填（场景/音频/效果）
+    if (typeof window !== 'undefined') window._wizardVoiceList = null;
   } catch (e) {
     toast(`保存失败: ${e.message}`, 'error');
   }
@@ -901,7 +946,7 @@ async function loadCookieManager() {
             <textarea class="form-textarea" id="cookie-input-${key}" style="min-height:50px;font-size:11px;margin-top:6px" placeholder='粘贴 ${info.name} 的 Cookie（JSON 格式或 raw 字符串）'></textarea>
             <button class="btn btn-sm btn-secondary" style="margin-top:6px" onclick="saveCookie('${key}')">保存 Cookie</button>
           </details>
-          <div id="bilibili-qrcode-area" style="text-align:center;margin-top:8px"></div>
+          ${key === 'bilibili' ? '<div id="bilibili-qrcode-area" style="text-align:center;margin-top:8px"></div>' : ''}
         </div>
       `;
     }).join('');
@@ -1154,6 +1199,8 @@ async function savePublishSettings() {
     if (result.success) {
       _currentSettings = await api('/api/settings');
       loadPublishSettings();
+      // 设置变更后使向导缓存失效，下次进入向导时重新加载发布设置回填
+      if (typeof window !== 'undefined') window._wizardVoiceList = null;
     }
   } catch (e) {
     toast(`保存失败: ${e.message}`, 'error');

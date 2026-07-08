@@ -411,7 +411,7 @@ class EnlyAI:
             if engine is None:
                 return {"success": False, "audio_path": None, "duration": 0.0,
                         "error": "TTS 引擎未初始化"}
-            persist = Path("output") / f"voice_preview_{int(_time.time())}.wav"
+            persist = Path("workspace_data/tmp") / f"voice_preview_{int(_time.time())}.wav"
             persist.parent.mkdir(parents=True, exist_ok=True)
             audio_path, duration, _ = engine.synthesize(
                 text, voice_id, persist,

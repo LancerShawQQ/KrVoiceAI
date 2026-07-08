@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5.0">
   <title>EnlyAI · 虚拟人口播智能体</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=20260708v3">
+  <link rel="stylesheet" href="/static/css/style.css?v=20260708v5">
   <script src="https://unpkg.com/lucide@latest"></script>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
   <!-- 移动端点击修复（内联确保优先级，避免外部CSS缓存导致失效） -->
@@ -528,7 +528,7 @@
               <label class="form-label">情感</label>
               <div class="btn-card-grid" id="wiz-emotion-grid"></div>
               <div id="wiz-emotion-hint" style="display:none;font-size:12px;color:var(--color-text-secondary);margin-top:6px;padding:6px 8px;background:rgba(255,200,0,0.1);border-radius:6px">
-                ⚠️ 当前音色（MOSS NANO）不支持情感调节，情感设置将被忽略
+                ⚠️ 当前音色不支持情感调节，情感设置将被忽略
               </div>
             </div>
             <div class="form-group">
@@ -1792,9 +1792,11 @@
               <div class="form-group">
                 <label class="form-label">服务提供商</label>
                 <select class="form-select" id="tts-provider" onchange="onTTSProviderChange()">
-                  <option value="mock">Mock 模式（静音音频）</option>
+                  <option value="moss_nano">MOSS NANO（本地声音克隆，6内置音色）</option>
+                  <option value="edge_tts">Edge TTS（微软标准音色，免费，10音色）</option>
+                  <option value="mimo">MiMo TTS（小米云端，需API凭证）</option>
                   <option value="gpt_sovits">GPT-SoVITS 云端（声音克隆）</option>
-                  <option value="edge_tts">Edge TTS（微软标准音色，免费）</option>
+                  <option value="mock">Mock 模式（静音音频，调试用）</option>
                 </select>
               </div>
               <div class="form-group" id="tts-edge-voice-group" style="display:none">
@@ -1806,6 +1808,17 @@
                   <option value="zh-CN-XiaoyiNeural">晓伊 (女·活泼)</option>
                   <option value="zh-CN-YunyangNeural">云扬 (男·专业)</option>
                   <option value="zh-CN-XiaohanNeural">晓涵 (女·成熟)</option>
+                </select>
+              </div>
+              <div class="form-group" id="tts-moss-voice-group" style="display:none">
+                <label class="form-label">MOSS NANO 内置音色</label>
+                <select class="form-select" id="tts-moss-voice">
+                  <option value="Junhao">君浩（男·中文）</option>
+                  <option value="Trump">特朗普（男·英文）</option>
+                  <option value="Ava">Ava（女·英文）</option>
+                  <option value="Bella">Bella（女·中文）</option>
+                  <option value="Adam">Adam（男·英文）</option>
+                  <option value="Nathan">Nathan（男·英文）</option>
                 </select>
               </div>
             </div>
@@ -1846,17 +1859,21 @@
               <div class="form-group">
                 <label class="form-label">服务提供商</label>
                 <select class="form-select" id="asr-provider">
-                  <option value="mock">Mock 模式（按句切分）</option>
+                  <option value="whisper_local">Whisper 本地（faster-whisper CPU，推荐）</option>
                   <option value="funasr">FunASR（本地，paraformer-zh）</option>
-                  <option value="whisper">OpenAI Whisper</option>
+                  <option value="mimo">MiMo ASR（小米云端）</option>
+                  <option value="mock">Mock 模式（按句切分）</option>
                 </select>
               </div>
               <div class="form-group">
-                <label class="form-label">模型</label>
+                <label class="form-label">Whisper 模型</label>
                 <select class="form-select" id="asr-model">
-                  <option value="paraformer-zh">paraformer-zh</option>
-                  <option value="paraformer-zh-streaming">paraformer-zh-streaming</option>
-                  <option value="conformer-zh">conformer-zh</option>
+                  <option value="tiny">tiny（最快，准确度低）</option>
+                  <option value="base">base（快）</option>
+                  <option value="small">small（平衡）</option>
+                  <option value="medium">medium（准确，推荐文案提取）</option>
+                  <option value="large-v3">large-v3（最准，慢）</option>
+                  <option value="paraformer-zh">paraformer-zh（FunASR）</option>
                 </select>
               </div>
             </div>
@@ -1893,10 +1910,11 @@
               <div class="form-group">
                 <label class="form-label">服务提供商</label>
                 <select class="form-select" id="avatar-provider" onchange="onAvatarProviderChange()">
-                  <option value="mock">Mock 模式（占位图视频）</option>
-                  <option value="musetalk">MuseTalk（实时口播）</option>
-                  <option value="latentsync">LatentSync（高精度口型）</option>
-                  <option value="echomimic">EchoMimic（表情驱动）</option>
+                  <option value="wav2lip">Wav2Lip（本地唇形同步，CPU可跑）</option>
+                  <option value="musetalk">MuseTalk（实时口播，需GPU）</option>
+                  <option value="latentsync">LatentSync（高精度口型，需GPU）</option>
+                  <option value="echomimic">EchoMimic（表情驱动，需GPU）</option>
+                  <option value="mock">Mock 模式（占位图视频，调试用）</option>
                 </select>
               </div>
               <div class="form-group">
@@ -2515,7 +2533,7 @@
   <!-- Toast 容器 -->
   <div class="toast-container" id="toast-container"></div>
 
-  <script src="/static/js/app.js?v=20260708v3"></script>
-  <script src="/static/js/settings.js?v=20260708v3"></script>
+  <script src="/static/js/app.js?v=20260708v5"></script>
+  <script src="/static/js/settings.js?v=20260708v5"></script>
 </body>
 </html>

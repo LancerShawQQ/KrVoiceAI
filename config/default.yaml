@@ -30,7 +30,7 @@ llm:
 
 # TTS 配置（声音克隆）
 tts:
-  provider: edge_tts  # edge_tts(默认,免费,10音色) / moss_nano(本地克隆) / mimo / gpt_sovits / mock
+  provider: moss_nano  # moss_nano(本地克隆,6内置音色) / edge_tts(免费,10音色) / mimo / gpt_sovits / mock
   # GPT-SoVITS 云端服务地址
   api_base: http://localhost:9880
   api_key: ""
@@ -41,8 +41,8 @@ tts:
   edge_voice: zh-CN-XiaoxiaoNeural
   # 音色库目录
   voices_dir: ./config/voices
-  # 默认音色（edge_tts 的预制音色，10个可选）
-  default_voice: zh-CN-XiaoxiaoNeural
+  # 默认音色（edge_tts: zh-CN-XiaoxiaoNeural 等10个；moss_nano: Junhao/Trump/Ava/Bella/Adam/Nathan）
+  default_voice: Junhao
   # MOSS-TTS-Nano 配置（provider=moss_nano 时使用，本地 CPU 声音克隆）
   moss_nano:
     # MOSS-TTS-Nano 仓库根目录（含 onnx_tts_runtime.py）
@@ -323,6 +323,39 @@ bgm_library:
     label: "新闻严肃"
     mood: "严肃"
     duration: 140
+  # 新增曲目（扩充曲库，覆盖更多场景）
+  lofi_chill:
+    label: "Lo-Fi 轻松"
+    mood: "轻松"
+    duration: 170
+  cinematic_epic:
+    label: "电影史诗"
+    mood: "史诗"
+    duration: 180
+  happy_ukulele:
+    label: "欢快尤克里里"
+    mood: "欢快"
+    duration: 130
+  emotional_strings:
+    label: "深情弦乐"
+    mood: "深情"
+    duration: 190
+  jazz_cafe:
+    label: "爵士咖啡"
+    mood: "慵懒"
+    duration: 175
+  ambient_pad:
+    label: "氛围铺底"
+    mood: "氛围"
+    duration: 200
+  corporate_uplifting:
+    label: "积极企业"
+    mood: "积极"
+    duration: 140
+  sad_piano:
+    label: "忧伤钢琴"
+    mood: "忧伤"
+    duration: 185
 
 # 创作模板系统（对标腾讯智影/vsub，一键应用全套样式）
 templates:

@@ -660,7 +660,8 @@ const SCENE_CATEGORY_DEFAULTS = {
 };
 
 function initWizard() {
-  if (!wizardState.initialized) {
+  // provider 切换后缓存被置空（settings.js 设为 null），需重新加载音色库
+  if (!wizardState.initialized || !window._wizardVoiceList) {
     wizardState.initialized = true;
     loadWizardData();
   }
@@ -748,8 +749,18 @@ async function loadWizardData() {
       ensureBgmLibrary(),
       api('/api/avatars').catch(() => []),
       api('/api/voices').catch(() => []),
-    ]).then(([bgmLib, avatars, voices]) => {
-      renderWizardAvatarGrid(avatars);
+      api('/api/presets/avatars').catch(() => ({ avatars: {} })),
+      api('/api/settings').catch(() => null),  // 新增：加载设置中心配置回填向导
+    ]).then(([bgmLib, avatars, voices, presetAvatars, settings]) => {
+      // 构建 avatar_id -> gender 映射（用于形象与音色性别联动）
+      const avatarGenderMap = {};
+      if (presetAvatars && presetAvatars.avatars) {
+        Object.entries(presetAvatars.avatars).forEach(([aid, info]) => {
+          avatarGenderMap[aid] = info.gender || '';
+        });
+      }
+      window._wizardVoiceList = voices || [];
+      renderWizardAvatarGrid(avatars, avatarGenderMap);
       renderWizardVoiceGrid(voices);
       // BGM 曲目
       const bgmSel = document.getElementById('wiz-bgm-track');
@@ -758,6 +769,8 @@ async function loadWizardData() {
           `<option value="${key}">${info.label}（${info.mood}）</option>`
         ).join('');
       }
+      // 从设置中心回填向导所有控件
+      _applySettingsToWizard(settings);
     });
 
     // 步骤3：文案 Tab 切换
@@ -789,6 +802,7 @@ async function loadWizardData() {
     bindBtnCardGrid('wiz-emotion-grid');
 
     // 步骤5：字幕样式预设
+    window._subtitleStylePresets = presets.subtitle_styles;  // 保存供 _applySettingsToWizard 使用
     renderSubtitleStyleGrid('wiz-subtitle-style-grid', presets.subtitle_styles, 'douyin_hot', (key) => {
       wizardState.selectedSubtitleStyle = key;
       applySubtitleStylePreset(key);
@@ -872,7 +886,7 @@ function renderWizardTemplateGrid(templates) {
 }
 
 // 渲染数字人卡片网格
-function renderWizardAvatarGrid(avatars) {
+function renderWizardAvatarGrid(avatars, genderMap) {
   const grid = document.getElementById('wiz-avatar-grid');
   if (!grid) return;
   const list = avatars && avatars.length ? avatars : [{ avatar_id: 'default', reference_image: null }];
@@ -899,16 +913,157 @@ function renderWizardAvatarGrid(avatars) {
     if (card.dataset.id === firstId) card.classList.add('selected');
     card.addEventListener('click', () => {
       const isSelected = card.classList.contains('selected');
+      // 形象为必选项，不允许反选取消（避免数据与视觉不一致）
+      if (isSelected) return;
       grid.querySelectorAll('.avatar-card').forEach(c => c.classList.remove('selected'));
-      if (isSelected) {
-        // 再次点击取消，但仍保留一个默认值
-        document.getElementById('wiz-avatar').value = firstId;
-      } else {
-        card.classList.add('selected');
-        document.getElementById('wiz-avatar').value = card.dataset.id;
-      }
+      card.classList.add('selected');
+      document.getElementById('wiz-avatar').value = card.dataset.id;
+      // 形象与音色性别联动：选中形象时自动推荐同性别音色
+      _linkAvatarToVoice(card.dataset.id, genderMap || {});
     });
   });
+}
+
+// 形象与音色性别联动：选中形象时自动推荐同性别音色
+function _linkAvatarToVoice(avatarId, genderMap) {
+  const gender = genderMap[avatarId];
+  if (!gender || !window._wizardVoiceList || !window._wizardVoiceList.length) return;
+  // 找同性别的第一个音色
+  const matchedVoice = window._wizardVoiceList.find(v => v.gender === gender);
+  if (!matchedVoice) return;
+  const voiceGrid = document.getElementById('wiz-voice-grid');
+  if (!voiceGrid) return;
+  // 如果目标音色已选中，不重复操作
+  const currentSelected = voiceGrid.querySelector('.voice-card.selected');
+  if (currentSelected && currentSelected.dataset.id === matchedVoice.voice_id) return;
+  // 取消所有音色选中，选中匹配的音色
+  voiceGrid.querySelectorAll('.voice-card').forEach(c => c.classList.remove('selected'));
+  const targetCard = voiceGrid.querySelector(`.voice-card[data-id="${matchedVoice.voice_id}"]`);
+  if (targetCard) {
+    targetCard.classList.add('selected');
+    document.getElementById('wiz-voice').value = matchedVoice.voice_id;
+    // 更新emotion支持状态
+    const supports = targetCard.dataset.supportsEmotion === '1';
+    const emotionGrid = document.getElementById('wiz-emotion-grid');
+    const emotionHint = document.getElementById('wiz-emotion-hint');
+    if (emotionGrid) {
+      emotionGrid.style.opacity = supports ? '1' : '0.4';
+      emotionGrid.style.pointerEvents = supports ? 'auto' : 'none';
+    }
+    if (emotionHint) emotionHint.style.display = supports ? 'none' : 'block';
+    toast(`已自动推荐${gender === 'female' ? '女声' : '男声'}：${matchedVoice.label}`, 'info');
+  }
+}
+
+// 将设置中心配置回填到向导所有控件（实现设置↔向导联动）
+function _applySettingsToWizard(settings) {
+  if (!settings) return;
+  try {
+    // ===== 步骤2：场景配置 =====
+    const scene = settings.scene || {};
+    if (scene.pose) setBtnCardValue('wiz-pose-grid', scene.pose);
+    if (scene.position) setBtnCardValue('wiz-position-grid', scene.position);
+    if (scene.scale != null) { const el = document.getElementById('wiz-scale'); if (el) el.value = scene.scale; }
+    if (scene.background_type) {
+      setBtnCardValue('wiz-bg-type-grid', scene.background_type);
+      document.getElementById('wiz-bg-color-group').style.display = scene.background_type === 'solid' ? 'block' : 'none';
+      document.getElementById('wiz-bg-image-group').style.display = scene.background_type === 'image' ? 'block' : 'none';
+    }
+    if (scene.background_color) { const el = document.getElementById('wiz-bg-color'); if (el) el.value = scene.background_color; }
+    if (scene.background_image) { const el = document.getElementById('wiz-bg-image'); if (el) el.value = scene.background_image; }
+    if (scene.show_logo != null) {
+      document.getElementById('wiz-show-logo').checked = !!scene.show_logo;
+      document.getElementById('wiz-logo-position-group').style.display = scene.show_logo ? 'block' : 'none';
+      document.getElementById('wiz-logo-image-group').style.display = scene.show_logo ? 'block' : 'none';
+    }
+    if (scene.logo_position) { const el = document.getElementById('wiz-logo-position'); if (el) el.value = scene.logo_position; }
+    if (scene.logo_image) { const el = document.getElementById('wiz-logo-image'); if (el) el.value = scene.logo_image; }
+
+    // ===== 步骤2：默认形象（avatar.default_avatar）=====
+    const avatarCfg = settings.avatar || {};
+    const defaultAvatarId = avatarCfg.default_avatar || 'default';
+    if (defaultAvatarId && defaultAvatarId !== 'default') {
+      const targetCard = document.querySelector(`#wiz-avatar-grid .avatar-card[data-id="${defaultAvatarId}"]`);
+      if (targetCard) {
+        document.querySelectorAll('#wiz-avatar-grid .avatar-card').forEach(c => c.classList.remove('selected'));
+        targetCard.classList.add('selected');
+        document.getElementById('wiz-avatar').value = defaultAvatarId;
+      }
+    }
+
+    // ===== 步骤4：默认音色（tts.default_voice）=====
+    const ttsCfg = settings.tts || {};
+    const defaultVoiceId = ttsCfg.default_voice;
+    if (defaultVoiceId) {
+      const voiceCard = document.querySelector(`#wiz-voice-grid .voice-card[data-id="${defaultVoiceId}"]`);
+      if (voiceCard) {
+        document.querySelectorAll('#wiz-voice-grid .voice-card').forEach(c => c.classList.remove('selected'));
+        voiceCard.classList.add('selected');
+        document.getElementById('wiz-voice').value = defaultVoiceId;
+        // 同步 emotion 支持状态
+        const evt = new Event('click');
+        // 触发 updateEmotionSupport 等价逻辑
+        const supports = voiceCard.dataset.supportsEmotion === '1';
+        const emotionGrid = document.getElementById('wiz-emotion-grid');
+        const emotionHint = document.getElementById('wiz-emotion-hint');
+        if (emotionGrid) {
+          emotionGrid.style.opacity = supports ? '1' : '0.4';
+          emotionGrid.style.pointerEvents = supports ? 'auto' : 'none';
+        }
+        if (emotionHint) emotionHint.style.display = supports ? 'none' : 'block';
+      }
+    }
+
+    // ===== 步骤4：音频参数（audio.speed/volume/pitch/emotion/pause/remove_silence/voice_enhance）=====
+    const audio = settings.audio || {};
+    if (audio.speed != null) { const el = document.getElementById('wiz-speed'); if (el) el.value = audio.speed; }
+    if (audio.volume != null) { const el = document.getElementById('wiz-volume'); if (el) el.value = audio.volume; }
+    if (audio.pitch != null) { const el = document.getElementById('wiz-pitch'); if (el) el.value = audio.pitch; }
+    if (audio.pause_duration != null) { const el = document.getElementById('wiz-pause'); if (el) el.value = audio.pause_duration; }
+    if (audio.emotion) setBtnCardValue('wiz-emotion-grid', audio.emotion);
+    if (audio.remove_silence != null) { const el = document.getElementById('wiz-remove-silence'); if (el) el.checked = !!audio.remove_silence; }
+    if (audio.voice_enhance != null) { const el = document.getElementById('wiz-voice-enhance'); if (el) el.checked = !!audio.voice_enhance; }
+
+    // ===== 步骤5：BGM 设置（audio.bgm.*）=====
+    const bgm = audio.bgm || {};
+    if (bgm.enabled != null) {
+      const el = document.getElementById('wiz-bgm-enabled'); if (el) el.checked = !!bgm.enabled;
+      document.getElementById('wiz-bgm-group').style.display = bgm.enabled ? 'block' : 'none';
+    }
+    if (bgm.track) { const el = document.getElementById('wiz-bgm-track'); if (el) el.value = bgm.track; }
+    if (bgm.volume != null) { const el = document.getElementById('wiz-bgm-vol'); if (el) el.value = bgm.volume; }
+    if (bgm.fade_in != null) { const el = document.getElementById('wiz-bgm-fadein'); if (el) el.value = bgm.fade_in; }
+    if (bgm.fade_out != null) { const el = document.getElementById('wiz-bgm-fadeout'); if (el) el.value = bgm.fade_out; }
+
+    // ===== 步骤5：字幕样式（subtitle.*）=====
+    const subtitle = settings.subtitle || {};
+    if (subtitle.preset && window._subtitleStylePresets) {
+      // 重新渲染字幕样式网格，选中配置中的 preset
+      renderSubtitleStyleGrid('wiz-subtitle-style-grid', window._subtitleStylePresets, subtitle.preset, (key) => {
+        wizardState.selectedSubtitleStyle = key;
+        applySubtitleStylePreset(key);
+      });
+    }
+    if (subtitle.animation) { const el = document.getElementById('wiz-sub-anim'); if (el) el.value = subtitle.animation; }
+    if (subtitle.font_size != null) { const el = document.getElementById('wiz-sub-size'); if (el) el.value = subtitle.font_size; }
+    if (subtitle.letter_spacing != null) { const el = document.getElementById('wiz-sub-letter'); if (el) el.value = subtitle.letter_spacing; }
+    if (subtitle.dual_line != null) { const el = document.getElementById('wiz-sub-dual'); if (el) el.checked = !!subtitle.dual_line; }
+    if (subtitle.karaoke != null) { const el = document.getElementById('wiz-sub-karaoke'); if (el) el.checked = !!subtitle.karaoke; }
+    if (subtitle.position) { const el = document.getElementById('wiz-sub-position'); if (el) el.value = subtitle.position; }
+
+    // ===== 步骤5：视频效果（effects.*）=====
+    const effects = settings.effects || {};
+    if (effects.transition) { const el = document.getElementById('wiz-transition'); if (el) el.value = effects.transition; }
+    if (effects.filter) { const el = document.getElementById('wiz-filter'); if (el) el.value = effects.filter; }
+
+    // 更新文案字数统计（emotion 变化时可能影响时长预估）
+    const scriptEl = document.getElementById('wiz-script');
+    if (scriptEl && scriptEl.value) updateScriptStats(scriptEl.value);
+
+    window._wizardSettingsApplied = true;
+  } catch (e) {
+    console.warn('applySettingsToWizard error:', e);
+  }
 }
 
 // 渲染音色卡片网格
@@ -975,6 +1130,9 @@ function renderWizardVoiceGrid(voices) {
       grid.querySelectorAll('.voice-card').forEach(c => c.classList.remove('selected'));
       if (isSelected) {
         document.getElementById('wiz-voice').value = firstId;
+        // 取消选中时回退到默认音色，同步更新 emotion 支持状态
+        const firstCard = grid.querySelector(`.voice-card[data-id="${firstId}"]`);
+        if (firstCard) updateEmotionSupport(firstCard);
       } else {
         card.classList.add('selected');
         document.getElementById('wiz-voice').value = card.dataset.id;
@@ -1229,6 +1387,15 @@ function wizardNext() {
   if (wizardState.currentStep >= 6) {
     wizardGenerate();
     return;
+  }
+  // 必填校验：步骤3文案必须有文案或参考链接
+  if (wizardState.currentStep === 3) {
+    const script = (document.getElementById('wiz-script')?.value || '').trim();
+    const refUrl = (document.getElementById('wiz-ref-url')?.value || '').trim();
+    if (!script && !refUrl) {
+      toast('请输入文案或填写参考视频链接提取文案', 'error');
+      return;
+    }
   }
   wizardSaveCurrentStep();
   wizardState.currentStep++;
@@ -2648,18 +2815,20 @@ async function usePresetAvatar(avatarId, voice, emotion) {
       targetAvatarId = regData.avatar_id;
     }
 
-    // 2. 设置推荐音色
+    // 2. 设置推荐音色（使用 api helper，正确格式请求体）
     if (voice) {
-      const resp = await fetch('/api/settings/tts', { method: 'PUT' });
-      const ttsSection = await resp.json();
-      const ttsData = ttsSection.data || {};
+      const ttsData = await api('/api/settings/tts');
       ttsData.default_voice = voice;
-      if (emotion) ttsData.emotion = emotion;
-      await fetch('/api/settings/tts', {
+      // edge_tts 音色 ID 以 zh-CN 开头，若选的是 edge 音色则确保 provider 一致
+      if (voice.startsWith('zh-CN-') && ttsData.provider !== 'edge_tts') {
+        ttsData.provider = 'edge_tts';
+      }
+      await api('/api/settings/tts', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(ttsData),
+        body: { section: 'tts', data: ttsData },
       });
+      // 使向导音色库缓存失效
+      window._wizardVoiceList = null;
     }
 
     // 3. 跳转到创作向导并预选该形象
@@ -2668,9 +2837,16 @@ async function usePresetAvatar(avatarId, voice, emotion) {
     // 向导数据加载后刷新形象列表并预选
     setTimeout(async () => {
       try {
-        const avatars = await api('/api/avatars').catch(() => []);
+        const [avatars, presetAvatars] = await Promise.all([
+          api('/api/avatars').catch(() => []),
+          api('/api/presets/avatars').catch(() => ({ avatars: {} })),
+        ]);
         if (avatars && avatars.length) {
-          renderWizardAvatarGrid(avatars);
+          const gm = {};
+          if (presetAvatars && presetAvatars.avatars) {
+            Object.entries(presetAvatars.avatars).forEach(([aid, info]) => { gm[aid] = info.gender || ''; });
+          }
+          renderWizardAvatarGrid(avatars, gm);
         }
         const avatarInput = document.getElementById('wiz-avatar');
         if (avatarInput && targetAvatarId !== 'default') {
@@ -2721,19 +2897,24 @@ async function loadPresetVoices() {
 // 使用预制音色
 async function usePresetVoice(voiceId) {
   try {
-    // 先确保 TTS provider 是 edge_tts
-    const getResp = await fetch('/api/settings/tts');
-    const ttsSection = await getResp.json();
-    const ttsData = ttsSection.data || {};
-    ttsData.provider = 'edge_tts';
+    // 读取当前 TTS 配置，仅更新 default_voice，不强制切换 provider
+    const ttsData = await api('/api/settings/tts');
     ttsData.default_voice = voiceId;
-    const resp = await fetch('/api/settings/tts', {
+    // edge_tts 音色 ID 以 zh-CN 开头，若选的是 edge 音色则确保 provider 一致
+    if (voiceId.startsWith('zh-CN-') && ttsData.provider !== 'edge_tts') {
+      ttsData.provider = 'edge_tts';
+    }
+    const result = await api('/api/settings/tts', {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(ttsData),
+      body: { section: 'tts', data: ttsData },
     });
-    const result = await resp.json();
-    toast(result.success ? `已切换到 Edge TTS 并设置音色: ${voiceId}` : '设置失败', result.success ? 'success' : 'error');
+    if (result.success) {
+      toast(`已设置默认音色: ${voiceId}`, 'success');
+      // 使向导音色库缓存失效，下次进入向导时刷新
+      window._wizardVoiceList = null;
+    } else {
+      toast(`设置失败: ${result.message || '未知错误'}`, 'error');
+    }
   } catch (e) {
     toast(`设置失败: ${e.message}`, 'error');
   }
@@ -3835,6 +4016,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 进度模态框关闭
   document.getElementById('progress-modal-close')?.addEventListener('click', closeProgressModal);
+
+  // 自动发布开关：开启时高亮平台选择区，若未选平台即时提示
+  document.getElementById('wiz-auto-publish')?.addEventListener('change', (e) => {
+    const platformsBox = document.getElementById('wiz-publish-platforms');
+    const checked = Array.from(document.querySelectorAll('#wiz-publish-platforms input[type="checkbox"]:checked')).length;
+    if (e.target.checked) {
+      if (platformsBox && checked === 0) {
+        platformsBox.style.boxShadow = '0 0 0 3px var(--color-warning)';
+        toast('请选择至少一个发布平台', 'info');
+      } else if (platformsBox) {
+        platformsBox.style.boxShadow = '0 0 0 3px var(--state-success-light)';
+      }
+    } else if (platformsBox) {
+      platformsBox.style.boxShadow = '';
+    }
+  });
+  // 平台选择变化时更新高亮
+  document.getElementById('wiz-publish-platforms')?.addEventListener('change', () => {
+    const autoPub = document.getElementById('wiz-auto-publish');
+    const platformsBox = document.getElementById('wiz-publish-platforms');
+    if (autoPub && autoPub.checked && platformsBox) {
+      const checked = Array.from(document.querySelectorAll('#wiz-publish-platforms input[type="checkbox"]:checked')).length;
+      platformsBox.style.boxShadow = checked > 0 ? '0 0 0 3px var(--state-success-light)' : '0 0 0 3px var(--color-warning)';
+    }
+  });
 
   // 初始渲染进度
   renderPipeline({});

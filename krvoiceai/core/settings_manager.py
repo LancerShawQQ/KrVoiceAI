@@ -680,6 +680,21 @@ class SettingsManager:
                 return {"success": True, "message": "edge-tts 可用"}
             except ImportError:
                 return {"success": False, "message": "edge-tts 未安装，请执行 pip install edge-tts"}
+        if provider == "moss_nano":
+            # MOSS NANO 本地 ONNX 推理，检查模型文件是否存在
+            try:
+                cfg = get_config()
+                model_dir = Path(cfg.get("tts.moss_nano.model_dir", "../../MOSS-TTS-Nano/models"))
+                if model_dir.exists():
+                    # 检查关键模型文件
+                    tts_dir = model_dir / "MOSS-TTS-Nano-100M-ONNX"
+                    tokenizer_dir = model_dir / "MOSS-Audio-Tokenizer-Nano-ONNX"
+                    if tts_dir.exists() and tokenizer_dir.exists():
+                        return {"success": True, "message": f"MOSS NANO 模型就绪：{model_dir}"}
+                    return {"success": False, "message": f"MOSS NANO 模型目录不完整：缺 {tts_dir.name} 或 {tokenizer_dir.name}"}
+                return {"success": False, "message": f"MOSS NANO 模型目录不存在：{model_dir}"}
+            except Exception as e:
+                return {"success": False, "message": f"MOSS NANO 检查失败: {e}"}
         if not api_base:
             return {"success": False, "message": "服务地址未填写"}
 
