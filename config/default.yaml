@@ -302,36 +302,36 @@ bgm_library:
   soft_piano:
     label: "轻柔钢琴"
     mood: "舒缓"
-    duration: 180
+    duration: 102
   upbeat_corporate:
     label: "企业活力"
     mood: "激昂"
-    duration: 120
+    duration: 289
   tech_electronic:
     label: "科技电子"
     mood: "科技"
-    duration: 150
+    duration: 97
   warm_acoustic:
     label: "温暖原声"
     mood: "温馨"
-    duration: 160
+    duration: 97
   chinese_guzheng:
     label: "古风古筝"
     mood: "古风"
-    duration: 200
+    duration: 134
   news_serious:
     label: "新闻严肃"
     mood: "严肃"
-    duration: 140
+    duration: 127
   # 新增曲目（扩充曲库，覆盖更多场景）
   lofi_chill:
     label: "Lo-Fi 轻松"
     mood: "轻松"
-    duration: 170
+    duration: 108
   cinematic_epic:
     label: "电影史诗"
     mood: "史诗"
-    duration: 180
+    duration: 160
   happy_ukulele:
     label: "欢快尤克里里"
     mood: "欢快"
@@ -339,23 +339,23 @@ bgm_library:
   emotional_strings:
     label: "深情弦乐"
     mood: "深情"
-    duration: 190
+    duration: 101
   jazz_cafe:
     label: "爵士咖啡"
     mood: "慵懒"
-    duration: 175
+    duration: 140
   ambient_pad:
     label: "氛围铺底"
     mood: "氛围"
-    duration: 200
+    duration: 113
   corporate_uplifting:
     label: "积极企业"
     mood: "积极"
-    duration: 140
+    duration: 124
   sad_piano:
     label: "忧伤钢琴"
     mood: "忧伤"
-    duration: 185
+    duration: 115
 
 # 创作模板系统（对标腾讯智影/vsub，一键应用全套样式）
 templates:
