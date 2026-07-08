@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5.0">
   <title>EnlyAI · 虚拟人口播智能体</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=20260707ui3">
+  <link rel="stylesheet" href="/static/css/style.css?v=20260708pub">
   <script src="https://unpkg.com/lucide@latest"></script>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
   <!-- 移动端点击修复（内联确保优先级，避免外部CSS缓存导致失效） -->
@@ -773,23 +773,40 @@
           </div>
           <div class="card">
             <div class="card-header">
-              <div class="card-title"><span class="card-title-icon"><i data-lucide="share-2"></i></span> 发布设置</div>
+              <div class="card-title"><span class="card-title-icon"><i data-lucide="share-2"></i></span> 一键发布设置</div>
             </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label">目标平台</label>
-                <select class="form-select" id="wiz-platform">
-                  <option value="douyin">抖音</option>
-                  <option value="bilibili">哔哩哔哩</option>
-                  <option value="kuaishou">快手</option>
-                  <option value="wechat_video">微信视频号</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
-                  <span>自动发布</span>
-                  <label class="toggle-switch"><input type="checkbox" id="wiz-auto-publish"><span class="toggle-slider"></span></label>
+            <div class="form-group">
+              <label class="form-label">目标平台（可多选，同时发布到多个平台）</label>
+              <div class="platform-checkbox-grid" id="wiz-publish-platforms">
+                <label class="platform-checkbox-card" data-platform="douyin">
+                  <input type="checkbox" value="douyin" checked>
+                  <span class="platform-checkbox-icon">🎵</span>
+                  <span class="platform-checkbox-name">抖音</span>
                 </label>
+                <label class="platform-checkbox-card" data-platform="bilibili">
+                  <input type="checkbox" value="bilibili">
+                  <span class="platform-checkbox-icon">🎬</span>
+                  <span class="platform-checkbox-name">哔哩哔哩</span>
+                </label>
+                <label class="platform-checkbox-card" data-platform="kuaishou">
+                  <input type="checkbox" value="kuaishou">
+                  <span class="platform-checkbox-icon">⚡</span>
+                  <span class="platform-checkbox-name">快手</span>
+                </label>
+                <label class="platform-checkbox-card" data-platform="wechat_video">
+                  <input type="checkbox" value="wechat_video">
+                  <span class="platform-checkbox-icon">💬</span>
+                  <span class="platform-checkbox-name">视频号</span>
+                </label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
+                <span>生成后自动发布到选中的平台</span>
+                <label class="toggle-switch"><input type="checkbox" id="wiz-auto-publish"><span class="toggle-slider"></span></label>
+              </label>
+              <div style="font-size:12px;color:var(--color-text-secondary);margin-top:4px" id="wiz-publish-hint">
+                开启后，视频生成完成将自动发布到选中的平台（需先在"发布设置"页登录各平台）
               </div>
             </div>
             <button class="btn btn-primary btn-block" id="wiz-generate-btn" style="margin-top:8px"><i data-lucide="rocket"></i> 开始生成视频</button>
@@ -2495,7 +2512,7 @@
   <!-- Toast 容器 -->
   <div class="toast-container" id="toast-container"></div>
 
-  <script src="/static/js/app.js?v=20260707ui3"></script>
+  <script src="/static/js/app.js?v=20260708pub"></script>
   <script src="/static/js/settings.js?v=20260621d"></script>
 </body>
 </html>

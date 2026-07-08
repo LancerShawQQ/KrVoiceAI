@@ -1984,6 +1984,72 @@ input[type="color"]::-webkit-color-swatch {
   transform: translateX(18px);
 }
 
+/* ---------- 平台多选卡片（一键发布） ---------- */
+.platform-checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.platform-checkbox-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 8px;
+  border: 2px solid var(--color-border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: var(--transition-spring);
+  position: relative;
+  user-select: none;
+  background: var(--color-bg-secondary);
+}
+
+.platform-checkbox-card:hover {
+  border-color: var(--color-primary);
+  transform: translateY(-1px);
+}
+
+.platform-checkbox-card input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.platform-checkbox-card input[type="checkbox"]:checked + .platform-checkbox-icon {
+  transform: scale(1.1);
+}
+
+.platform-checkbox-card:has(input:checked) {
+  border-color: var(--color-primary);
+  background: rgba(0, 122, 255, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.15);
+}
+
+.platform-checkbox-card:has(input:checked)::after {
+  content: "✓";
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.platform-checkbox-icon {
+  font-size: 28px;
+  margin-bottom: 4px;
+  transition: var(--transition-spring);
+}
+
+.platform-checkbox-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
 /* ---------- 模板卡片网格 ---------- */
 .template-grid {
   display: grid;

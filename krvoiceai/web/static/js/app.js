@@ -2109,8 +2109,17 @@ async function wizardGenerate() {
   }
   const avatar = document.getElementById('wiz-avatar').value;
   const voice = document.getElementById('wiz-voice').value;
-  const platform = document.getElementById('wiz-platform').value;
+  // 收集多选发布平台
+  const publishPlatforms = Array.from(document.querySelectorAll('#wiz-publish-platforms input[type="checkbox"]:checked'))
+    .map(cb => cb.value);
+  const platform = publishPlatforms[0] || 'douyin';  // 向后兼容：单个平台字符串
   const autoPublish = document.getElementById('wiz-auto-publish').checked;
+
+  // 自动发布开启但未选平台时提示
+  if (autoPublish && publishPlatforms.length === 0) {
+    toast('请至少选择一个发布平台，或关闭自动发布', 'error');
+    return;
+  }
 
   const btn = document.getElementById('wiz-generate-btn');
   btn.disabled = true;
@@ -2147,6 +2156,7 @@ async function wizardGenerate() {
       script, reference_video_url: refUrlForGen,
       avatar_id: avatar, voice_id: voice,
       script_mode: scriptMode, platform, auto_publish: autoPublish,
+      publish_platforms: publishPlatforms.length > 0 ? publishPlatforms : undefined,
       broll_clips: getWizardBrollClips(),
     });
 

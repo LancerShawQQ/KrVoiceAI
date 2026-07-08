@@ -45,6 +45,7 @@ class GenerateRequest(BaseModel):
     script_mode: str = "polish"
     platform: str = "douyin"
     auto_publish: bool = False
+    publish_platforms: Optional[list[str]] = None  # 多平台一键发布（覆盖 platform 单选）
     broll_clips: Optional[list] = None  # B-roll 画中画/插播片段
 
 
@@ -187,6 +188,12 @@ def create_app() -> FastAPI:
     async def generate(req: GenerateRequest):
         """一键生成视频（全流程）"""
         krvoice = _get_app()
+        # publish_platforms 透传到 metadata
+        _extra_meta = {}
+        if req.publish_platforms:
+            _extra_meta["publish_platforms"] = req.publish_platforms
+        elif req.platform and req.platform != "douyin":
+            _extra_meta["publish_platforms"] = [req.platform]
         # 在线程池中运行（避免阻塞事件循环）
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(
@@ -199,6 +206,7 @@ def create_app() -> FastAPI:
                 script_mode=req.script_mode,
                 platform=req.platform,
                 auto_publish=req.auto_publish,
+                metadata=_extra_meta if _extra_meta else None,
                 broll_clips=req.broll_clips,
             )
         )
@@ -213,13 +221,20 @@ def create_app() -> FastAPI:
         if avatar_id == "default":
             avatar_id = krvoice.config.get("avatar.default_avatar", "default")
         # 提交任务（仅创建，不阻塞）
+        # publish_platforms 优先于 platform（支持多平台一键发布）
+        _meta = {"platform": req.platform, "auto_publish": req.auto_publish}
+        if req.publish_platforms:
+            _meta["publish_platforms"] = req.publish_platforms
+        elif req.platform and req.platform != "douyin":
+            # 向后兼容：单选 platform 也写入 publish_platforms
+            _meta["publish_platforms"] = [req.platform]
         job_id = krvoice.orchestrator.submit_job(
             script=req.script,
             reference_video_url=req.reference_video_url,
             avatar_id=avatar_id,
             voice_id=req.voice_id,
             script_mode=req.script_mode,
-            metadata={"platform": req.platform, "auto_publish": req.auto_publish},
+            metadata=_meta,
             broll_clips=req.broll_clips,
         )
         # 在后台线程中运行任务（不等待完成）

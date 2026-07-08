@@ -58,8 +58,13 @@ class Publisher(BaseModule):
         if not ctx.final_video or not ctx.final_video.exists():
             return ModuleResult(success=False, error="无最终视频，无法发布")
 
-        # 确定目标平台
+        # 确定目标平台：publish_platforms（多选） > platform（单选） > config enabled
         target_platforms = ctx.metadata.get("publish_platforms")
+        if not target_platforms:
+            # 向后兼容：单个 platform 字段
+            single_platform = ctx.metadata.get("platform")
+            if single_platform:
+                target_platforms = [single_platform]
         if not target_platforms:
             target_platforms = [
                 name for name, cfg in self.platforms_cfg.items()
@@ -67,6 +72,18 @@ class Publisher(BaseModule):
             ]
         if not target_platforms:
             target_platforms = ["bilibili"]  # 默认至少生成清单
+
+        # auto_publish=True 时强制 auto 模式（实际发布，非仅生成清单）
+        # 用户在向导中勾选"自动发布"意味着要真正发布到平台
+        effective_mode = self.mode
+        if ctx.metadata.get("auto_publish") and self.mode != "manual":
+            effective_mode = "auto"
+
+        self.logger.info(
+            f"发布配置: mode={self.mode}→effective={effective_mode}, "
+            f"platforms={target_platforms}, auto_publish={ctx.metadata.get('auto_publish')}, "
+            f"video={ctx.final_video.name if ctx.final_video else 'None'}"
+        )
 
         title = ctx.title or "口播视频"
         description = ctx.metadata.get("description", ctx.script_text[:200] if ctx.script_text else "")
@@ -87,7 +104,7 @@ class Publisher(BaseModule):
         self._write_manifest(targets, manifest_path)
         ctx.metadata["publish_manifest"] = str(manifest_path)
 
-        if self.mode == "manual":
+        if effective_mode == "manual":
             return ModuleResult(
                 success=True,
                 data={
@@ -98,7 +115,7 @@ class Publisher(BaseModule):
                 },
             )
 
-        if self.mode == "semi_auto":
+        if effective_mode == "semi_auto":
             return ModuleResult(
                 success=True,
                 data={

@@ -35,10 +35,10 @@ from ..core.ffmpeg_utils import FFmpegRunner
 EMOTION_EDGE_MAP = {
     'neutral':  {'rate': '+0%',  'pitch': '+0Hz'},   # 中性：默认
     'calm':     {'rate': '-10%', 'pitch': '-2Hz'},   # 平静：稍慢稍低
-    'excited':  {'rate': '+15%', 'pitch': '+3Hz'},   # 激动：加快升高
+    'excited':  {'rate': '+25%', 'pitch': '+5Hz'},   # 激昂：明显加快升高（+15%→+25%，让激昂风格更显著）
     'gentle':   {'rate': '-5%',  'pitch': '+1Hz'},   # 温柔：稍慢微升
     'serious':  {'rate': '-8%',  'pitch': '-3Hz'},   # 严肃：稍慢偏低
-    'cheerful': {'rate': '+8%',  'pitch': '+2Hz'},   # 欢快：稍快微升
+    'cheerful': {'rate': '+12%', 'pitch': '+3Hz'},   # 欢快：稍快微升（+8%→+12%，增强欢快感）
 }
 
 
