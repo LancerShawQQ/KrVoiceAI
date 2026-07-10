@@ -873,6 +873,7 @@ function renderWizardTemplateGrid(templates) {
         <span class="template-card-tag">${tpl.subtitle_preset}</span>
         <span class="template-card-tag">${tpl.emotion}</span>
         <span class="template-card-tag">${tpl.filter}</span>
+        ${tpl.voice ? `<span class="template-card-tag">${tpl.voice}</span>` : ''}
       </div>
     </div>
   `).join('');
@@ -883,6 +884,8 @@ function renderWizardTemplateGrid(templates) {
       wizardState.selectedTemplate = card.dataset.key;
     });
   });
+  // 重新渲染 lucide 图标
+  if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 // 渲染数字人卡片网格
@@ -1538,13 +1541,18 @@ async function wizardApplyTemplate() {
       if (tpl) {
         wizardState.selectedSubtitleStyle = tpl.subtitle_preset;
         if (_creativePresets) {
+          // 情感
           setBtnCardValue('wiz-emotion-grid', tpl.emotion);
+          // 字幕动画
           const animSel = document.getElementById('wiz-sub-anim');
           if (animSel) animSel.value = tpl.subtitle_animation;
+          // 转场
           const transSel = document.getElementById('wiz-transition');
           if (transSel) transSel.value = tpl.transition;
+          // 滤镜
           const filterSel = document.getElementById('wiz-filter');
           if (filterSel) filterSel.value = tpl.filter;
+          // BGM
           const bgmSel = document.getElementById('wiz-bgm-track');
           if (bgmSel) bgmSel.value = tpl.bgm_track;
           // 高亮字幕样式卡片
@@ -1554,6 +1562,49 @@ async function wizardApplyTemplate() {
           // 启用 BGM
           document.getElementById('wiz-bgm-enabled').checked = true;
           document.getElementById('wiz-bgm-group').style.display = 'block';
+
+          // 语速联动
+          if (tpl.speech_speed) {
+            const speedEl = document.getElementById('wiz-speed');
+            const speedVal = document.getElementById('wiz-speed-val');
+            if (speedEl) {
+              speedEl.value = tpl.speech_speed;
+              if (speedVal) speedVal.textContent = tpl.speech_speed + 'x';
+            }
+          }
+
+          // 音色联动
+          if (tpl.voice) {
+            const voiceHidden = document.getElementById('wiz-voice');
+            if (voiceHidden) voiceHidden.value = tpl.voice;
+            // 高亮音色卡片
+            document.querySelectorAll('#wiz-voice-grid .voice-card').forEach(c => c.classList.remove('selected'));
+            const voiceCard = document.querySelector(`#wiz-voice-grid .voice-card[data-id="${tpl.voice}"]`);
+            if (voiceCard) voiceCard.classList.add('selected');
+          }
+
+          // 数字人形象联动
+          if (tpl.avatar) {
+            const avatarHidden = document.getElementById('wiz-avatar');
+            if (avatarHidden) avatarHidden.value = tpl.avatar;
+            // 高亮形象卡片
+            document.querySelectorAll('#wiz-avatar-grid .avatar-card').forEach(c => c.classList.remove('selected'));
+            const avatarCard = document.querySelector(`#wiz-avatar-grid .avatar-card[data-id="${tpl.avatar}"]`);
+            if (avatarCard) avatarCard.classList.add('selected');
+          }
+
+          // 文案骨架联动：填入文案输入框（用户可在此基础上修改）
+          if (tpl.script_template) {
+            const scriptEl = document.getElementById('wiz-script');
+            if (scriptEl && !scriptEl.value.trim()) {
+              // 仅在文案为空时填入骨架，避免覆盖用户已输入的内容
+              scriptEl.value = tpl.script_template.trim();
+              // 触发字数统计更新
+              if (typeof updateScriptStats === 'function') updateScriptStats(tpl.script_template.trim());
+            }
+          }
+
+          toast(`已应用「${tpl.label}」全套配置：字幕/${tpl.subtitle_preset} · 滤镜/${tpl.filter} · 转场/${tpl.transition} · 音色/${tpl.voice || '默认'} · 语速/${tpl.speech_speed || 1.0}x`, 'success');
         }
       }
     } else {

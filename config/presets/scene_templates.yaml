@@ -8,7 +8,7 @@ templates:
   # ===== 卖货/电商场景 =====
   product_selling:
     label: "电商带货"
-    icon: "🛒"
+    icon: "shopping-cart"
     category: "营销带货"
     description: "适合产品种草、直播带货、促销宣传，节奏明快、突出卖点"
     script_template: |
@@ -34,6 +34,8 @@ templates:
       filter: vivid
       transition: zoom
       speech_speed: 1.1
+      voice: Ava
+      avatar: standard
     avatar_scene:
       pose: talking
       position: bottom_right
@@ -43,7 +45,7 @@ templates:
 
   factory_intro:
     label: "工厂宣传"
-    icon: "🏭"
+    icon: "building-2"
     category: "企业宣传"
     description: "适合工厂/企业实力展示，突出规模、工艺、品质，建立信任"
     script_template: |
@@ -76,6 +78,8 @@ templates:
       filter: none
       transition: fade
       speech_speed: 0.95
+      voice: Junhao
+      avatar: standard
     avatar_scene:
       pose: talking
       position: bottom_right
@@ -85,7 +89,7 @@ templates:
 
   company_profile:
     label: "企业介绍"
-    icon: "🏢"
+    icon: "building"
     category: "企业宣传"
     description: "适合公司品牌宣传、招商加盟、团队展示，专业大气"
     script_template: |
@@ -116,6 +120,8 @@ templates:
       filter: none
       transition: fade
       speech_speed: 0.95
+      voice: Junhao
+      avatar: standard
     avatar_scene:
       pose: talking
       position: bottom_right
@@ -126,7 +132,7 @@ templates:
   # ===== 教育/知识场景 =====
   knowledge_popular:
     label: "知识科普"
-    icon: "📚"
+    icon: "book-open"
     category: "知识教育"
     description: "适合科普解读、干货分享、原理解释，清晰易懂"
     script_template: |
@@ -151,6 +157,8 @@ templates:
       filter: vivid
       transition: slide
       speech_speed: 1.0
+      voice: Bella
+      avatar: standard
     avatar_scene:
       pose: talking
       position: bottom_right
@@ -194,6 +202,8 @@ templates:
       filter: vivid
       transition: zoom
       speech_speed: 1.05
+      voice: Bella
+      avatar: standard
     avatar_scene:
       pose: talking
       position: bottom_right
@@ -231,6 +241,8 @@ templates:
       filter: none
       transition: fade
       speech_speed: 0.95
+      voice: Junhao
+      avatar: standard
     avatar_scene:
       pose: talking
       position: center
@@ -241,7 +253,7 @@ templates:
   # ===== 情感/生活场景 =====
   emotional_story:
     label: "情感故事"
-    icon: "💝"
+    icon: "heart"
     category: "情感生活"
     description: "适合情感分享、治愈故事、人生感悟，温柔细腻"
     script_template: |
@@ -268,6 +280,8 @@ templates:
       filter: warm
       transition: fade
       speech_speed: 0.9
+      voice: Ava
+      avatar: standard
     avatar_scene:
       pose: talking
       position: bottom_right
@@ -307,8 +321,10 @@ templates:
       bgm_track: tech_electronic
       emotion: neutral
       filter: cool
-      transition: swipe
+      transition: slideleft
       speech_speed: 1.05
+      voice: Nathan
+      avatar: standard
     avatar_scene:
       pose: talking
       position: bottom_right
@@ -319,7 +335,7 @@ templates:
   # ===== 古风/文化场景 =====
   chinese_culture:
     label: "古风文化"
-    icon: "🏮"
+    icon: "landmark"
     category: "文化历史"
     description: "适合历史故事、国学经典、传统文化，典雅古朴"
     script_template: |
@@ -348,6 +364,8 @@ templates:
       filter: vintage
       transition: fade
       speech_speed: 0.9
+      voice: Junhao
+      avatar: standard
     avatar_scene:
       pose: talking
       position: bottom_right
@@ -358,7 +376,7 @@ templates:
   # ===== 自我介绍/个人IP场景 =====
   personal_ip:
     label: "个人IP介绍"
-    icon: "⭐"
+    icon: "star"
     category: "个人品牌"
     description: "适合博主自我介绍、账号定位、个人品牌打造"
     script_template: |
@@ -388,6 +406,8 @@ templates:
       filter: none
       transition: fade
       speech_speed: 1.0
+      voice: Junhao
+      avatar: standard
     avatar_scene:
       pose: talking
       position: bottom_right

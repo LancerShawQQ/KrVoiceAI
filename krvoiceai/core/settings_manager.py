@@ -379,14 +379,53 @@ class SettingsManager:
         """获取创作预设（字幕样式/动画/情感/姿态/滤镜/转场）"""
         return deepcopy(CREATIVE_PRESETS)
 
+    def _load_scene_templates(self) -> dict[str, Any]:
+        """加载场景模板库（scene_templates.yaml）
+
+        统一模板源，向导第一步和模板中心共用。
+        """
+        scene_path = PROJECT_ROOT / "config" / "presets" / "scene_templates.yaml"
+        if not scene_path.exists():
+            return {}
+        with open(scene_path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+        return data.get("templates", {}) or {}
+
     def get_templates(self) -> dict[str, Any]:
-        """获取创作模板列表"""
-        cfg = get_config()
-        templates = cfg.get("templates", {}) or {}
-        return deepcopy(templates)
+        """获取创作模板列表（从 scene_templates.yaml 加载，扁平化返回给前端）
+
+        将嵌套的 style/avatar_scene 段展开为扁平结构，
+        兼容前端 renderWizardTemplateGrid 的字段访问方式。
+        """
+        scene_templates = self._load_scene_templates()
+        result: dict[str, Any] = {}
+        for key, tpl in scene_templates.items():
+            style = tpl.get("style", {}) or {}
+            result[key] = {
+                "label": tpl.get("label", key),
+                "icon": tpl.get("icon", "file"),
+                "description": tpl.get("description", ""),
+                "category": tpl.get("category", ""),
+                # 样式字段（扁平化）
+                "subtitle_preset": style.get("subtitle_preset", "minimal_white"),
+                "subtitle_animation": style.get("subtitle_animation", "fade"),
+                "bgm_track": style.get("bgm_track", "soft_piano"),
+                "emotion": style.get("emotion", "neutral"),
+                "filter": style.get("filter", "none"),
+                "transition": style.get("transition", "fade"),
+                "speech_speed": style.get("speech_speed", 1.0),
+                "voice": style.get("voice", ""),
+                "avatar": style.get("avatar", ""),
+                # 文案骨架
+                "script_template": tpl.get("script_template", ""),
+                "placeholders": tpl.get("placeholders", {}),
+            }
+        return result
 
     def apply_template(self, template_id: str) -> dict[str, Any]:
-        """应用创作模板：一键设置字幕/BGM/情感/滤镜/转场
+        """应用创作模板：一键设置字幕/BGM/情感/滤镜/转场/语速/音色/形象
+
+        从 scene_templates.yaml 读取模板配置，应用到全局配置并持久化。
 
         Args:
             template_id: 模板 ID（如 news_broadcast）
@@ -394,38 +433,40 @@ class SettingsManager:
         Returns:
             {"success": bool, "message": str, "applied": {...}}
         """
-        cfg = get_config()
-        templates = cfg.get("templates", {}) or {}
-        if template_id not in templates:
+        scene_templates = self._load_scene_templates()
+        if template_id not in scene_templates:
             return {"success": False, "message": f"模板不存在: {template_id}"}
 
-        tpl = templates[template_id]
+        tpl = scene_templates[template_id]
+        style = tpl.get("style", {}) or {}
         applied: dict[str, Any] = {}
 
         # 1. 字幕样式预设 + 动画
-        style_preset = tpl.get("subtitle_preset", "minimal_white")
-        animation = tpl.get("subtitle_animation", "fade")
-        style = SUBTITLE_STYLE_PRESETS.get(style_preset, {})
+        style_preset = style.get("subtitle_preset", "minimal_white")
+        animation = style.get("subtitle_animation", "fade")
+        sub_style = SUBTITLE_STYLE_PRESETS.get(style_preset, {})
         subtitle_payload = {
             "preset": style_preset,
             "animation": animation,
-            "primary_color": style.get("primary_color", "&H00FFFFFF"),
-            "outline_color": style.get("outline_color", "&H00000000"),
-            "outline_width": style.get("outline_width", 2),
-            "shadow_color": style.get("shadow_color", "&H80000000"),
-            "bold": style.get("bold", True),
+            "primary_color": sub_style.get("primary_color", "&H00FFFFFF"),
+            "outline_color": sub_style.get("outline_color", "&H00000000"),
+            "outline_width": sub_style.get("outline_width", 2),
+            "shadow_color": sub_style.get("shadow_color", "&H80000000"),
+            "bold": sub_style.get("bold", True),
         }
         self.update_section("subtitle", subtitle_payload)
         applied["subtitle"] = subtitle_payload
 
-        # 2. BGM + 情感（曲目和情感由模板指定，音量/淡入淡出/开关保留用户已有偏好）
+        # 2. BGM + 情感 + 语速 + 音色
         current_audio = self.get_section("audio", mask_sensitive=False)
         current_bgm = current_audio.get("bgm", {}) or {}
         audio_payload = {
-            "emotion": tpl.get("emotion", "neutral"),
+            "emotion": style.get("emotion", "neutral"),
+            "speed": style.get("speech_speed", 1.0),
+            "default_voice": style.get("voice", current_audio.get("default_voice", "Junhao")),
             "bgm": {
                 "enabled": current_bgm.get("enabled", True),
-                "track": tpl.get("bgm_track", "soft_piano"),
+                "track": style.get("bgm_track", "soft_piano"),
                 "volume": current_bgm.get("volume", 25),
                 "fade_in": current_bgm.get("fade_in", 1.0),
                 "fade_out": current_bgm.get("fade_out", 1.0),
@@ -436,11 +477,36 @@ class SettingsManager:
 
         # 3. 滤镜 + 转场
         effects_payload = {
-            "transition": tpl.get("transition", "fade"),
-            "filter": tpl.get("filter", "none"),
+            "transition": style.get("transition", "fade"),
+            "filter": style.get("filter", "none"),
         }
         self.update_section("effects", effects_payload)
         applied["effects"] = effects_payload
+
+        # 4. 数字人形象
+        avatar_id = style.get("avatar", "")
+        if avatar_id:
+            current_avatar = self.get_section("avatar", mask_sensitive=False)
+            avatar_payload = {
+                "default_avatar": avatar_id,
+            }
+            # 保留用户已有的 provider 等设置
+            avatar_payload.update(current_avatar)
+            avatar_payload["default_avatar"] = avatar_id
+            self.update_section("avatar", avatar_payload)
+            applied["avatar"] = {"default_avatar": avatar_id}
+
+        # 5. 数字人场景（位置/缩放/背景）
+        avatar_scene = tpl.get("avatar_scene", {}) or {}
+        if avatar_scene:
+            scene_payload = {
+                "position": avatar_scene.get("position", "center"),
+                "scale": float(avatar_scene.get("scale", 1.0)),
+                "background_type": avatar_scene.get("background_type", "transparent"),
+                "background_color": avatar_scene.get("background_color", "#1A1A2E"),
+            }
+            self.update_section("scene", scene_payload)
+            applied["scene"] = scene_payload
 
         logger.info(f"已应用创作模板: {template_id} ({tpl.get('label', '')})")
         return {
