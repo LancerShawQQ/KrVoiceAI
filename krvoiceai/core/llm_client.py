@@ -46,10 +46,12 @@ class LLMClient:
         messages: list[dict[str, str]],
         temperature: float | None = None,
         max_tokens: int | None = None,
+        timeout: float | None = None,
     ) -> str:
         """调用 chat completion，返回助手消息文本
 
         内置 429 限流重试（指数退避），最多重试 MAX_RETRIES 次。
+        timeout 可覆盖默认超时（某些场景如标题生成需要更长）。
         """
         if self.is_mock:
             return self._mock_response(messages)
@@ -66,6 +68,7 @@ class LLMClient:
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
+        req_timeout = timeout or self.timeout
 
         start = time.time()
         last_error: Exception | None = None
@@ -73,7 +76,7 @@ class LLMClient:
 
         for attempt in range(self.MAX_RETRIES + 1):
             try:
-                r = httpx.post(url, json=payload, headers=headers, timeout=self.timeout)
+                r = httpx.post(url, json=payload, headers=headers, timeout=req_timeout)
 
                 # 429 限流：使用专用退避策略（更长延迟、更多重试）
                 if r.status_code == 429:

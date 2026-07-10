@@ -2192,6 +2192,7 @@ async function rerunCurrentJob() {
 function _displayWizardResult(result) {
   const output = result.output || {};
   const videoPath = output.final_video || result.video_path;
+  const videoAbsPath = output.final_video_absolute || videoPath;
   const title = output.title || result.title || '';
   const scriptText = output.script_text || result.script_text || '';
   const videoEl = document.getElementById('wiz-result-video');
@@ -2203,7 +2204,7 @@ function _displayWizardResult(result) {
         <a class="btn btn-sm btn-primary" href="/api/files?path=${encodeURIComponent(videoPath)}" download="${downloadName}">
           <i data-lucide="download"></i> 下载视频
         </a>
-        <button class="btn btn-sm btn-secondary" onclick="copyToClipboard('${videoPath.replace(/\\/g, '\\\\')}')">
+        <button class="btn btn-sm btn-secondary" onclick="copyToClipboard('${videoAbsPath.replace(/\\/g, '\\\\')}')">
           <i data-lucide="copy"></i> 复制路径
         </button>
       </div>
@@ -2537,6 +2538,7 @@ function finishProgressModal(result, hasFailed) {
   const resultEl = document.getElementById('progress-modal-result');
   const output = result.output || {};
   const videoPath = output.final_video;
+  const videoAbsPath = output.final_video_absolute || videoPath;
   const title = output.title || '';
   // 重跑按钮（失败或无视频时显示，支持断点续跑）
   const rerunBtn = (_currentJobId && (hasFailed || !videoPath))
@@ -2547,8 +2549,8 @@ function finishProgressModal(result, hasFailed) {
       <div class="progress-modal-result-title">${escapeHtml(title)}</div>
       <video src="/api/files?path=${encodeURIComponent(videoPath)}" controls autoplay></video>
       <div class="progress-modal-result-actions">
-        <div class="video-path-display" style="flex:1;text-align:left;padding:8px 12px;background:var(--bg-elevated);border-radius:8px;font-size:12px;color:var(--text-secondary);font-family:var(--font-mono);word-break:break-all"><i data-lucide="folder" style="width:14px;height:14px;vertical-align:middle;margin-right:4px"></i>${escapeHtml(videoPath)}</div>
-        <button class="btn btn-secondary" type="button" onclick="copyToClipboard('${videoPath.replace(/'/g, "\\'")}')"><i data-lucide="copy"></i> 复制路径</button>
+        <div class="video-path-display" style="flex:1;text-align:left;padding:8px 12px;background:var(--bg-elevated);border-radius:8px;font-size:12px;color:var(--text-secondary);font-family:var(--font-mono);word-break:break-all"><i data-lucide="folder" style="width:14px;height:14px;vertical-align:middle;margin-right:4px"></i>${escapeHtml(videoAbsPath)}</div>
+        <button class="btn btn-secondary" type="button" onclick="copyToClipboard('${videoAbsPath.replace(/'/g, "\\'")}')"><i data-lucide="copy"></i> 复制路径</button>
         ${rerunBtn}
         <button class="btn btn-secondary" type="button" onclick="closeProgressModal()"><i data-lucide="refresh-cw"></i> 再做一个</button>
       </div>
@@ -3245,6 +3247,7 @@ async function showJobDetail(jobId) {
     `).join('');
     const output = job.output || {};
     const videoPath = output.final_video || output.video_path;
+    const videoAbsPath = output.final_video_absolute || output.video_path_absolute || videoPath;
     const hasVideo = job.status === 'success' && videoPath;
     detail.innerHTML = `
       <div style="margin-bottom:16px">
@@ -3260,7 +3263,7 @@ async function showJobDetail(jobId) {
             <a class="btn btn-sm btn-primary" href="/api/files?path=${encodeURIComponent(videoPath)}" download="${job.job_id}.mp4">
               <i data-lucide="download"></i> 下载视频
             </a>
-            <button class="btn btn-sm btn-secondary" onclick="copyToClipboard('${videoPath.replace(/\\/g, '\\\\')}')">
+            <button class="btn btn-sm btn-secondary" onclick="copyToClipboard('${videoAbsPath.replace(/\\/g, '\\\\')}')">
               <i data-lucide="copy"></i> 复制路径
             </button>
           </div>
@@ -5105,6 +5108,43 @@ function renderWizardTimeline() {
       }
     });
   }
+  // 渲染垂直字幕段落列表
+  renderWizardSubtitleList();
+}
+
+// 渲染垂直字幕段落列表（对标商业口播智能体）
+function renderWizardSubtitleList() {
+  const container = document.getElementById('wiz-subtitle-list');
+  if (!container) return;
+  const segs = wizBrollState.subtitleSegments || [];
+  if (!segs.length) {
+    container.innerHTML = '<div style="color:var(--text-tertiary);font-size:12px;padding:12px;text-align:center">暂无字幕数据（点击"智能推荐"或先生成视频后从任务列表精修）</div>';
+    return;
+  }
+  container.innerHTML = segs.map((seg, idx) => {
+    const hasClip = wizBrollState.clips.some(c => c.start >= seg.start - 0.5 && c.start < seg.end);
+    const clipBadge = hasClip ? '<span style="background:var(--color-success);color:#fff;font-size:10px;padding:1px 6px;border-radius:4px;margin-left:6px">已插入</span>' : '';
+    const dur = (seg.end - seg.start).toFixed(1);
+    return `
+      <div style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:var(--bg-elevated);border:1px solid var(--border-default);border-radius:8px;cursor:pointer;transition:border-color 0.2s"
+           onmouseover="this.style.borderColor='var(--color-primary)'"
+           onmouseout="this.style.borderColor='var(--border-default)'"
+           onclick="if(wizBrollState.selectedAsset){openWizardClipModal(${seg.start}, null, ${seg.end})}else{toast('请先选择一个 B-roll 素材','error')}">
+        <div style="flex-shrink:0;width:36px;height:36px;background:var(--color-primary);color:#fff;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600">${idx + 1}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;margin-bottom:4px">
+            <span style="font-size:12px;color:var(--text-secondary);font-family:var(--font-mono)">${seg.start.toFixed(1)}s - ${seg.end.toFixed(1)}s</span>
+            <span style="font-size:11px;color:var(--text-tertiary);margin-left:6px">· ${dur}s</span>
+            ${clipBadge}
+          </div>
+          <div style="font-size:13px;color:var(--text-primary);line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(seg.text)}</div>
+        </div>
+        <div style="flex-shrink:0;display:flex;align-items:center;color:var(--text-tertiary)">
+          <i data-lucide="plus-circle" style="width:18px;height:18px"></i>
+        </div>
+      </div>`;
+  }).join('');
+  if (window.lucide) lucide.createIcons();
 }
 
 // 打开添加/编辑片段弹窗
@@ -5123,14 +5163,15 @@ function openWizardClipModal(start, editIdx, maxEnd) {
   };
 
   const overlay = document.createElement('div');
+  overlay.className = 'wiz-clip-overlay';
   overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);z-index:9999;display:flex;align-items:center;justify-content:center';
   const modal = document.createElement('div');
   modal.className = 'glass-card-heavy';
-  modal.style.cssText = 'width:400px;max-width:90vw;padding:24px';
+  modal.style.cssText = 'width:400px;max-width:90vw;padding:24px;position:relative';
   modal.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
       <h3 style="font-size:18px;font-weight:600;margin:0">${isEdit ? '编辑' : '添加'} B-roll 片段</h3>
-      <button type="button" onclick="this.closest('div[style*=fixed]').remove()" style="background:none;border:none;font-size:24px;color:var(--text-secondary);cursor:pointer;padding:0 4px;line-height:1">×</button>
+      <button type="button" onclick="this.closest('.wiz-clip-overlay').remove()" style="background:rgba(0,0,0,0.1);border:none;font-size:20px;color:var(--text-primary);cursor:pointer;padding:4px 10px;line-height:1;border-radius:6px;transition:background 0.2s" onmouseover="this.style.background='rgba(0,0,0,0.2)'" onmouseout="this.style.background='rgba(0,0,0,0.1)'">✕</button>
     </div>
     <div style="margin-bottom:12px">
       <label style="font-size:13px;color:var(--text-secondary);display:block;margin-bottom:4px">素材</label>
@@ -5186,8 +5227,8 @@ function openWizardClipModal(start, editIdx, maxEnd) {
       </select>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
-      ${isEdit ? '<button class="btn btn-secondary" style="color:var(--state-error)" onclick="deleteWizardClip('+editIdx+');document.querySelector(\'div[style*=fixed]\').remove()">删除</button>' : ''}
-      <button class="btn btn-secondary" onclick="document.querySelector('div[style*=fixed]').remove()">取消</button>
+      ${isEdit ? '<button class="btn btn-secondary" style="color:var(--state-error)" onclick="deleteWizardClip('+editIdx+');this.closest(\'.wiz-clip-overlay\').remove()">删除</button>' : ''}
+      <button class="btn btn-secondary" onclick="this.closest('.wiz-clip-overlay').remove()">取消</button>
       <button class="btn btn-primary" onclick="saveWizardClip(${isEdit ? editIdx : 'null'})">保存</button>
     </div>
   `;
@@ -5255,7 +5296,7 @@ function saveWizardClip(editIdx) {
     wizBrollState.clips.push(clip);
   }
 
-  document.querySelector('div[style*="position:fixed"]')?.remove();
+  document.querySelector('.wiz-clip-overlay')?.remove();
   renderWizardTimeline();
   renderWizardClipList();
   toast(`已${editIdx !== null ? '更新' : '添加'} ${mode === 'pip' ? '画中画' : '整段切换'} 片段 (${start.toFixed(1)}s-${end.toFixed(1)}s)`, 'success');
@@ -5264,7 +5305,7 @@ function saveWizardClip(editIdx) {
 // 删除片段
 function deleteWizardClip(idx) {
   wizBrollState.clips.splice(idx, 1);
-  document.querySelector('div[style*="position:fixed"]')?.remove();
+  document.querySelector('.wiz-clip-overlay')?.remove();
   renderWizardTimeline();
   renderWizardClipList();
 }

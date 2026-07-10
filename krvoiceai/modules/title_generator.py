@@ -109,7 +109,10 @@ class TitleGenerator(BaseModule):
             return ModuleResult(success=False, error=str(e))
 
     def generate(self, script: str, platform: str = "douyin") -> list[str]:
-        """生成标题列表"""
+        """生成标题列表
+
+        LLM 调用失败或返回空时，使用文案首句作为降级标题，保证流程不中断。
+        """
         prompt_template = PLATFORM_PROMPTS.get(platform, DEFAULT_PROMPT)
         user_prompt = prompt_template.format(script=script[:500])  # 截断避免超长
 
@@ -121,10 +124,34 @@ class TitleGenerator(BaseModule):
         self.logger.info(
             f"生成标题 platform={platform} script_len={len(script)} mock={self.llm.is_mock}"
         )
-        result = self.llm.chat(messages)
-        titles = self._parse_titles(result)
+        try:
+            result = self.llm.chat(messages, max_tokens=500, timeout=120)
+            titles = self._parse_titles(result)
+        except Exception as e:
+            self.logger.warning(f"LLM 调用失败，使用降级标题: {e}")
+            titles = []
+        if not titles:
+            # 降级：从文案提取首句作为标题
+            titles = self._fallback_titles(script, platform)
         self.logger.info(f"生成 {len(titles)} 个标题")
         return titles
+
+    def _fallback_titles(self, script: str, platform: str) -> list[str]:
+        """LLM 失败时的降级标题：从文案提取首句"""
+        first_sentence = ""
+        for sep in ["。", "！", "？", "\n", "；"]:
+            idx = script.find(sep)
+            if idx > 0:
+                candidate = script[:idx].strip()
+                if len(candidate) >= 5:
+                    first_sentence = candidate
+                    break
+        if not first_sentence:
+            first_sentence = script[:20].strip()
+        # 截断到 25 字以内
+        if len(first_sentence) > 25:
+            first_sentence = first_sentence[:25]
+        return [first_sentence]
 
     def _parse_titles(self, text: str) -> list[str]:
         """解析 LLM 返回的标题（每行一个）"""

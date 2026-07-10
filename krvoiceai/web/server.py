@@ -35,6 +35,19 @@ def _get_app() -> EnlyAI:
     return _app_instance
 
 
+def _add_absolute_paths(job: dict) -> None:
+    """在 job 的 output 中补充绝对路径字段，供前端复制使用"""
+    from ..core.config import PROJECT_ROOT
+    output = job.get("output")
+    if not output:
+        return
+    for key in ("final_video", "video_path", "raw_video_path"):
+        rel = output.get(key)
+        if rel:
+            abs_path = str(Path(PROJECT_ROOT) / rel).replace("\\", "/")
+            output[f"{key}_absolute"] = abs_path
+
+
 # ============ 请求模型 ============
 
 class GenerateRequest(BaseModel):
@@ -274,6 +287,8 @@ def create_app() -> FastAPI:
         job = _get_app().get_job(job_id)
         if not job:
             raise HTTPException(404, "任务不存在")
+        # 补充绝对路径（前端复制路径时需要完整路径）
+        _add_absolute_paths(job)
         return job
 
     @app.delete("/api/jobs/{job_id}")

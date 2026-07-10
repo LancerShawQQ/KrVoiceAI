@@ -669,7 +669,7 @@
                   <span>字幕时间轴 <span class="hint" style="font-size:11px">点击字幕间的 + 插入 B-roll</span></span>
                   <button class="btn btn-sm btn-text" onclick="clearWizardBrollClips()">清空</button>
                 </label>
-                <div class="timeline-container" id="wiz-timeline" style="max-height:280px;overflow-y:auto">
+                <div class="timeline-container" id="wiz-timeline" style="max-height:200px;overflow-y:auto">
                   <div class="timeline-ruler" id="wiz-ruler"></div>
                   <div class="timeline-track">
                     <div class="timeline-track-label">B-roll</div>
@@ -680,6 +680,12 @@
                     <div class="timeline-track-content" id="wiz-subtitle-track"></div>
                   </div>
                 </div>
+              </div>
+
+              <!-- 垂直字幕段落列表（对标商业口播智能体：直观选择插入点） -->
+              <div class="form-group">
+                <label class="form-label">字幕段落列表 <span class="hint" style="font-size:11px">点击段落卡片可在对应时间插入 B-roll</span></label>
+                <div id="wiz-subtitle-list" style="max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:6px"></div>
               </div>
 
               <!-- 模式说明 -->
