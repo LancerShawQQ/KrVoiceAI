@@ -139,25 +139,36 @@ avatar:
 ## 📂 项目结构
 
 ```
-EnlyAI/
-├── krvoiceai/
-│   ├── core/              # 基础设施（config/logger/ffmpeg/settings_manager）
-│   ├── modules/           # 业务模块
-│   │   ├── tts_engine.py      # TTS（含 moss_nano/mimo/gpt_sovits/edge_tts/mock）
-│   │   ├── avatar_engine.py   # Wav2Lip 数字人 + GFPGAN 增强
-│   │   ├── broll_engine.py    # 画中画（cut 全屏替换 / pip 角窗）
-│   │   ├── video_composer.py  # 视频合成（字幕+BGM+画中画）
-│   │   ├── publisher.py       # 多平台发布
-│   │   └── ...
-│   ├── pipeline/          # 编排（orchestrator/state/parallel_runner）
-│   ├── ui/
-│   │   └── gradio_app.py      # 7 标签页 GUI
-│   └── app.py             # 主入口
-├── config/                # default.yaml + user_config.yaml + .env
-├── MOSS-TTS-Nano/         # 声音克隆模型（独立目录）
-├── wav2lip_env/           # Wav2Lip Python 3.8 venv
-└── Wav2Lip/               # Wav2Lip 仓库 + checkpoints
+你的项目目录/
+├── EnlyAI/                    ← GitHub 克隆的仓库（项目根目录）
+│   ├── krvoiceai/
+│   │   ├── core/              # 基础设施（config/logger/ffmpeg/settings_manager）
+│   │   ├── modules/           # 业务模块
+│   │   │   ├── tts_engine.py      # TTS（含 moss_nano/mimo/gpt_sovits/edge_tts/mock）
+│   │   │   ├── avatar_engine.py   # Wav2Lip 数字人 + GFPGAN 增强
+│   │   │   ├── broll_engine.py    # 画中画（cut 全屏替换 / pip 角窗）
+│   │   │   ├── video_composer.py  # 视频合成（字幕+BGM+画中画）
+│   │   │   ├── publisher.py       # 多平台发布
+│   │   │   └── ...
+│   │   ├── pipeline/          # 编排（orchestrator/state/parallel_runner）
+│   │   ├── web/               # Web UI（FastAPI + 现代化前端）
+│   │   ├── ui/
+│   │   │   └── gradio_app.py      # Gradio GUI（备用）
+│   │   └── app.py             # 主入口
+│   ├── config/                # default.yaml + user_config.yaml + .env
+│   ├── scripts/               # 环境安装脚本
+│   │   ├── setup_wav2lip_env.bat  # Wav2Lip 环境一键安装
+│   │   ├── setup_moss_tts.bat     # MOSS-TTS-Nano 模型下载
+│   │   ├── start_wav2lip_server.bat  # Wav2Lip 服务独立启动
+│   │   └── wav2lip_server.py      # Wav2Lip 常驻服务脚本（自动复制到 Wav2Lip/）
+│   ├── 启动.bat                # 一键启动 Web UI（端口 8000）
+│   └── start_gradio.bat       # Gradio UI 备用启动（端口 7860）
+├── MOSS-TTS-Nano/             ← setup_moss_tts.bat 自动创建（声音克隆模型，约 500MB）
+├── wav2lip_env/               ← setup_wav2lip_env.bat 自动创建（Python 3.8 venv）
+└── Wav2Lip/                   ← setup_wav2lip_env.bat 自动克隆（推理代码 + 模型权重）
 ```
+
+> **注意**：`MOSS-TTS-Nano/`、`wav2lip_env/`、`Wav2Lip/` 三个目录位于项目根目录的**上一级**（与 `EnlyAI/` 同级），由安装脚本自动创建。这样设计是为了将大文件/第三方仓库与项目代码分离。
 
 ## ⚙️ 关键配置（config/default.yaml）
 
@@ -173,11 +184,14 @@ tts:
 avatar:
   provider: wav2lip
   wav2lip:
-    env_python: D:/.../wav2lip_env/Scripts/python.exe
+    env_python: ../wav2lip_env/Scripts/python.exe  # 相对于项目根目录
+    checkpoint_path: ../Wav2Lip/checkpoints/wav2lip_gan.pth
   gfpgan:
     enabled: false                 # 默认关闭，避免跳帧；UI 可一键开启
     stride: 1                      # 1=逐帧最稳
 ```
+
+> **路径说明**：配置中的 `../` 前缀表示相对于项目根目录（`EnlyAI/`）的上一级目录，即 `MOSS-TTS-Nano/`、`wav2lip_env/`、`Wav2Lip/` 所在位置。安装脚本会自动在正确位置创建这些目录。
 
 ## 🧪 已验证
 

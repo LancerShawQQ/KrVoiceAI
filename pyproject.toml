@@ -61,10 +61,7 @@ local = [
     "jieba>=0.42",  # 文案查重 SimHash 中文分词
 ]
 # 云端 GPU 服务依赖（在云 GPU 机器上安装，本地无需）
-cloud = [
-    "fastapi>=0.110",
-    "uvicorn>=0.27",
-]
+cloud = []
 
 [project.scripts]
 krvoiceai = "krvoiceai.ui.cli:main"

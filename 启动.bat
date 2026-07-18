@@ -68,8 +68,6 @@ if errorlevel 1 (
         echo   [警告] 完整安装失败，尝试基础安装...
         .venv\Scripts\python.exe -m pip install -e "."
     )
-    REM 额外安装 Web 服务和发布依赖
-    .venv\Scripts\python.exe -m pip install fastapi uvicorn bilibili-api-python >nul 2>&1
     REM playwright 浏览器内核（发布到抖音/快手需要）
     .venv\Scripts\python.exe -m playwright install chromium >nul 2>&1
     echo   依赖安装完成

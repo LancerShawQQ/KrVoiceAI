@@ -46,9 +46,9 @@ tts:
   # MOSS-TTS-Nano 配置（provider=moss_nano 时使用，本地 CPU 声音克隆）
   moss_nano:
     # MOSS-TTS-Nano 仓库根目录（含 onnx_tts_runtime.py）
-    repo_dir: ../../MOSS-TTS-Nano
+    repo_dir: ../MOSS-TTS-Nano
     # ONNX 模型目录（含 MOSS-TTS-Nano-100M-ONNX 和 MOSS-Audio-Tokenizer-Nano-ONNX）
-    model_dir: ../../MOSS-TTS-Nano/models
+    model_dir: ../MOSS-TTS-Nano/models
     # CPU 线程数
     cpu_threads: 4
     # 执行后端：cpu / cuda

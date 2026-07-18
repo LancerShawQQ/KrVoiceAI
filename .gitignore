@@ -47,6 +47,12 @@ models/
 # Wav2Lip 第三方依赖（用户自行克隆，见 README）
 Wav2Lip/
 
+# MOSS-TTS-Nano 第三方依赖（用户自行克隆，见 README）
+MOSS-TTS-Nano/
+
+# Wav2Lip 独立 Python 环境（用户自行创建）
+wav2lip_env/
+
 # 配置中的敏感信息
 config/secrets.yaml
 config/.env

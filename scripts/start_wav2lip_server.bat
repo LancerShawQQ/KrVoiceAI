@@ -17,7 +17,8 @@ REM       按 Ctrl+C 停止服务
 REM ============================================================
 setlocal
 
-set "BASE=D:\cursor_project\koubo"
+REM BASE = 脚本所在目录的上两级（即项目父目录，与 Wav2Lip/wav2lip_env 同级）
+set "BASE=%~dp0\..\.."
 set "WAV2LIP_ROOT=%BASE%\Wav2Lip"
 set "PYTHON=%BASE%\wav2lip_env\Scripts\python.exe"
 

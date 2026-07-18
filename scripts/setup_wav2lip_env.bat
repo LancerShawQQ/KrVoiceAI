@@ -12,7 +12,8 @@ REM   gpu    = 安装 GPU 版 torch（CUDA 11.7，需 NVIDIA 显卡）
 REM ============================================================
 setlocal
 
-set "BASE=D:\cursor_project\koubo"
+REM BASE = 脚本所在目录的上两级（即项目父目录，与 Wav2Lip/wav2lip_env 同级）
+set "BASE=%~dp0\..\.."
 cd /d "%BASE%"
 
 echo ============================================================
