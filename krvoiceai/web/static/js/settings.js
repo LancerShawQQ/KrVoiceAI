@@ -459,6 +459,32 @@ function onAvatarProviderChange() {
       if (!cur) document.getElementById('avatar-api-base').value = preset.default_api_base;
     }
   }
+  // 联动 pose 控件状态：仅 LongCat 引擎支持非 half_body 姿态
+  updatePoseControlState(provider);
+}
+
+// 更新 pose 控件禁用状态（仅 LongCat 引擎消费 pose 字段）
+// provider: 'wav2lip' | 'musetalk' | 'longcat' | 'latentsync' | 'echomimic' | 'mock'
+function updatePoseControlState(provider) {
+  const poseEnabled = provider === 'longcat';
+  document.querySelectorAll('#scene-pose-grid .btn-card').forEach(btn => {
+    if (btn.dataset.value === 'half_body') return;  // half_body 始终可用
+    if (poseEnabled) {
+      btn.disabled = false;
+      btn.title = '仅 LongCat 引擎生效';
+      const label = btn.querySelector('.btn-card-label');
+      if (label) {
+        label.textContent = label.textContent.replace(' (即将支持)', '').replace(' (仅 LongCat 支持)', '');
+      }
+    } else {
+      btn.disabled = true;
+      btn.title = '仅 LongCat 引擎支持';
+      const label = btn.querySelector('.btn-card-label');
+      if (label && !label.textContent.includes('仅 LongCat 支持')) {
+        label.textContent = label.textContent.replace(' (即将支持)', '') + ' (仅 LongCat 支持)';
+      }
+    }
+  });
 }
 
 function onAvatarResPresetChange(val) {
@@ -764,9 +790,8 @@ async function resetVideoSettings() {
 // ========== 场景与效果设置 ==========
 
 async function loadSceneEffectSettings() {
-  if (!_currentSettings) {
-    _currentSettings = await api('/api/settings');
-  }
+  // 强制重新获取最新配置，避免使用缓存的旧数据（修复背景颜色等字段不回写问题）
+  _currentSettings = await api('/api/settings');
   const scene = _currentSettings.scene || {};
   const audio = _currentSettings.audio || {};
   const effects = _currentSettings.effects || {};
@@ -777,17 +802,9 @@ async function loadSceneEffectSettings() {
   // 数字人场景
   if (presets) {
     renderBtnCardGrid('scene-pose-grid', presets.poses, POSE_ICONS);
-    // 非 half_body 姿态标注“即将支持”（当前仅 half_body 可用）
-    document.querySelectorAll('#scene-pose-grid .btn-card').forEach(btn => {
-      if (btn.dataset.value !== 'half_body') {
-        btn.disabled = true;
-        btn.title = '即将支持';
-        const label = btn.querySelector('.btn-card-label');
-        if (label && !label.textContent.includes('即将支持')) {
-          label.textContent = label.textContent + ' (即将支持)';
-        }
-      }
-    });
+    // pose 控件禁用状态：仅 LongCat 引擎支持非 half_body 姿态
+    const _avatarProvider = (document.getElementById('avatar-provider') || {}).value || 'mock';
+    updatePoseControlState(_avatarProvider);
     fillSelect('effect-transition', presets.transitions);
     fillSelect('effect-filter', presets.filters);
     renderBtnCardGrid('audio-emotion-grid', presets.emotions, EMOTION_ICONS);

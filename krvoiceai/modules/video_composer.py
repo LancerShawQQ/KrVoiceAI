@@ -71,6 +71,11 @@ class VideoComposer(BaseModule):
         self.subtitle_shadow_distance = sub_cfg.get("shadow_distance", None)
         self.subtitle_letter_spacing = sub_cfg.get("letter_spacing", 0)
         self.subtitle_line_spacing = sub_cfg.get("line_spacing", 1.2)
+        # 颜色覆盖（apply_template 写入的 primary_color/outline_color/shadow_color）
+        # 优先级：配置 > 预设默认值；为空时传 None 让 subtitle_styler 使用预设
+        self.subtitle_primary_color = sub_cfg.get("primary_color", None) or None
+        self.subtitle_outline_color = sub_cfg.get("outline_color", None) or None
+        self.subtitle_shadow_color = sub_cfg.get("shadow_color", None) or None
         # 兼容旧 asr.subtitle 配置
         if not sub_cfg:
             old = self.config.get("asr.subtitle", {})
@@ -116,6 +121,9 @@ class VideoComposer(BaseModule):
         scene_cfg = self.config.get("scene", {}) or {}
         self.scene_position = scene_cfg.get("position", "center")
         self.scene_scale = float(scene_cfg.get("scale", 1.0))
+        # 背景颜色（用于 pad 填充，替代硬编码 black）
+        # 支持 #RRGGBB 格式，转为 0xRRGGBB 给 ffmpeg
+        self.scene_bg_color = scene_cfg.get("background_color", "#000000")
         self.show_logo = bool(scene_cfg.get("show_logo", False))
         self.logo_position = scene_cfg.get("logo_position", "top_right")
         self.logo_image = scene_cfg.get("logo_image", "")
@@ -370,7 +378,7 @@ class VideoComposer(BaseModule):
         args += [
             "-c:v", self._vcodec,
             "-preset", self._vpreset,
-            *(self._vextra if self._vextra else ["-b:v", self.video_bitrate]),
+            *(self._vextra if self._vextra else ["-crf", "20", "-maxrate", self.video_bitrate, "-bufsize", self.video_bitrate]),
             "-pix_fmt", "yuv420p",
             "-r", str(self.output_fps),
             "-c:a", "aac",
@@ -414,7 +422,10 @@ class VideoComposer(BaseModule):
             filters.append(
                 f"scale={scaled_w}:{scaled_h}:force_original_aspect_ratio=decrease"
             )
-            filters.append(f"pad={w}:{h}:{x_offset}:{y_offset}:black")
+            # pad 颜色：使用 scene.background_color（如模板配置的彩色背景），替代硬编码 black
+            # #RRGGBB → 0xRRGGBB
+            _bg_hex = (self.scene_bg_color or "#000000").lstrip("#")
+            filters.append(f"pad={w}:{h}:{x_offset}:{y_offset}:0x{_bg_hex}")
         else:
             # scale=1.0 时保持原有铺满逻辑
             filters.append(
@@ -489,6 +500,9 @@ class VideoComposer(BaseModule):
                     play_res_x=self.output_resolution[0],
                     play_res_y=self.output_resolution[1],
                     max_chars_per_line=0,  # 0=自动按分辨率和字号计算，长句自动折行
+                    primary_color=self.subtitle_primary_color,
+                    outline_color=self.subtitle_outline_color,
+                    shadow_color=self.subtitle_shadow_color,
                 )
                 word_count = sum(len(s.get("words", [])) for s in segments)
                 self.logger.info(

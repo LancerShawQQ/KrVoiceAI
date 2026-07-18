@@ -32,7 +32,7 @@ templates:
       bgm_track: upbeat_corporate
       emotion: excited
       filter: vivid
-      transition: zoom
+      transition: zoomin
       speech_speed: 1.1
       voice: Ava
       avatar: standard
@@ -155,7 +155,7 @@ templates:
       bgm_track: tech_electronic
       emotion: cheerful
       filter: vivid
-      transition: slide
+      transition: slideup
       speech_speed: 1.0
       voice: Bella
       avatar: standard
@@ -200,7 +200,7 @@ templates:
       bgm_track: upbeat_corporate
       emotion: cheerful
       filter: vivid
-      transition: zoom
+      transition: zoomin
       speech_speed: 1.05
       voice: Bella
       avatar: standard

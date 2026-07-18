@@ -103,6 +103,16 @@ SUBTITLE_STYLE_PRESETS: dict[str, dict[str, Any]] = {
         "bold": True,
         "border_style": 1,
     },
+    "dark_black": {
+        "label": "极简黑",
+        "primary_color": "&H00000000",      # 黑字
+        "outline_color": "&H00FFFFFF",      # 白描边
+        "shadow_color": "&H80000000",
+        "outline": 2,
+        "shadow": 1,
+        "bold": True,
+        "border_style": 1,
+    },
 }
 
 # ===== 动画预设（ASS 标签实现） =====
@@ -211,6 +221,9 @@ def segments_to_ass(
     play_res_x: int = 1080,
     play_res_y: int = 1920,
     max_chars_per_line: int = 0,
+    primary_color: str | None = None,
+    outline_color: str | None = None,
+    shadow_color: str | None = None,
 ) -> str:
     """将分句时间戳列表转为 ASS 字幕字符串
 
@@ -231,6 +244,8 @@ def segments_to_ass(
         play_res_x/y: ASS PlayResX/Y（视频分辨率）
         max_chars_per_line: 每行最大字符数（0=自动按分辨率计算）。
             超过自动折行（插入 \\N），避免长句超出屏幕被裁剪。
+        primary_color/outline_color/shadow_color: 颜色覆盖（&HAABBGGRR 格式），
+            传入则覆盖预设颜色，None 时使用预设默认值。
 
     Returns:
         ASS 格式字幕字符串
@@ -243,6 +258,10 @@ def segments_to_ass(
     final_shadow = shadow_distance if shadow_distance is not None else style["shadow"]
     final_bold = -1 if bold else 0
     final_italic = -1 if italic else 0
+    # 颜色覆盖（优先级：传入参数 > 预设默认值）
+    final_primary_color = primary_color if primary_color else style["primary_color"]
+    final_outline_color = outline_color if outline_color else style["outline_color"]
+    final_shadow_color = shadow_color if shadow_color else style["shadow_color"]
 
     # 位置对齐
     pos_key = f"{position}_{alignment}"
@@ -252,6 +271,10 @@ def segments_to_ass(
     ass_line_spacing = int(font_size * (line_spacing - 1.0))
 
     # 构建 ASS 头部
+    # SecondaryColour = karaoke 未高亮颜色（\kf 从 SecondaryColour 渐变到 PrimaryColour）
+    # 用半透明灰色 &H80808080 作为未高亮色，确保和 PrimaryColour 有明显视觉差异
+    # 否则当 SecondaryColour == PrimaryColour 时逐字高亮效果不可见
+    _final_secondary_color = "&H80808080"
     header = f"""[Script Info]
 Title: EnlyAI Subtitles
 ScriptType: v4.00+
@@ -263,7 +286,7 @@ YCbCr Matrix: TV.709
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,{final_font},{font_size},{style["primary_color"]},&H0000FFFF,{style["outline_color"]},{style["shadow_color"]},{final_bold},{final_italic},0,0,100,100,{letter_spacing},0,{style["border_style"]},{final_outline},{final_shadow},{ass_align},40,40,{margin_v},1
+Style: Default,{final_font},{font_size},{final_primary_color},{_final_secondary_color},{final_outline_color},{final_shadow_color},{final_bold},{final_italic},0,0,100,100,{letter_spacing},0,{style["border_style"]},{final_outline},{final_shadow},{ass_align},40,40,{margin_v},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -315,11 +338,16 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         raw_text = seg["text"].strip().replace("\n", "\\N")
         if karaoke:
             # 逐字高亮：优先用词级时间戳，否则按字数均分
-            # 注意：karaoke 模式下逐字 \\kf 标签已含完整文本，不折行
-            text = _build_karaoke_text(
+            # karaoke 文本也需要折行：长句超过 max_chars_per_line 时插入 \N
+            # \N 在 ASS 中表示硬换行，kf 标签跨行也能正常渲染
+            karaoke_text = _build_karaoke_text(
                 seg["text"], seg["start"], seg["end"],
                 words=seg.get("words"),
             )
+            # 按字符数插入 \N 折行（每 max_chars_per_line 个字插入一次）
+            if max_chars_per_line > 0 and len(seg["text"]) > max_chars_per_line:
+                karaoke_text = _insert_line_breaks_in_karaoke(karaoke_text, max_chars_per_line)
+            text = karaoke_text
         else:
             # 应用自动折行（长句按标点和字数拆成多行，插入 \\N）
             wrapped = _wrap_text(seg["text"].strip())
@@ -335,6 +363,47 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         )
 
     return header + "\n".join(events) + "\n"
+
+
+def _insert_line_breaks_in_karaoke(karaoke_text: str, max_chars_per_line: int) -> str:
+    """在 karaoke 文本中插入 \\N 硬换行，避免长句超出屏幕被截断
+
+    karaoke 文本格式: {\\kf36}一{\\kf36}是{\\kf20}为...
+    每个 {\\kfN}标签后跟一个字符。按字符计数，每 max_chars_per_line 个字插入 \\N。
+
+    优先在标点（，。？！；,?!;）后折行，避免词语被截断。
+    """
+    import re
+    # 匹配 {\\kfN}字 的模式
+    tokens = re.findall(r'\{[^}]*\}.?', karaoke_text)
+    if not tokens:
+        return karaoke_text
+
+    lines: list[str] = []
+    cur_chars = 0
+    cur_tokens: list[str] = []
+
+    for tok in tokens:
+        cur_tokens.append(tok)
+        # 统计 token 中的可见字符（非标签部分）
+        visible = re.sub(r'\{[^}]*\}', '', tok)
+        cur_chars += len(visible)
+
+        # 在标点后或超过最大字数时折行
+        is_punct = bool(visible) and visible[-1] in '，。？！；,?!;'
+        if is_punct and cur_chars >= max_chars_per_line * 0.7:
+            lines.append("".join(cur_tokens))
+            cur_tokens = []
+            cur_chars = 0
+        elif cur_chars >= max_chars_per_line:
+            lines.append("".join(cur_tokens))
+            cur_tokens = []
+            cur_chars = 0
+
+    if cur_tokens:
+        lines.append("".join(cur_tokens))
+
+    return "\\N".join(lines)
 
 
 def _build_karaoke_text(
@@ -357,7 +426,6 @@ def _build_karaoke_text(
     Returns:
         带 \\kf 标签的 ASS 文本
     """
-    # ===== 有词级时间戳：按真实时长逐字高亮（最优精度）=====
     if words:
         # 把所有词的字符展开，每个字用其所属词的 start/end 区间
         # （faster-whisper 中文 word 通常已是单字或短词，直接用词时长）

@@ -174,17 +174,17 @@ SUBTITLE_STYLE_PRESETS = {
     "tech_blue": {
         "label": "科技蓝",
         "preview": "蓝字白边，科技感强",
-        "primary_color": "&H00FFD040",
-        "outline_color": "&H00FFFFFF",
+        "primary_color": "&H00FFCC44",
+        "outline_color": "&H00882200",
         "outline_width": 1,
-        "shadow_color": "&H00000000",
+        "shadow_color": "&H80000000",
         "bold": True,
     },
     "classic_gold": {
         "label": "古风金",
         "preview": "金字黑边，典雅古朴",
-        "primary_color": "&H0000D4FF",
-        "outline_color": "&H00000000",
+        "primary_color": "&H0000D7FF",
+        "outline_color": "&H00002A4D",
         "outline_width": 2,
         "shadow_color": "&H80000000",
         "bold": True,
@@ -192,19 +192,19 @@ SUBTITLE_STYLE_PRESETS = {
     "pop_pink": {
         "label": "卡点粉",
         "preview": "粉字白边，活泼吸睛",
-        "primary_color": "&H00FF80FF",
+        "primary_color": "&H00FF6BB6",
         "outline_color": "&H00FFFFFF",
         "outline_width": 2,
-        "shadow_color": "&H00000000",
+        "shadow_color": "&H80FF6BB6",
         "bold": True,
     },
     "news_red": {
         "label": "新闻红",
         "preview": "红字白边，严肃权威",
-        "primary_color": "&H000000FF",
-        "outline_color": "&H00FFFFFF",
+        "primary_color": "&H00FFFFFF",
+        "outline_color": "&H80000000",
         "outline_width": 2,
-        "shadow_color": "&H80000000",
+        "shadow_color": "&H00000000",
         "bold": True,
     },
     "dark_black": {
@@ -512,11 +512,25 @@ class SettingsManager:
             self.update_section("avatar", avatar_payload)
             applied["avatar"] = {"default_avatar": avatar_id}
 
-        # 5. 数字人场景（位置/缩放/背景）
+        # 5. 数字人场景（姿态/位置/缩放/背景）
         avatar_scene = tpl.get("avatar_scene", {}) or {}
         if avatar_scene:
+            # position 值映射：模板用 bottom_right/bottom_left/top_right/top_left/center，
+            # 但 video_composer 仅识别 left/right/center，需要映射
+            # 与前端 wizardApplyTemplate 的 posMap 保持一致
+            _pos_raw = avatar_scene.get("position", "center")
+            _pos_map = {
+                "bottom_right": "right",
+                "bottom_left": "left",
+                "top_right": "center",
+                "top_left": "center",
+                "center": "center",
+                "left": "left",
+                "right": "right",
+            }
             scene_payload = {
-                "position": avatar_scene.get("position", "center"),
+                "pose": avatar_scene.get("pose", "half_body"),
+                "position": _pos_map.get(_pos_raw, _pos_raw),
                 "scale": float(avatar_scene.get("scale", 1.0)),
                 "background_type": avatar_scene.get("background_type", "transparent"),
                 "background_color": avatar_scene.get("background_color", "#1A1A2E"),

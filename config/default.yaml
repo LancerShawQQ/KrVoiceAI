@@ -274,6 +274,8 @@ audio:
   volume: 100
   # 音高（-12 到 +12 半音）
   pitch: 0
+  # 默认音色（向后兼容字段；TTS 引擎实际读取 tts.default_voice）
+  default_voice: Junhao
   # 情感：neutral / calm / excited / gentle / serious / cheerful
   emotion: neutral
   # 句间停顿（秒）
@@ -380,69 +382,6 @@ bgm_library:
     label: "忧伤钢琴"
     mood: "忧伤"
     duration: 115
-
-# 创作模板系统（对标腾讯智影/vsub，一键应用全套样式）
-templates:
-  news_broadcast:
-    label: "新闻播报"
-    icon: "newspaper"
-    description: "严肃专业，适合资讯/政策/财经内容"
-    subtitle_preset: news_red
-    subtitle_animation: fade
-    bgm_track: news_serious
-    emotion: serious
-    filter: none
-    transition: fade
-  knowledge_popular:
-    label: "知识科普"
-    icon: "book-open"
-    description: "清晰明快，适合科普/教程/解读"
-    subtitle_preset: tech_blue
-    subtitle_animation: slide
-    bgm_track: tech_electronic
-    emotion: cheerful
-    filter: vivid
-    transition: slide
-  emotional_story:
-    label: "情感故事"
-    icon: "heart"
-    description: "温柔细腻，适合情感/故事/治愈"
-    subtitle_preset: minimal_white
-    subtitle_animation: fade
-    bgm_track: warm_acoustic
-    emotion: gentle
-    filter: warm
-    transition: fade
-  product_intro:
-    label: "产品介绍"
-    icon: "shopping-bag"
-    description: "活力吸睛，适合带货/产品/营销"
-    subtitle_preset: pop_pink
-    subtitle_animation: bounce
-    bgm_track: upbeat_corporate
-    emotion: excited
-    filter: vivid
-    transition: zoom
-  chinese_style:
-    label: "古风文化"
-    icon: "landmark"
-    description: "典雅古朴，适合历史/文化/国学"
-    subtitle_preset: classic_gold
-    subtitle_animation: typewriter
-    bgm_track: chinese_guzheng
-    emotion: calm
-    filter: vintage
-    transition: fade
-  tech_review:
-    label: "科技解读"
-    icon: "flask-conical"
-    description: "硬核极客，适合数码/科技/测评"
-    subtitle_preset: dark_black
-    subtitle_animation: zoom
-    bgm_track: tech_electronic
-    emotion: neutral
-    filter: cool
-    transition: swipe
 
 # 视频合成配置
 composer:

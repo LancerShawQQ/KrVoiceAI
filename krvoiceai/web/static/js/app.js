@@ -1544,23 +1544,43 @@ async function wizardApplyTemplate() {
       const tpl = templates[wizardState.selectedTemplate];
       if (tpl) {
         wizardState.selectedSubtitleStyle = tpl.subtitle_preset;
+        // 保存已应用的模板对象，供步骤切换时重新回显（防止 DOM 时序问题导致值丢失）
+        wizardState.appliedTemplate = tpl;
         if (_creativePresets) {
           // 情感
           setBtnCardValue('wiz-emotion-grid', tpl.emotion);
           // 字幕动画
           const animSel = document.getElementById('wiz-sub-anim');
           if (animSel) animSel.value = tpl.subtitle_animation;
-          // 转场
+          // 转场（确保 option 存在再设值，避免 select 静默拒绝）
           const transSel = document.getElementById('wiz-transition');
-          if (transSel) transSel.value = tpl.transition;
+          if (transSel) {
+            if (tpl.transition && !Array.from(transSel.options).some(o => o.value === tpl.transition)) {
+              const opt = document.createElement('option');
+              opt.value = tpl.transition;
+              opt.textContent = tpl.transition;
+              transSel.appendChild(opt);
+            }
+            transSel.value = tpl.transition;
+          }
           // 滤镜
           const filterSel = document.getElementById('wiz-filter');
-          if (filterSel) filterSel.value = tpl.filter;
+          if (filterSel) {
+            if (tpl.filter && !Array.from(filterSel.options).some(o => o.value === tpl.filter)) {
+              const opt = document.createElement('option');
+              opt.value = tpl.filter;
+              opt.textContent = tpl.filter;
+              filterSel.appendChild(opt);
+            }
+            filterSel.value = tpl.filter;
+          }
           // BGM
           const bgmSel = document.getElementById('wiz-bgm-track');
           if (bgmSel) bgmSel.value = tpl.bgm_track;
-          // 高亮字幕样式卡片
-          renderSubtitleStyleGrid('wiz-subtitle-style-grid', _creativePresets.subtitle_styles, tpl.subtitle_preset, (k) => {
+          // 高亮字幕样式卡片（若预设不在列表中，回退到 minimal_white 避免空高亮）
+          const subPresets = _creativePresets.subtitle_styles || {};
+          const subKey = subPresets[tpl.subtitle_preset] ? tpl.subtitle_preset : 'minimal_white';
+          renderSubtitleStyleGrid('wiz-subtitle-style-grid', subPresets, subKey, (k) => {
             wizardState.selectedSubtitleStyle = k;
           });
           // 启用 BGM
@@ -4176,6 +4196,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // 资源中心 / 设置中心 分组导航绑定
   document.getElementById('nav-resources')?.addEventListener('click', () => navigate('avatars'));
   document.getElementById('nav-settings')?.addEventListener('click', () => navigate('settings-models'));
+
+  // 向导步骤6：跳转到发布设置页
+  document.getElementById('wiz-goto-publish-settings')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    navigate('settings-publish');
+  });
 
   // 资源中心 / 设置中心 内部 Tab 点击切换（事件委托）
   document.addEventListener('click', (e) => {

@@ -768,11 +768,21 @@ class AvatarEngine(BaseModule):
                     break
 
         # 构建 prompt（描述性提示词，越详细效果越好）
+        # 根据数字人姿态（scene.pose）动态构造姿态描述词，让 LongCat 生成对应构图
+        pose = self.config.get("scene.pose", "half_body")
+        pose_desc_map = {
+            "standing": "standing full body",
+            "sitting": "sitting half body",
+            "half_body": "half body, waist up",
+            "closeup": "close-up face shot",
+        }
+        pose_desc = pose_desc_map.get(pose, "half body, waist up")
         prompt = (
             f"A person is speaking naturally with natural expressions, "
             f"looking at camera, wearing casual clothes, "
-            f"sitting in a clean environment"
+            f"{pose_desc}, in a clean environment"
         )
+        self.logger.info(f"LongCat prompt (pose={pose}): {prompt}")
 
         client = LongCatAvatarClient(
             server_url=self.longcat_server_url,
