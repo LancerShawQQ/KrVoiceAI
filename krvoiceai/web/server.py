@@ -323,6 +323,40 @@ def create_app() -> FastAPI:
         )
         return {"job_id": job_id, "status": "pending"}
 
+    @app.post("/api/jobs/{job_id}/open-folder")
+    async def open_job_folder(job_id: str):
+        """打开任务工作目录（跨平台）
+
+        供前端"打开目录"按钮调用，方便用户查看 job 的中间产物、日志、最终视频等。
+        路径安全：只允许打开 workspace_data/jobs/{job_id} 目录。
+        """
+        import os
+        import sys
+
+        from ..core.config import PROJECT_ROOT
+
+        # 简单校验 job_id（防止路径穿越，如 ../../etc）
+        if not job_id or "/" in job_id or "\\" in job_id or ".." in job_id:
+            raise HTTPException(400, "非法的 job_id")
+
+        job_dir = Path(PROJECT_ROOT) / "workspace_data" / "jobs" / job_id
+        if not job_dir.exists():
+            raise HTTPException(404, f"任务目录不存在: {job_id}")
+
+        try:
+            if sys.platform == "win32":
+                os.startfile(str(job_dir))
+            elif sys.platform == "darwin":
+                import subprocess
+                subprocess.Popen(["open", str(job_dir)])
+            else:
+                import subprocess
+                subprocess.Popen(["xdg-open", str(job_dir)])
+            return {"success": True, "job_id": job_id, "path": str(job_dir)}
+        except Exception as e:
+            logger.error(f"打开任务目录失败 job_id={job_id}: {e}")
+            raise HTTPException(500, f"打开目录失败: {e}")
+
     @app.get("/api/avatars")
     async def list_avatars():
         return _get_app().list_avatars()

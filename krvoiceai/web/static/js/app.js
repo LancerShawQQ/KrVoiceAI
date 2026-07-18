@@ -218,6 +218,8 @@ const PAGES = [
 ];
 
 function navigate(page) {
+  // 切换页面时停止所有试听音频（避免后台继续播放）
+  stopAllPreviewAudio();
   PAGES.forEach(p => {
     const pageEl = document.getElementById(`page-${p}`);
     if (pageEl) pageEl.classList.remove('active');
@@ -1163,6 +1165,34 @@ function renderWizardVoiceGrid(voices) {
 let _currentPreviewAudio = null;
 let _currentPreviewBtn = null;
 
+// 停止所有试听音频（页面/步骤切换时调用，避免后台继续播放）
+function stopAllPreviewAudio() {
+  // 音色试听
+  if (_currentPreviewAudio && !_currentPreviewAudio.paused) {
+    _currentPreviewAudio.pause();
+    if (_currentPreviewBtn) {
+      _currentPreviewBtn.classList.remove('playing');
+      setBtnIcon(_currentPreviewBtn, 'play', '');
+    }
+    _currentPreviewAudio = null;
+    _currentPreviewBtn = null;
+  }
+  // 文案试听
+  if (_scriptPreviewAudio && !_scriptPreviewAudio.paused) {
+    _scriptPreviewAudio.pause();
+    const ttsBtn = document.getElementById('wiz-preview-tts-btn');
+    if (ttsBtn) setBtnIcon(ttsBtn, 'headphones', '试听');
+    _scriptPreviewAudio = null;
+  }
+  // BGM 试听
+  if (_bgmPreviewAudio && !_bgmPreviewAudio.paused) {
+    _bgmPreviewAudio.pause();
+    const bgmBtn = document.getElementById('wiz-bgm-preview-btn');
+    if (bgmBtn) setBtnIcon(bgmBtn, 'play', '');
+    _bgmPreviewAudio = null;
+  }
+}
+
 async function playVoicePreview(voiceId, btn) {
   // 如果正在播放，停止
   if (_currentPreviewAudio && !_currentPreviewAudio.paused) {
@@ -1179,12 +1209,19 @@ async function playVoicePreview(voiceId, btn) {
     }
   }
   btn.classList.add('playing');
-  setBtnIcon(btn, 'pause', '');
+  // 加载期间显示 loading（避免点击后无反馈）
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+  if (window.lucide) lucide.createIcons();
   _currentPreviewBtn = btn;
   try {
     // 直接请求预生成试听样本（内置音色即时返回，自定义音色回退实时合成）
     const audio = new Audio(`/api/voice/preview/${encodeURIComponent(voiceId)}`);
     _currentPreviewAudio = audio;
+    // 音频加载完成后才切到 pause 图标
+    audio.addEventListener('canplay', () => {
+      setBtnIcon(btn, 'pause', '');
+    });
     audio.addEventListener('ended', () => {
       btn.classList.remove('playing');
       setBtnIcon(btn, 'play', '');
@@ -1205,6 +1242,8 @@ async function playVoicePreview(voiceId, btn) {
     _currentPreviewAudio = null;
     _currentPreviewBtn = null;
     toast(`试听失败: ${e.message}`, 'error');
+  } finally {
+    btn.disabled = false;
   }
 }
 
@@ -1384,6 +1423,8 @@ function renderWizardStepper() {
 
 function wizardGoToStep(step) {
   if (step < 1 || step > 6) return;
+  // 切换步骤前停止所有试听音频
+  stopAllPreviewAudio();
   // 切换步骤前保存当前步骤配置
   wizardSaveCurrentStep();
   wizardState.currentStep = step;
@@ -1404,6 +1445,8 @@ function wizardNext() {
       return;
     }
   }
+  // 切换步骤前停止所有试听音频
+  stopAllPreviewAudio();
   wizardSaveCurrentStep();
   wizardState.currentStep++;
   wizardState.maxVisitedStep = Math.max(wizardState.maxVisitedStep, wizardState.currentStep);
@@ -1999,6 +2042,8 @@ async function wizardExtractScript() {
 
 // 切换 wizard 步骤3 的子标签页（manual/ai/extract）
 function switchWizardScriptTab(tabName) {
+  // 切换子标签时停止所有试听音频
+  stopAllPreviewAudio();
   document.querySelectorAll('[data-wiztab]').forEach(t => {
     t.classList.toggle('active', t.dataset.wiztab === tabName);
   });
@@ -2037,7 +2082,10 @@ async function previewScriptTts() {
   }
   const btn = document.getElementById('wiz-preview-tts-btn');
   btn.disabled = true;
-  setBtnIcon(btn, 'loader', '合成中...');
+  // 使用 .spinner 旋转动画（与其他长时任务一致），避免静态 loader 图标看似卡住
+  btn.innerHTML = '<span class="spinner"></span> 合成中...';
+  if (window.lucide) lucide.createIcons();
+  toast('正在合成语音，请稍候...', 'info');
   try {
     const result = await api('/api/preview/tts', {
       method: 'POST',
@@ -2046,7 +2094,11 @@ async function previewScriptTts() {
     if (result.success && result.audio_path) {
       const audio = new Audio(`/api/files?path=${encodeURIComponent(result.audio_path)}`);
       _scriptPreviewAudio = audio;
-      setBtnIcon(btn, 'pause', '停止');
+      // 音频加载期间也显示 loading（避免音频加载慢时看似卡住）
+      btn.innerHTML = '<span class="spinner"></span> 加载中...';
+      audio.addEventListener('canplay', () => {
+        setBtnIcon(btn, 'pause', '停止');
+      });
       audio.addEventListener('ended', () => {
         _scriptPreviewAudio = null;
         setBtnIcon(btn, 'headphones', '试听');
@@ -2362,6 +2414,7 @@ function _displayWizardResult(result) {
         <button class="btn btn-sm btn-secondary" onclick="copyToClipboard('${videoAbsPath.replace(/\\/g, '\\\\')}')">
           <i data-lucide="copy"></i> 复制路径
         </button>
+        ${_currentJobId ? `<button class="btn btn-sm btn-secondary" onclick="openJobFolder('${_currentJobId}')"><i data-lucide="folder-open"></i> 打开目录</button>` : ''}
       </div>
     `;
     if (window.lucide) lucide.createIcons();
@@ -2706,6 +2759,7 @@ function finishProgressModal(result, hasFailed) {
       <div class="progress-modal-result-actions">
         <div class="video-path-display" style="flex:1;text-align:left;padding:8px 12px;background:var(--bg-elevated);border-radius:8px;font-size:12px;color:var(--text-secondary);font-family:var(--font-mono);word-break:break-all"><i data-lucide="folder" style="width:14px;height:14px;vertical-align:middle;margin-right:4px"></i>${escapeHtml(videoAbsPath)}</div>
         <button class="btn btn-secondary" type="button" onclick="copyToClipboard('${videoAbsPath.replace(/'/g, "\\'")}')"><i data-lucide="copy"></i> 复制路径</button>
+        ${_currentJobId ? `<button class="btn btn-secondary" type="button" onclick="openJobFolder('${_currentJobId}')"><i data-lucide="folder-open"></i> 打开目录</button>` : ''}
         ${rerunBtn}
         <button class="btn btn-secondary" type="button" onclick="closeProgressModal()"><i data-lucide="refresh-cw"></i> 再做一个</button>
       </div>
@@ -2714,6 +2768,7 @@ function finishProgressModal(result, hasFailed) {
     resultEl.innerHTML = `
       <div class="progress-modal-result-title">视频未生成</div>
       <div class="progress-modal-result-actions">
+        ${_currentJobId ? `<button class="btn btn-secondary" type="button" onclick="openJobFolder('${_currentJobId}')"><i data-lucide="folder-open"></i> 打开目录</button>` : ''}
         ${rerunBtn}
         <button class="btn btn-secondary" type="button" onclick="closeProgressModal()"><i data-lucide="refresh-cw"></i> 再做一个</button>
       </div>
@@ -2735,6 +2790,7 @@ function finishProgressModalError(message) {
     <div class="progress-modal-result-title" style="color:var(--color-error)"><i data-lucide="x-circle"></i> ${escapeHtml(message)}</div>
     <div class="progress-modal-result-actions">
       ${rerunBtn}
+      ${_currentJobId ? `<button class="btn btn-secondary" type="button" onclick="openJobFolder('${_currentJobId}')"><i data-lucide="folder-open"></i> 打开目录</button>` : ''}
       <button class="btn btn-secondary" type="button" onclick="navigate('jobs')"><i data-lucide="clipboard-list"></i> 查看任务列表</button>
       <button class="btn btn-secondary" type="button" onclick="closeProgressModal()">关闭</button>
     </div>
@@ -3421,6 +3477,9 @@ async function showJobDetail(jobId) {
             <button class="btn btn-sm btn-secondary" onclick="copyToClipboard('${videoAbsPath.replace(/\\/g, '\\\\')}')">
               <i data-lucide="copy"></i> 复制路径
             </button>
+            <button class="btn btn-sm btn-secondary" onclick="openJobFolder('${job.job_id}')">
+              <i data-lucide="folder-open"></i> 打开目录
+            </button>
           </div>
         </div>
       ` : ''}
@@ -3744,11 +3803,22 @@ async function previewBgm() {
     return;
   }
 
+  // 加载期间显示 loading（避免点击后无反馈）
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> 加载中...';
+    if (window.lucide) lucide.createIcons();
+  }
+
   try {
     const url = `/api/bgm/preview/${trackSel.value}`;
     _bgmPreviewAudio = new Audio(url);
     _bgmPreviewAudio.volume = 0.5;
-    if (btn) setBtnIcon(btn, 'square', '');
+    // 音频加载完成后才切到停止图标
+    _bgmPreviewAudio.addEventListener('canplay', () => {
+      if (btn) setBtnIcon(btn, 'square', '');
+      toast('BGM 试听播放中', 'info');
+    });
     _bgmPreviewAudio.play();
     _bgmPreviewAudio.onended = () => { if (btn) setBtnIcon(btn, 'play', ''); };
     _bgmPreviewAudio.onerror = () => {
@@ -3758,6 +3828,8 @@ async function previewBgm() {
   } catch (e) {
     toast('BGM 试听失败: ' + e.message, 'error');
     if (btn) setBtnIcon(btn, 'play', '');
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }
 
@@ -5536,4 +5608,22 @@ function copyToClipboard(text) {
     document.body.removeChild(ta);
     toast('已复制到剪贴板', 'success');
   });
+}
+
+// 打开任务工作目录（调用后端 /api/jobs/{job_id}/open-folder）
+async function openJobFolder(jobId) {
+  if (!jobId) {
+    toast('缺少任务 ID', 'error');
+    return;
+  }
+  try {
+    const r = await api(`/api/jobs/${jobId}/open-folder`, { method: 'POST' });
+    if (r.success) {
+      toast('已打开任务目录', 'success');
+    } else {
+      toast('打开目录失败', 'error');
+    }
+  } catch (e) {
+    toast(`打开目录失败: ${e.message}`, 'error');
+  }
 }
