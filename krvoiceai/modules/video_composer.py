@@ -116,7 +116,6 @@ class VideoComposer(BaseModule):
         scene_cfg = self.config.get("scene", {}) or {}
         self.scene_position = scene_cfg.get("position", "center")
         self.scene_scale = float(scene_cfg.get("scale", 1.0))
-        self.scene_bg_type = scene_cfg.get("background_type", "transparent")
         self.show_logo = bool(scene_cfg.get("show_logo", False))
         self.logo_position = scene_cfg.get("logo_position", "top_right")
         self.logo_image = scene_cfg.get("logo_image", "")

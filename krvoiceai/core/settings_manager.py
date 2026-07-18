@@ -477,6 +477,20 @@ class SettingsManager:
         self.update_section("audio", audio_payload)
         applied["audio"] = audio_payload
 
+        # 2.1 音色同步写入 tts.default_voice（TTS 引擎实际读取此配置段）
+        # 模板 style.voice 同时写入 audio.default_voice（向后兼容）和 tts.default_voice（生效路径）
+        voice_id = style.get("voice", "")
+        if voice_id:
+            current_tts = self.get_section("tts", mask_sensitive=False)
+            tts_payload = {
+                "default_voice": voice_id,
+            }
+            # 保留用户已有的 provider/api_base/api_key 等设置
+            tts_payload.update(current_tts)
+            tts_payload["default_voice"] = voice_id
+            self.update_section("tts", tts_payload)
+            applied["tts"] = {"default_voice": voice_id}
+
         # 3. 滤镜 + 转场
         effects_payload = {
             "transition": style.get("transition", "fade"),

@@ -37,10 +37,10 @@ templates:
       voice: Ava
       avatar: standard
     avatar_scene:
-      pose: talking
+      pose: half_body
       position: bottom_right
       scale: 0.4
-      background_type: color
+      background_type: solid
       background_color: "#fff0f5"
 
   factory_intro:
@@ -81,10 +81,10 @@ templates:
       voice: Junhao
       avatar: standard
     avatar_scene:
-      pose: talking
+      pose: half_body
       position: bottom_right
       scale: 0.4
-      background_type: color
+      background_type: solid
       background_color: "#f0f4f8"
 
   company_profile:
@@ -123,10 +123,10 @@ templates:
       voice: Junhao
       avatar: standard
     avatar_scene:
-      pose: talking
+      pose: half_body
       position: bottom_right
       scale: 0.4
-      background_type: color
+      background_type: solid
       background_color: "#ffffff"
 
   # ===== 教育/知识场景 =====
@@ -160,10 +160,10 @@ templates:
       voice: Bella
       avatar: standard
     avatar_scene:
-      pose: talking
+      pose: half_body
       position: bottom_right
       scale: 0.4
-      background_type: color
+      background_type: solid
       background_color: "#e8f4ff"
 
   course_intro:
@@ -205,10 +205,10 @@ templates:
       voice: Bella
       avatar: standard
     avatar_scene:
-      pose: talking
+      pose: half_body
       position: bottom_right
       scale: 0.4
-      background_type: color
+      background_type: solid
       background_color: "#fff8e1"
 
   # ===== 资讯/新闻场景 =====
@@ -244,10 +244,10 @@ templates:
       voice: Junhao
       avatar: standard
     avatar_scene:
-      pose: talking
+      pose: half_body
       position: center
       scale: 1.0
-      background_type: color
+      background_type: solid
       background_color: "#1a1a2e"
 
   # ===== 情感/生活场景 =====
@@ -283,10 +283,10 @@ templates:
       voice: Ava
       avatar: standard
     avatar_scene:
-      pose: talking
+      pose: half_body
       position: bottom_right
       scale: 0.4
-      background_type: color
+      background_type: solid
       background_color: "#fdf2f8"
 
   # ===== 科技/测评场景 =====
@@ -326,10 +326,10 @@ templates:
       voice: Nathan
       avatar: standard
     avatar_scene:
-      pose: talking
+      pose: half_body
       position: bottom_right
       scale: 0.4
-      background_type: color
+      background_type: solid
       background_color: "#0f172a"
 
   # ===== 古风/文化场景 =====
@@ -367,10 +367,10 @@ templates:
       voice: Junhao
       avatar: standard
     avatar_scene:
-      pose: talking
+      pose: half_body
       position: bottom_right
       scale: 0.4
-      background_type: color
+      background_type: solid
       background_color: "#2d1810"
 
   # ===== 自我介绍/个人IP场景 =====
@@ -409,8 +409,8 @@ templates:
       voice: Junhao
       avatar: standard
     avatar_scene:
-      pose: talking
+      pose: half_body
       position: bottom_right
       scale: 0.4
-      background_type: color
+      background_type: solid
       background_color: "#ffffff"
