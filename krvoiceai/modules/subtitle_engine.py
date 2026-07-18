@@ -406,33 +406,36 @@ class SubtitleEngine(BaseModule):
             return segments
 
         # ASR 丢失了开头内容，用 TTS 时间戳补全
-        # 只补充 ASR 第一段之前的 TTS 段
+        # 补充 ASR 第一段之前的 TTS 段（含跨界段：start < asr_first_start < end）
         missing_segments: list[dict] = []
         for ts in tts_ts:
+            ts_start = ts.get("start", 0)
             ts_end = ts.get("end", 0)
-            if ts_end <= asr_first_start:
-                # 整段在 ASR 第一段之前，需要补全
-                text = ts["text"]
-                if len(text) > self.max_chars:
-                    # 长句切分
-                    sub_segs = split_text_to_segments(text, self.max_chars)
-                    dur = ts_end - ts.get("start", 0)
-                    for j, sub in enumerate(sub_segs):
-                        s = ts.get("start", 0) + j * dur / len(sub_segs)
-                        e = ts.get("start", 0) + (j + 1) * dur / len(sub_segs)
-                        missing_segments.append({
-                            "text": sub,
-                            "start": round(s, 3),
-                            "end": round(e, 3),
-                        })
-                else:
+            if ts_start >= asr_first_start:
+                # 当前段已在 ASR 第一段之后，停止补全
+                break
+            # 跨界段（ts_start < asr_first_start < ts_end）：截断 end 到 asr_first_start
+            # 避免和 ASR 第一段重叠导致字幕重复
+            effective_end = min(ts_end, asr_first_start)
+            text = ts["text"]
+            if len(text) > self.max_chars:
+                # 长句切分
+                sub_segs = split_text_to_segments(text, self.max_chars)
+                dur = effective_end - ts_start
+                for j, sub in enumerate(sub_segs):
+                    s = ts_start + j * dur / len(sub_segs)
+                    e = ts_start + (j + 1) * dur / len(sub_segs)
                     missing_segments.append({
-                        "text": text,
-                        "start": ts.get("start", 0),
-                        "end": ts_end,
+                        "text": sub,
+                        "start": round(s, 3),
+                        "end": round(e, 3),
                     })
             else:
-                break
+                missing_segments.append({
+                    "text": text,
+                    "start": round(ts_start, 3),
+                    "end": round(effective_end, 3),
+                })
 
         if missing_segments:
             self.logger.info(
