@@ -854,12 +854,35 @@ class FFmpegRunner:
         self.logger.info(
             f"横屏→竖屏: {video.name} -> {tw}x{th} (背景={background})"
         )
+        # to_portrait 内编码器选择：
+        # QSV 与 filter_complex (CPU 滤镜：boxblur/scale/overlay) 组合会产生
+        # CPU↔GPU 数据传输瓶颈，在低性能 GPU 上反而比纯 CPU 软编更慢
+        # （11.5s 视频 + boxblur=20:5 + h264_qsv 编码 30+ 分钟未完成）。
+        # 故 to_portrait 内 QSV 自动降级到 libx264，其他编码器保留原配置。
+        # 同时统一添加码率控制，避免 QSV/NVENC 默认 VBR 无上限导致文件膨胀。
+        if self._vcodec == "h264_qsv":
+            enc_args = ["-c:v", "libx264", "-preset", "fast",
+                        "-crf", "20", "-maxrate", "6M", "-bufsize", "12M"]
+            enc_note = "QSV→libx264 降级（避免 filter_complex 兼容性瓶颈）"
+        elif self._vcodec == "libx264":
+            enc_args = ["-c:v", "libx264", "-preset", self._vpreset,
+                        "-crf", "20", "-maxrate", "6M", "-bufsize", "12M"]
+            enc_note = f"libx264 preset={self._vpreset}"
+        else:
+            # NVENC/AMF 等其他硬件编码器：保留原配置 + 加码率控制
+            enc_args = (["-c:v", self._vcodec, "-preset", self._vpreset]
+                        + self._vextra
+                        + ["-maxrate", "6M", "-bufsize", "12M"])
+            enc_note = f"{self._vcodec} preset={self._vpreset}"
+        self.logger.info(f"to_portrait 编码器: {enc_note}")
+
         if background == "blur":
             # 模糊背景：原视频放大铺满竖屏并模糊 → 上面叠加居中的原比例视频
             # 同时保留音频（若无音频流则用静音轨，避免后续 concat 报错）
+            # boxblur=10:1（原 20:5）：视觉接近，CPU 计算量约 1/5
             vf = (
                 f"[0:v]scale={tw}:{th}:force_original_aspect_ratio=increase,"
-                f"crop={tw}:{th},boxblur=20:5[bg];"
+                f"crop={tw}:{th},boxblur=10:1[bg];"
                 f"[0:v]scale={tw}:{th}:force_original_aspect_ratio=decrease[fg];"
                 f"[bg][fg]overlay=(W-w)/2:(H-h)/2[v]"
             )
@@ -868,7 +891,7 @@ class FFmpegRunner:
                 "-i", str(video),
                 "-filter_complex", vf,
                 "-map", "[v]", "-map", "0:a?",
-                *self._video_encoder_args(), "-pix_fmt", "yuv420p",
+                *enc_args, "-pix_fmt", "yuv420p",
                 "-r", str(fps),
                 "-c:a", "aac", "-b:a", "192k",
                 "-movflags", "+faststart",
@@ -895,7 +918,7 @@ class FFmpegRunner:
                 "-f", "lavfi", "-i", "anullsrc=channel_layout=mono:sample_rate=44100",
                 "-filter_complex", vf,
                 "-map", "[v]", "-map", "1:a",
-                *self._video_encoder_args(), "-pix_fmt", "yuv420p",
+                *enc_args, "-pix_fmt", "yuv420p",
                 "-r", str(fps),
                 "-c:a", "aac", "-b:a", "192k",
                 "-shortest", "-movflags", "+faststart",
@@ -915,7 +938,7 @@ class FFmpegRunner:
                 "-i", str(video),
                 "-filter_complex", vf,
                 "-map", "[v]", "-map", "0:a?",
-                *self._video_encoder_args(), "-pix_fmt", "yuv420p",
+                *enc_args, "-pix_fmt", "yuv420p",
                 "-r", str(fps),
                 "-c:a", "aac", "-b:a", "192k",
                 "-movflags", "+faststart",
@@ -939,7 +962,7 @@ class FFmpegRunner:
                 "-f", "lavfi", "-i", "anullsrc=channel_layout=mono:sample_rate=44100",
                 "-filter_complex", vf,
                 "-map", "[v]", "-map", "1:a",
-                *self._video_encoder_args(), "-pix_fmt", "yuv420p",
+                *enc_args, "-pix_fmt", "yuv420p",
                 "-r", str(fps),
                 "-c:a", "aac", "-b:a", "192k",
                 "-shortest", "-movflags", "+faststart",
@@ -959,7 +982,7 @@ class FFmpegRunner:
                 "-i", str(bg_image),
                 "-filter_complex", vf,
                 "-map", "[v]", "-map", "0:a?",
-                *self._video_encoder_args(), "-pix_fmt", "yuv420p",
+                *enc_args, "-pix_fmt", "yuv420p",
                 "-r", str(fps),
                 "-c:a", "aac", "-b:a", "192k",
                 "-movflags", "+faststart",
@@ -983,7 +1006,7 @@ class FFmpegRunner:
                 "-f", "lavfi", "-i", "anullsrc=channel_layout=mono:sample_rate=44100",
                 "-filter_complex", vf,
                 "-map", "[v]", "-map", "2:a",
-                *self._video_encoder_args(), "-pix_fmt", "yuv420p",
+                *enc_args, "-pix_fmt", "yuv420p",
                 "-r", str(fps),
                 "-c:a", "aac", "-b:a", "192k",
                 "-shortest", "-movflags", "+faststart",
@@ -1000,7 +1023,7 @@ class FFmpegRunner:
                 "-i", str(video),
                 "-vf", vf,
                 "-map", "0:v", "-map", "0:a?",
-                *self._video_encoder_args(), "-pix_fmt", "yuv420p",
+                *enc_args, "-pix_fmt", "yuv420p",
                 "-c:a", "aac", "-b:a", "192k",
                 "-movflags", "+faststart",
                 str(output),
