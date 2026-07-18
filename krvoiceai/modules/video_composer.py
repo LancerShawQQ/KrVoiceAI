@@ -378,7 +378,12 @@ class VideoComposer(BaseModule):
         args += [
             "-c:v", self._vcodec,
             "-preset", self._vpreset,
-            *(self._vextra if self._vextra else ["-crf", "20", "-maxrate", self.video_bitrate, "-bufsize", self.video_bitrate]),
+            *self._vextra,
+            # 码率控制：无论硬编（QSV/NVENC）还是软编（libx264）都加 maxrate 限制
+            # 修复 QSV 模式下无码率控制导致 final_video bitrate 仅 575kbps 的问题
+            *(["-crf", "20"] if self._vcodec == "libx264" else []),
+            "-maxrate", self.video_bitrate,
+            "-bufsize", self.video_bitrate,
             "-pix_fmt", "yuv420p",
             "-r", str(self.output_fps),
             "-c:a", "aac",
