@@ -1268,21 +1268,62 @@ async function _pollBilibiliLogin() {
 // 浏览器自动登录（抖音/快手/视频号）
 async function loginBrowserPlatform(platform) {
   const platformName = PLATFORM_INFO[platform]?.name || platform;
-  toast(`正在打开浏览器登录${platformName}，请在弹出窗口中完成登录...`, 'info');
+  // 关键提示：告知用户在弹出的浏览器中登录，最长等待5分钟
+  toast(`正在打开浏览器登录${platformName}...请在弹出的浏览器窗口中完成登录`, 'info', 8000);
+  // 显示进度提示
+  const cardEl = document.getElementById(`card-${platform}`);
+  const badgeEl = document.getElementById(`status-${platform}`);
+  if (badgeEl) {
+    badgeEl.className = 'badge badge-info';
+    badgeEl.textContent = '⏳ 等待登录...';
+  }
+  if (cardEl) {
+    const loginBtn = cardEl.querySelector('button.btn-primary');
+    if (loginBtn) {
+      loginBtn.disabled = true;
+      loginBtn.innerHTML = '<span class="spinner"></span> 等待登录...';
+    }
+  }
+
   try {
     const result = await api(`/api/publish/login/${platform}`, { method: 'POST' });
     if (result.success || result.status === 'success') {
-      toast(`${platformName}登录成功！Cookie已自动保存`, 'success');
+      toast(`${platformName}登录成功！已保存 ${result.cookie_count || ''} 个Cookie`, 'success', 5000);
       // 清空该平台的登录态缓存，触发重新校验
       delete _platformLoginStatus[platform];
       loadCookieManager();
       loadAccountsStatus();  // 会自动重新校验登录态
       loadPublishPlatformsGrid();
     } else {
-      toast(`${platformName}登录未完成: ${result.message || result.error || '可能超时或用户取消'}`, 'error');
+      toast(`${platformName}登录未完成: ${result.message || result.error || '可能超时或用户取消'}`, 'error', 8000);
+      // 恢复按钮状态
+      if (cardEl) {
+        const loginBtn = cardEl.querySelector('button.btn-primary');
+        if (loginBtn) {
+          loginBtn.disabled = false;
+          loginBtn.innerHTML = '重新登录';
+        }
+      }
+      // 恢复状态徽章
+      if (badgeEl) {
+        badgeEl.className = 'badge badge-error';
+        badgeEl.textContent = '⚠ 登录失败';
+      }
     }
   } catch (e) {
-    toast(`${platformName}浏览器登录失败: ${e.message}`, 'error');
+    toast(`${platformName}浏览器登录失败: ${e.message}`, 'error', 8000);
+    // 恢复按钮状态
+    if (cardEl) {
+      const loginBtn = cardEl.querySelector('button.btn-primary');
+      if (loginBtn) {
+        loginBtn.disabled = false;
+        loginBtn.innerHTML = '重新登录';
+      }
+    }
+    if (badgeEl) {
+      badgeEl.className = 'badge badge-error';
+      badgeEl.textContent = '⚠ 登录失败';
+    }
   }
 }
 

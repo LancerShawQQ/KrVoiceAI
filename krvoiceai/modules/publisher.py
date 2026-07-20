@@ -727,38 +727,71 @@ class Publisher(BaseModule):
             return {"success": False, "error": "playwright 未安装"}
 
         # 各平台登录页 URL 和登录成功判断条件
+        # 关键改进：登录成功判断改为"反向判断"——检查登录表单是否消失
+        # 而不是检查特定 success_elements 是否出现（不同平台 SPA 渲染差异大）
         platform_cfg = {
             "douyin": {
                 "login_url": "https://creator.douyin.com/creator-micro/home",
                 "success_url_contains": "creator.douyin.com",
-                # 登录成功后才有的元素：上传入口或创作者后台元素
-                "success_elements": [
-                    "input[type=file]",                  # 上传 input
-                    "[class*='upload']",                 # 上传区域
-                    "a[href*='upload']",                 # 上传链接
-                    "[data-e2e*='upload']",              # 抖音 data-e2e 属性
+                # 登录表单元素（登录成功后会消失）
+                "login_form_selectors": [
+                    "input[type='tel']",                # 手机号输入框
+                    "input[type='password']",           # 密码输入框
+                    "input[name*='phone']",
+                    "input[name*='login']",
+                    "input[placeholder*='手机']",
+                    "input[placeholder*='密码']",
+                    "[class*='qrcode-login']",
+                    "[class*='login-form']",
+                    "[class*='login_comp']",
                 ],
-                # Cookie 域名过滤：保存所有相关域
+                # 额外确认元素（登录成功后才有的，用于二次确认）
+                "success_confirm_selectors": [
+                    "[class*='avatar']",
+                    "[class*='userInfo']",
+                    "[class*='user-info']",
+                    "[class*='sidebar']",
+                    "[class*='menu-item']",
+                    ".ant-avatar",
+                    ".ant-layout-sider",
+                    "input[type=file]",
+                    "[class*='upload']",
+                ],
                 "cookie_domains": [".douyin.com", ".iesdouyin.com", ".amemv.com"],
                 "name": "抖音创作者",
             },
             "kuaishou": {
                 "login_url": "https://cp.kuaishou.com/article/publish/video",
                 "success_url_contains": "cp.kuaishou.com",
-                "success_elements": [
-                    "input[type=file]",                  # 上传 input（真正登录后才有）
-                    "div.sketch.upload-video input",     # 快手上传区域内的 input
-                    "textarea[placeholder*='描述']",     # 描述输入框
+                "login_form_selectors": [
+                    "input[type='tel']",
+                    "input[type='password']",
+                    "input[name*='phone']",
+                    "input[placeholder*='手机']",
+                    "input[placeholder*='密码']",
+                    "[class*='login-form']",
+                    "[class*='qrcode']",
                 ],
-                # 注意：不能只靠 URL 判断，因为未登录时 URL 也是 cp.kuaishou.com
-                # 必须检查页面是否有上传 input 或 "去上传" 链接不指向 passport
+                "success_confirm_selectors": [
+                    "input[type=file]",
+                    "textarea[placeholder*='描述']",
+                    "[class*='upload']:not([class*='uploaded'])",
+                ],
+                # 快手特殊：需要检查"去上传"链接是否指向 passport
+                "check_upload_link": True,
                 "cookie_domains": [".kuaishou.com", ".yximgs.com"],
                 "name": "快手创作者",
             },
             "wechat_video": {
                 "login_url": "https://channels.weixin.qq.com/platform/post/create",
                 "success_url_contains": "channels.weixin.qq.com",
-                "success_elements": [
+                "login_form_selectors": [
+                    "input[type='tel']",
+                    "input[type='password']",
+                    "[class*='qrcode']",
+                    "[class*='login']",
+                ],
+                "success_confirm_selectors": [
                     "input[type=file]",
                     "[class*='upload']",
                     "textarea[placeholder*='描述']",
@@ -781,63 +814,109 @@ class Publisher(BaseModule):
             page.goto(cfg["login_url"], wait_until="domcontentloaded")
 
             # 等待用户登录成功（最长等待5分钟）
-            # 判断条件：URL 包含成功标识 且 页面含登录后才有的元素（如 input[type=file]）
+            # 判断逻辑（反向判断）：
+            # 1. URL 在创作者后台 且 不在 login/passport 页
+            # 2. 页面没有登录表单元素（input[type='tel'] 等）
+            # 3. （可选）有登录成功后才有的元素（用于二次确认）
             import time
             max_wait = 300  # 5分钟
             start = time.time()
             logged_in = False
+            last_log_time = start
+            log_interval = 15  # 每15秒输出一次状态日志
 
             self.logger.info(f"请在弹出的浏览器中登录{cfg['name']}账号...")
-            last_log_time = start
+            self.logger.info(f"判断逻辑：URL在创作者后台 + 无登录表单元素 + 有登录后才有的元素")
+
             while time.time() - start < max_wait:
                 try:
                     current_url = page.url
+                    url_lower = current_url.lower()
+
                     # 第1层判断：URL 不在登录页
                     url_ok = (
                         cfg["success_url_contains"] in current_url
-                        and "login" not in current_url.lower()
-                        and "passport" not in current_url.lower()
+                        and "login" not in url_lower
+                        and "passport" not in url_lower
                     )
+
                     if url_ok:
-                        # 第2层判断：页面有登录成功后才有的元素（如 input[type=file]）
-                        # 这是关键修复：仅 URL 不够，必须确认页面真正渲染了上传表单
-                        time.sleep(3)  # 等待 SPA 渲染
-                        has_success_element = False
-                        for sel in cfg["success_elements"]:
+                        # 等待 SPA 渲染
+                        time.sleep(3)
+
+                        # 第2层判断：检查登录表单元素是否消失（反向判断）
+                        login_form_count = 0
+                        for sel in cfg["login_form_selectors"]:
                             try:
-                                if page.locator(sel).count() > 0:
-                                    has_success_element = True
-                                    self.logger.info(f"检测到登录成功元素: {sel}")
-                                    break
+                                count = page.locator(sel).count()
+                                if count > 0:
+                                    login_form_count += count
                             except Exception:
                                 pass
 
-                        if has_success_element:
-                            # 第3层判断：再等2秒确认稳定
-                            time.sleep(2)
+                        if login_form_count == 0:
+                            # 第3层判断：检查是否有登录成功后才有的元素（二次确认）
+                            # 注意：确认元素是辅助判断，不是必要条件
+                            # 只要 URL 在创作者后台 + 无登录表单，就认为登录成功
+                            has_confirm = False
+                            confirm_selector_found = ""
+                            for sel in cfg["success_confirm_selectors"]:
+                                try:
+                                    if page.locator(sel).count() > 0:
+                                        has_confirm = True
+                                        confirm_selector_found = sel
+                                        break
+                                except Exception:
+                                    pass
+
+                            if has_confirm:
+                                self.logger.info(f"检测到登录成功确认元素: {confirm_selector_found}")
+                            else:
+                                self.logger.info(f"未检测到确认元素，但URL和表单判断已通过")
+
+                            # 快手特殊检查：确认"去上传"链接不指向 passport
+                            if cfg.get("check_upload_link"):
+                                try:
+                                    upload_link = page.locator("a.upload, a:has-text('去上传')").first
+                                    if upload_link.count() > 0:
+                                        href = upload_link.get_attribute("href") or ""
+                                        if "passport" in href.lower() or "login" in href.lower():
+                                            # "去上传"指向登录页，说明未真正登录
+                                            if time.time() - last_log_time > log_interval:
+                                                self.logger.info(f"URL和表单判断通过，但'去上传'链接指向 passport，继续等待...")
+                                                last_log_time = time.time()
+                                            continue
+                                        else:
+                                            self.logger.info(f"快手'去上传'链接正常: {href}")
+                                except Exception:
+                                    pass
+
+                            # 所有判断通过，登录成功
+                            # 关键改进：只要 URL 在创作者后台 + 无登录表单 + （快手特有）去上传链接正常
+                            # 就认为登录成功，不强制要求有确认元素
+                            time.sleep(2)  # 再等2秒确认稳定
                             logged_in = True
+                            self.logger.info(f"登录成功判断通过：URL={url_ok}, 无登录表单({login_form_count}), 有确认元素={has_confirm}")
                             break
                         else:
-                            # URL 对但没有上传元素，可能 SPA 还在渲染或登录态不完整
-                            # 检查是否有"去上传"链接指向 passport（快手特有）
-                            try:
-                                upload_link = page.locator("a.upload, a:has-text('去上传')").first
-                                if upload_link.count() > 0:
-                                    href = upload_link.get_attribute("href") or ""
-                                    if "passport" in href.lower() or "login" in href.lower():
-                                        # "去上传"指向登录页，说明未真正登录
-                                        if time.time() - last_log_time > 10:
-                                            self.logger.info(f"URL 在 {cfg['name']} 但未真正登录（去上传链接指向 passport），继续等待...")
-                                            last_log_time = time.time()
-                            except Exception:
-                                pass
-                except Exception:
-                    pass
+                            # 有登录表单，说明还在登录页
+                            if time.time() - last_log_time > log_interval:
+                                self.logger.info(f"检测到登录表单元素({login_form_count}个)，等待用户完成登录...")
+                                last_log_time = time.time()
+                    else:
+                        # URL 还在登录页
+                        if time.time() - last_log_time > log_interval:
+                            self.logger.info(f"URL 仍在登录页({current_url})，等待用户登录...")
+                            last_log_time = time.time()
+                except Exception as e:
+                    if time.time() - last_log_time > log_interval:
+                        self.logger.warning(f"登录检测异常: {e}")
+                        last_log_time = time.time()
                 time.sleep(2)
 
             if not logged_in:
                 browser.close()
-                return {"success": False, "error": f"登录超时（5分钟未检测到{cfg['name']}登录成功，请确保登录后能看到上传页面）"}
+                return {"success": False, "error": f"登录超时（5分钟未检测到{cfg['name']}登录成功，请确保登录后页面显示创作者后台而非登录表单）"}
 
             # 登录成功，提取所有 Cookie
             # 关键修复：保存所有相关域的 Cookie，不仅限于主域
