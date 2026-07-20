@@ -374,8 +374,8 @@ class Publisher(BaseModule):
             context.add_cookies(playwright_cookies)
             page = context.new_page()
             page.goto(cfg["publish_url"], wait_until="domcontentloaded")
-            # 给Cookie加载留时间
-            time.sleep(3)
+            # SPA 需要充分渲染（3秒不够，改为 8 秒）
+            time.sleep(8)
             # 如果跳到登录页说明Cookie失效
             if "login" in page.url.lower() or "passport" in page.url.lower():
                 browser.close()
@@ -385,7 +385,33 @@ class Publisher(BaseModule):
 
             try:
                 # 1. 上传视频文件
+                # 关键修复：等待上传 input 出现（最长 30 秒），而不是直接 set_input_files
+                # 因为 SPA 可能需要更长时间渲染上传组件
                 upload_input = page.locator(cfg["upload_input"]).first
+                try:
+                    upload_input.wait_for(state="attached", timeout=30000)
+                except Exception:
+                    # 如果等待 attached 失败，尝试点击"去上传"链接（快手特有）
+                    try:
+                        upload_link = page.locator("a.upload, a:has-text('去上传'), div.sketch.upload-video").first
+                        if upload_link.count() > 0:
+                            href = upload_link.get_attribute("href") or ""
+                            if "passport" in href.lower() or "login" in href.lower():
+                                browser.close()
+                                target.status = "failed"
+                                target.error = f"{cfg['name']} Cookie已失效（点击上传跳转到登录页），请重新登录"
+                                return {"status": "failed", "error": target.error}
+                            # href 不指向登录页，点击它
+                            upload_link.click(timeout=5000)
+                            time.sleep(3)
+                            upload_input = page.locator(cfg["upload_input"]).first
+                            upload_input.wait_for(state="attached", timeout=15000)
+                    except Exception as e:
+                        browser.close()
+                        target.status = "failed"
+                        target.error = f"{cfg['name']}未找到上传入口（input[type=file]），页面可能未渲染或Cookie失效: {e}"
+                        return {"status": "failed", "error": target.error}
+
                 upload_input.set_input_files(str(target.video_path))
                 self.logger.info(f"已选择视频文件，等待上传...")
                 # 等待上传完成（最长5分钟，看进度条消失或出现发布按钮可用）
@@ -705,19 +731,39 @@ class Publisher(BaseModule):
             "douyin": {
                 "login_url": "https://creator.douyin.com/creator-micro/home",
                 "success_url_contains": "creator.douyin.com",
-                "cookie_domain": ".douyin.com",
+                # 登录成功后才有的元素：上传入口或创作者后台元素
+                "success_elements": [
+                    "input[type=file]",                  # 上传 input
+                    "[class*='upload']",                 # 上传区域
+                    "a[href*='upload']",                 # 上传链接
+                    "[data-e2e*='upload']",              # 抖音 data-e2e 属性
+                ],
+                # Cookie 域名过滤：保存所有相关域
+                "cookie_domains": [".douyin.com", ".iesdouyin.com", ".amemv.com"],
                 "name": "抖音创作者",
             },
             "kuaishou": {
                 "login_url": "https://cp.kuaishou.com/article/publish/video",
                 "success_url_contains": "cp.kuaishou.com",
-                "cookie_domain": ".kuaishou.com",
+                "success_elements": [
+                    "input[type=file]",                  # 上传 input（真正登录后才有）
+                    "div.sketch.upload-video input",     # 快手上传区域内的 input
+                    "textarea[placeholder*='描述']",     # 描述输入框
+                ],
+                # 注意：不能只靠 URL 判断，因为未登录时 URL 也是 cp.kuaishou.com
+                # 必须检查页面是否有上传 input 或 "去上传" 链接不指向 passport
+                "cookie_domains": [".kuaishou.com", ".yximgs.com"],
                 "name": "快手创作者",
             },
             "wechat_video": {
                 "login_url": "https://channels.weixin.qq.com/platform/post/create",
                 "success_url_contains": "channels.weixin.qq.com",
-                "cookie_domain": ".qq.com",
+                "success_elements": [
+                    "input[type=file]",
+                    "[class*='upload']",
+                    "textarea[placeholder*='描述']",
+                ],
+                "cookie_domains": [".qq.com"],
                 "name": "微信视频号",
             },
         }
@@ -735,49 +781,85 @@ class Publisher(BaseModule):
             page.goto(cfg["login_url"], wait_until="domcontentloaded")
 
             # 等待用户登录成功（最长等待5分钟）
-            # 判断条件：URL 包含成功标识 且 页面含登录后才有的元素
+            # 判断条件：URL 包含成功标识 且 页面含登录后才有的元素（如 input[type=file]）
             import time
             max_wait = 300  # 5分钟
             start = time.time()
             logged_in = False
 
             self.logger.info(f"请在弹出的浏览器中登录{cfg['name']}账号...")
+            last_log_time = start
             while time.time() - start < max_wait:
                 try:
                     current_url = page.url
-                    # 登录成功的判断：URL跳转到创作者后台 且 不在登录页
-                    if (cfg["success_url_contains"] in current_url
+                    # 第1层判断：URL 不在登录页
+                    url_ok = (
+                        cfg["success_url_contains"] in current_url
                         and "login" not in current_url.lower()
-                        and "passport" not in current_url.lower()):
-                        # 二次确认：等待2秒看是否稳定
-                        time.sleep(2)
-                        if cfg["success_url_contains"] in page.url:
+                        and "passport" not in current_url.lower()
+                    )
+                    if url_ok:
+                        # 第2层判断：页面有登录成功后才有的元素（如 input[type=file]）
+                        # 这是关键修复：仅 URL 不够，必须确认页面真正渲染了上传表单
+                        time.sleep(3)  # 等待 SPA 渲染
+                        has_success_element = False
+                        for sel in cfg["success_elements"]:
+                            try:
+                                if page.locator(sel).count() > 0:
+                                    has_success_element = True
+                                    self.logger.info(f"检测到登录成功元素: {sel}")
+                                    break
+                            except Exception:
+                                pass
+
+                        if has_success_element:
+                            # 第3层判断：再等2秒确认稳定
+                            time.sleep(2)
                             logged_in = True
                             break
+                        else:
+                            # URL 对但没有上传元素，可能 SPA 还在渲染或登录态不完整
+                            # 检查是否有"去上传"链接指向 passport（快手特有）
+                            try:
+                                upload_link = page.locator("a.upload, a:has-text('去上传')").first
+                                if upload_link.count() > 0:
+                                    href = upload_link.get_attribute("href") or ""
+                                    if "passport" in href.lower() or "login" in href.lower():
+                                        # "去上传"指向登录页，说明未真正登录
+                                        if time.time() - last_log_time > 10:
+                                            self.logger.info(f"URL 在 {cfg['name']} 但未真正登录（去上传链接指向 passport），继续等待...")
+                                            last_log_time = time.time()
+                            except Exception:
+                                pass
                 except Exception:
                     pass
                 time.sleep(2)
 
             if not logged_in:
                 browser.close()
-                return {"success": False, "error": f"登录超时（5分钟未检测到{cfg['name']}登录成功）"}
+                return {"success": False, "error": f"登录超时（5分钟未检测到{cfg['name']}登录成功，请确保登录后能看到上传页面）"}
 
-            # 登录成功，提取所有Cookie
+            # 登录成功，提取所有 Cookie
+            # 关键修复：保存所有相关域的 Cookie，不仅限于主域
             cookies = context.cookies()
             browser.close()
 
-            # 转为 {name: value} 字典保存
+            # 转为 {name: value} 字典保存（匹配任一相关域名）
+            cookie_domains = cfg["cookie_domains"]
             cookie_dict = {}
             for c in cookies:
-                if cfg["cookie_domain"] in c.get("domain", ""):
+                domain = c.get("domain", "")
+                # 匹配域名：domain 可能是 .douyin.com 或 douyin.com
+                if any(domain == d or domain.endswith(d) or domain == d.lstrip(".")
+                       for d in cookie_domains):
                     cookie_dict[c["name"]] = c["value"]
 
             if not cookie_dict:
-                return {"success": False, "error": "登录成功但未提取到Cookie"}
+                return {"success": False, "error": "登录成功但未提取到Cookie（请重试）"}
 
             # 保存
             self.save_cookie(platform, cookie_dict)
-            self.logger.info(f"{cfg['name']}登录成功，已保存 {len(cookie_dict)} 个Cookie")
+            self.logger.info(f"{cfg['name']}登录成功，已保存 {len(cookie_dict)} 个Cookie（域名: {cookie_domains}）")
             return {
                 "success": True,
                 "cookie_count": len(cookie_dict),
