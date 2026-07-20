@@ -6,6 +6,7 @@
 // ========== 全局状态 ==========
 let _presets = null;  // provider 预设缓存
 let _currentSettings = null;  // 当前完整配置（掩码后）
+let _platformLoginStatus = {};  // 平台登录态校验结果缓存 {platform: {logged_in, ...}}
 
 // ========== 工具函数 ==========
 
@@ -1040,20 +1041,24 @@ async function loadAccountsStatus() {
   try {
     const result = await api('/api/publish/cookies');
     const cookies = result.cookies || {};
+    // 第1步：快速渲染 Cookie 文件状态（已配置显示"校验中..."，未配置显示"未登录"）
     gridEl.innerHTML = Object.entries(PLATFORM_INFO).map(([key, info]) => {
       const c = cookies[key] || {};
       const configured = c.configured;
+      const loginBtnLabel = configured ? '重新登录' : (key === 'bilibili' ? '扫码登录' : '浏览器登录');
       const loginBtn = key === 'bilibili'
-        ? `<button class="btn btn-sm btn-primary" onclick="loginBilibiliQrcode()" id="bilibili-login-btn">${configured ? '重新登录' : '扫码登录'}</button>`
-        : `<button class="btn btn-sm btn-primary" onclick="loginBrowserPlatform('${key}')">${configured ? '重新登录' : '浏览器登录'}</button>`;
+        ? `<button class="btn btn-sm btn-primary" onclick="loginBilibiliQrcode()" id="bilibili-login-btn">${loginBtnLabel}</button>`
+        : `<button class="btn btn-sm btn-primary" onclick="loginBrowserPlatform('${key}')">${loginBtnLabel}</button>`;
+      // 已配置的先显示"校验中..."，未配置的显示"未登录"
       const statusBadge = configured
-        ? '<span class="badge badge-success">✓ 已登录</span>'
+        ? '<span class="badge badge-info" id="status-' + key + '">⏳ 校验中...</span>'
         : '<span class="badge badge-muted">✗ 未登录</span>';
       const deleteBtn = configured
         ? `<button class="btn btn-sm btn-secondary" onclick="deleteCookie('${key}')" title="退出登录">退出</button>`
         : '';
+      const cardBorder = configured ? 'var(--border-default)' : 'var(--border-default)';
       return `
-        <div class="cookie-mgr-card" data-platform="${key}" style="padding:14px;border:1px solid var(--border-default);border-radius:var(--radius-md);background:var(--bg-elevated)">
+        <div class="cookie-mgr-card" data-platform="${key}" id="card-${key}" style="padding:14px;border:1px solid ${cardBorder};border-radius:var(--radius-md);background:var(--bg-elevated)">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
             <span style="font-size:24px">${info.icon}</span>
             <div>
@@ -1068,6 +1073,71 @@ async function loadAccountsStatus() {
         </div>
       `;
     }).join('');
+
+    // 第2步：对已配置平台，并行调用 login_check API 做真实校验
+    const configuredPlatforms = Object.entries(PLATFORM_INFO)
+      .filter(([key]) => cookies[key]?.configured)
+      .map(([key]) => key);
+
+    if (configuredPlatforms.length === 0) return;
+
+    // 并行校验所有已配置平台
+    const checkPromises = configuredPlatforms.map(async (platform) => {
+      try {
+        const result = await api('/api/publish/test/login_check', {
+          method: 'POST',
+          body: { platform },
+        });
+        return { platform, result };
+      } catch (e) {
+        return { platform, result: { success: false, error: e.message } };
+      }
+    });
+
+    // 逐个更新状态徽章（哪个先返回就先更新）
+    checkPromises.forEach(async (promise) => {
+      const { platform, result } = await promise;
+      const badgeEl = document.getElementById(`status-${platform}`);
+      const cardEl = document.getElementById(`card-${platform}`);
+      // 更新全局登录态缓存
+      _platformLoginStatus[platform] = result;
+
+      if (!badgeEl || !cardEl) {
+        // 账号管理区可能未渲染，但仍然刷新一键发布区
+        loadPublishPlatformsGrid();
+        return;
+      }
+
+      if (!result.success) {
+        // 校验请求失败
+        badgeEl.className = 'badge badge-warning';
+        badgeEl.textContent = '⚠ 校验失败';
+        cardEl.style.borderColor = '#f57c00';
+      } else if (result.logged_in) {
+        // 登录态有效
+        badgeEl.className = 'badge badge-success';
+        badgeEl.textContent = '✓ 已登录';
+        cardEl.style.borderColor = '#2e7d32';
+      } else {
+        // 登录态失效（关键修复：显示红色警示，指导用户重新登录）
+        badgeEl.className = 'badge badge-error';
+        const reason = result.has_login_form ? 'Cookie已失效'
+          : (result.upload_link_to_login ? '登录态已过期'
+          : '未真正登录');
+        badgeEl.textContent = '⚠ ' + reason;
+        cardEl.style.borderColor = '#c62828';
+        cardEl.style.background = '#ffebee';
+        // 高亮"重新登录"按钮
+        const loginBtn = cardEl.querySelector('button.btn-primary');
+        if (loginBtn) {
+          loginBtn.style.background = '#c62828';
+          loginBtn.style.border = '1px solid #c62828';
+          loginBtn.textContent = '重新登录';
+        }
+      }
+      // 每个平台校验完成后，刷新一键发布区的平台多选
+      loadPublishPlatformsGrid();
+    });
   } catch (e) {
     gridEl.innerHTML = `<div class="hint">加载失败: ${e.message}</div>`;
   }
@@ -1169,6 +1239,8 @@ async function _pollBilibiliLogin() {
       if (btn) { btn.disabled = false; btn.innerHTML = '扫码登录'; }
       if (qrcodeArea) qrcodeArea.innerHTML = '<div style="color:var(--color-success);font-size:13px;padding:8px">✓ 登录成功，Cookie已自动保存</div>';
       toast('B站登录成功！Cookie已自动保存', 'success');
+      // 清空该平台的登录态缓存，触发重新校验
+      delete _platformLoginStatus['bilibili'];
       loadCookieManager();
       loadAccountsStatus();
       loadPublishPlatformsGrid();
@@ -1201,8 +1273,10 @@ async function loginBrowserPlatform(platform) {
     const result = await api(`/api/publish/login/${platform}`, { method: 'POST' });
     if (result.success || result.status === 'success') {
       toast(`${platformName}登录成功！Cookie已自动保存`, 'success');
+      // 清空该平台的登录态缓存，触发重新校验
+      delete _platformLoginStatus[platform];
       loadCookieManager();
-      loadAccountsStatus();
+      loadAccountsStatus();  // 会自动重新校验登录态
       loadPublishPlatformsGrid();
     } else {
       toast(`${platformName}登录未完成: ${result.message || result.error || '可能超时或用户取消'}`, 'error');
@@ -1244,6 +1318,8 @@ async function deleteCookie(platform) {
   try {
     await api(`/api/publish/cookies/${platform}`, { method: 'DELETE' });
     toast('Cookie 已删除', 'success');
+    // 清空该平台的登录态缓存
+    delete _platformLoginStatus[platform];
     loadCookieManager();
     loadAccountsStatus();
     loadPublishPlatformsGrid();
@@ -1300,18 +1376,56 @@ async function loadPublishPlatformsGrid() {
   try {
     const result = await api('/api/publish/cookies');
     const cookies = result.cookies || {};
-    const loggedInPlatforms = Object.entries(PLATFORM_INFO).filter(([key]) => cookies[key]?.configured);
-    if (loggedInPlatforms.length === 0) {
+
+    // 基于真实登录态判断（优先用 _platformLoginStatus 缓存，回退到 Cookie 文件判断）
+    // 关键修复：只显示真正登录有效的平台，避免用户勾选失效平台导致发布失败
+    const validPlatforms = [];
+    const pendingPlatforms = [];  // 校验中的平台
+    Object.entries(PLATFORM_INFO).forEach(([key]) => {
+      const configured = cookies[key]?.configured;
+      if (!configured) return;
+      const loginStatus = _platformLoginStatus[key];
+      if (!loginStatus) {
+        // 未校验完，先加入待定列表（初始展示，但后续会被刷新）
+        pendingPlatforms.push(key);
+      } else if (loginStatus.success && loginStatus.logged_in) {
+        validPlatforms.push(key);
+      }
+      // 校验失败或登录态失效的平台不显示
+    });
+
+    // 如果还没有任何校验结果，先用 pendingPlatforms（避免页面空白）
+    const displayPlatforms = validPlatforms.length > 0 ? validPlatforms : pendingPlatforms;
+
+    if (displayPlatforms.length === 0) {
       grid.innerHTML = '';
-      if (emptyEl) emptyEl.style.display = 'block';
+      if (emptyEl) {
+        emptyEl.style.display = 'block';
+        // 区分"未配置任何平台" vs "已配置但都失效"
+        const anyConfigured = Object.values(cookies).some(c => c.configured);
+        if (anyConfigured) {
+          emptyEl.innerHTML = '⚠ 所有已配置平台的登录态均已失效，请先在上方"账号管理"中重新登录';
+          emptyEl.style.background = '#ffebee';
+          emptyEl.style.borderColor = '#ef9a9a';
+          emptyEl.style.color = '#c62828';
+        } else {
+          emptyEl.innerHTML = '⚠ 暂无已登录平台，请先在上方"账号管理"中登录至少一个平台';
+          emptyEl.style.background = '#fff3e0';
+          emptyEl.style.borderColor = '#ffe082';
+          emptyEl.style.color = '#8b6914';
+        }
+      }
     } else {
       if (emptyEl) emptyEl.style.display = 'none';
-      grid.innerHTML = loggedInPlatforms.map(([key, info]) => `
-        <label class="matrix-checkbox-item">
-          <input type="checkbox" value="${key}" checked>
-          <span>${info.icon} ${info.name}</span>
-        </label>
-      `).join('');
+      grid.innerHTML = displayPlatforms.map(key => {
+        const info = PLATFORM_INFO[key];
+        return `
+          <label class="matrix-checkbox-item">
+            <input type="checkbox" value="${key}" checked>
+            <span>${info.icon} ${info.name}</span>
+          </label>
+        `;
+      }).join('');
     }
   } catch (e) {
     grid.innerHTML = `<div class="hint">加载失败: ${e.message}</div>`;
