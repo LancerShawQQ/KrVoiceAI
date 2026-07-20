@@ -784,3 +784,580 @@ class Publisher(BaseModule):
                 "platform": platform,
                 "message": f"{cfg['name']}登录成功，Cookie已自动保存",
             }
+
+    # ============ 发布测试台（4 阶段测试链路） ============
+
+    # 平台发布页配置（与 _publish_playwright 保持一致，供测试方法复用）
+    _TEST_PLATFORM_CFG = {
+        "bilibili": {
+            "check_url": "https://api.bilibili.com/x/web-interface/nav",
+            "cookie_domain": ".bilibili.com",
+            "name": "B站",
+            "method": "api",
+        },
+        "douyin": {
+            "publish_url": "https://creator.douyin.com/creator-micro/content/upload",
+            "check_url": "https://creator.douyin.com/creator-micro/home",
+            "upload_input": "input[type=file]",
+            "title_input": ".ql-editor[data-placeholder='动人标题']",
+            "desc_input": ".ql-editor",
+            "publish_btn": ".button--1ERwt[data-e2e='publish_article_button']",
+            "cookie_domain": ".douyin.com",
+            "name": "抖音",
+            "method": "playwright",
+        },
+        "kuaishou": {
+            "publish_url": "https://cp.kuaishou.com/article/publish/video",
+            "check_url": "https://cp.kuaishou.com/article/publish/video",
+            "upload_input": "input[type=file]",
+            "title_input": "input[placeholder*='标题']",
+            "desc_input": "textarea[placeholder*='描述']",
+            "publish_btn": "button:has-text('发布')",
+            "cookie_domain": ".kuaishou.com",
+            "name": "快手",
+            "method": "playwright",
+        },
+        "wechat_video": {
+            "publish_url": "https://channels.weixin.qq.com/platform/post/create",
+            "check_url": "https://channels.weixin.qq.com/platform/post/create",
+            "upload_input": "input[type=file]",
+            "title_input": "input[placeholder*='标题']",
+            "desc_input": "textarea[placeholder*='描述']",
+            "publish_btn": "button:has-text('发表')",
+            "cookie_domain": ".qq.com",
+            "name": "视频号",
+            "method": "playwright",
+        },
+    }
+
+    def test_cookie_files(self) -> dict:
+        """测试 1：Cookie 文件检查
+        检查各平台 Cookie 文件是否存在、字段是否完整
+        """
+        result = {}
+        bilibili_required = ["SESSDATA", "bili_jct", "DedeUserID"]
+
+        for platform in ("bilibili", "douyin", "kuaishou", "wechat_video"):
+            cookie_file = self.cookies_dir / f"{platform}.json"
+            info = {
+                "platform": platform,
+                "file_exists": cookie_file.exists(),
+                "file_path": str(cookie_file),
+            }
+
+            if cookie_file.exists():
+                try:
+                    cookies = json.loads(cookie_file.read_text(encoding="utf-8"))
+                    info["cookie_count"] = len(cookies)
+                    info["cookie_keys"] = list(cookies.keys())[:10]
+
+                    if platform == "bilibili":
+                        missing = [k for k in bilibili_required if k not in cookies]
+                        info["required_fields"] = bilibili_required
+                        info["missing_fields"] = missing
+                        info["valid"] = len(missing) == 0
+                    else:
+                        info["valid"] = len(cookies) >= 5
+                        info["min_required_count"] = 5
+                except Exception as e:
+                    info["valid"] = False
+                    info["error"] = f"Cookie 文件解析失败: {e}"
+            else:
+                info["valid"] = False
+                info["error"] = "Cookie 文件不存在"
+
+            result[platform] = info
+
+        return {"success": True, "platforms": result}
+
+    def test_login_status(self, platform: str) -> dict:
+        """测试 2：登录态真实性校验
+        实际加载 Cookie 访问平台，检测是否被重定向到登录页
+        """
+        cfg = self._TEST_PLATFORM_CFG.get(platform)
+        if not cfg:
+            return {"success": False, "error": f"不支持的平台: {platform}"}
+
+        cookie_file = self.cookies_dir / f"{platform}.json"
+        if not cookie_file.exists():
+            return {
+                "success": False,
+                "error": f"{platform} Cookie 文件不存在",
+                "file_path": str(cookie_file),
+            }
+
+        try:
+            cookies = json.loads(cookie_file.read_text(encoding="utf-8"))
+        except Exception as e:
+            return {"success": False, "error": f"Cookie 文件解析失败: {e}"}
+
+        # B 站用 API 校验
+        if platform == "bilibili":
+            try:
+                import requests
+                sessdata = cookies.get("SESSDATA", "")
+                bili_jct = cookies.get("bili_jct", "")
+                dedeuserid = cookies.get("DedeUserID", "")
+                resp = requests.get(
+                    "https://api.bilibili.com/x/web-interface/nav",
+                    cookies={"SESSDATA": sessdata, "bili_jct": bili_jct, "DedeUserID": dedeuserid},
+                    timeout=10,
+                )
+                data = resp.json()
+                if data.get("code") == 0:
+                    user_info = data.get("data", {})
+                    return {
+                        "success": True,
+                        "platform": platform,
+                        "logged_in": True,
+                        "username": user_info.get("uname", ""),
+                        "uid": user_info.get("mid", ""),
+                        "is_login": user_info.get("isLogin", False),
+                        "check_method": "api",
+                        "message": f"{cfg['name']}登录态有效",
+                    }
+                else:
+                    return {
+                        "success": True,
+                        "platform": platform,
+                        "logged_in": False,
+                        "code": data.get("code"),
+                        "message": data.get("message", "登录态失效"),
+                        "check_method": "api",
+                    }
+            except Exception as e:
+                return {"success": False, "error": f"B站 API 校验失败: {e}"}
+
+        # 其他平台用 Playwright 校验（headless）
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError:
+            return {"success": False, "error": "playwright 未安装"}
+
+        playwright_cookies = []
+        for name, value in cookies.items():
+            playwright_cookies.append({
+                "name": name,
+                "value": value,
+                "domain": cfg["cookie_domain"],
+                "path": "/",
+            })
+
+        import time
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            context = browser.new_context(
+                viewport={"width": 1280, "height": 800},
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            )
+            context.add_cookies(playwright_cookies)
+            page = context.new_page()
+
+            try:
+                page.goto(cfg["check_url"], wait_until="domcontentloaded", timeout=30000)
+                # 快手等 SPA 需要更长时间渲染上传表单
+                time.sleep(8)
+                current_url = page.url
+                is_login_redirect = (
+                    "login" in current_url.lower()
+                    or "passport" in current_url.lower()
+                    or "login_page" in current_url.lower()
+                )
+
+                has_login_form = False
+                try:
+                    login_elements = page.locator(
+                        "input[type='tel'], input[type='password'], .login-form, .qrcode-login"
+                    ).count()
+                    has_login_form = login_elements > 0
+                except Exception:
+                    pass
+
+                # 深度登录态校验：检查"去上传"链接的 href 是否指向登录页
+                # 某些平台（如快手）URL 不跳转，但页面上"去上传"链接指向 passport 登录页
+                upload_link_to_login = False
+                upload_link_href = ""
+                try:
+                    # 查找所有可能的"去上传"链接
+                    upload_links = page.locator("a.upload, a:has-text('去上传'), a:has-text('上传')").all()
+                    for link in upload_links[:3]:
+                        href = link.get_attribute("href") or ""
+                        if href and ("login" in href.lower() or "passport" in href.lower()):
+                            upload_link_to_login = True
+                            upload_link_href = href
+                            break
+                except Exception:
+                    pass
+
+                # 检查是否有真正的上传 input（登录态有效时才会渲染）
+                has_real_upload_input = False
+                try:
+                    has_real_upload_input = page.locator("input[type='file']").count() > 0
+                except Exception:
+                    pass
+
+                # 深度登录态判断：任一异常信号即视为未登录
+                # 1. URL 被重定向到登录页
+                # 2. 页面出现登录表单元素
+                # 3. "去上传"链接指向 passport 登录页（快手特有：URL 不跳转但实际未登录）
+                not_logged_in_signals = is_login_redirect or has_login_form or upload_link_to_login
+                logged_in = not not_logged_in_signals
+
+                result = {
+                    "success": True,
+                    "platform": platform,
+                    "logged_in": logged_in,
+                    "final_url": current_url,
+                    "is_login_redirect": is_login_redirect,
+                    "has_login_form": has_login_form,
+                    "upload_link_to_login": upload_link_to_login,
+                    "upload_link_href": upload_link_href,
+                    "has_real_upload_input": has_real_upload_input,
+                    "check_method": "playwright",
+                    "message": f"{cfg['name']}登录态{'有效' if logged_in else '失效（' + ('被重定向到登录页' if is_login_redirect else ('上传链接指向登录页' if upload_link_to_login else ('页面有登录表单' if has_login_form else '未渲染上传表单'))) + '）'}",
+                }
+                browser.close()
+                return result
+
+            except Exception as e:
+                browser.close()
+                return {
+                    "success": False,
+                    "platform": platform,
+                    "error": f"页面访问失败: {e}",
+                    "check_method": "playwright",
+                }
+
+    def test_page_selectors(self, platform: str) -> dict:
+        """测试 3：页面选择器探测
+        验证各平台发布页的 upload_input/title_input/publish_btn 选择器是否能定位到
+        """
+        cfg = self._TEST_PLATFORM_CFG.get(platform)
+        if not cfg or platform == "bilibili":
+            return {
+                "success": False,
+                "error": f"不支持的平台: {platform}（B站走 API 无需选择器，其他仅支持 douyin/kuaishou/wechat_video）",
+            }
+
+        cookie_file = self.cookies_dir / f"{platform}.json"
+        if not cookie_file.exists():
+            return {"success": False, "error": f"{platform} Cookie 文件不存在"}
+
+        try:
+            cookies = json.loads(cookie_file.read_text(encoding="utf-8"))
+        except Exception as e:
+            return {"success": False, "error": f"Cookie 文件解析失败: {e}"}
+
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError:
+            return {"success": False, "error": "playwright 未安装"}
+
+        playwright_cookies = []
+        for name, value in cookies.items():
+            playwright_cookies.append({
+                "name": name,
+                "value": value,
+                "domain": cfg["cookie_domain"],
+                "path": "/",
+            })
+
+        import time
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=False)  # 选择器探测用非无头，方便观察
+            context = browser.new_context(
+                viewport={"width": 1280, "height": 800},
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            )
+            context.add_cookies(playwright_cookies)
+            page = context.new_page()
+
+            try:
+                page.goto(cfg["publish_url"], wait_until="domcontentloaded", timeout=30000)
+                time.sleep(3)
+
+                current_url = page.url
+                if "login" in current_url.lower() or "passport" in current_url.lower():
+                    browser.close()
+                    return {
+                        "success": False,
+                        "platform": platform,
+                        "error": f"{cfg['name']} Cookie已失效，请重新登录",
+                        "final_url": current_url,
+                    }
+
+                selectors_to_test = {
+                    "upload_input": cfg["upload_input"],
+                    "title_input": cfg["title_input"],
+                    "desc_input": cfg["desc_input"],
+                    "publish_btn": cfg["publish_btn"],
+                }
+
+                selector_results = {}
+                for name, selector in selectors_to_test.items():
+                    try:
+                        count = page.locator(selector).count()
+                        selector_results[name] = {
+                            "selector": selector,
+                            "found": count > 0,
+                            "count": count,
+                        }
+                    except Exception as e:
+                        selector_results[name] = {
+                            "selector": selector,
+                            "found": False,
+                            "error": str(e),
+                        }
+
+                all_found = all(s["found"] for s in selector_results.values())
+
+                result = {
+                    "success": True,
+                    "platform": platform,
+                    "final_url": current_url,
+                    "selectors": selector_results,
+                    "all_found": all_found,
+                    "message": f"{cfg['name']} 选择器探测{'全部找到' if all_found else '部分缺失，可能页面结构已变化'}",
+                }
+
+                time.sleep(3)  # 等待用户观察
+                browser.close()
+                return result
+
+            except Exception as e:
+                browser.close()
+                return {
+                    "success": False,
+                    "platform": platform,
+                    "error": f"页面访问失败: {e}",
+                }
+
+    def test_video_upload(
+        self,
+        platform: str,
+        video_path: str,
+        dry_run: bool = True,
+        title: str = "",
+        description: str = "",
+    ) -> dict:
+        """测试 4：实际上传测试
+        上传视频文件到平台发布页，验证上传流程是否正常
+
+        Args:
+            platform: 平台名（bilibili/douyin/kuaishou/wechat_video）
+            video_path: 测试视频路径
+            dry_run: True=仅上传不点发布按钮；False=点击发布按钮（真实发布）
+            title: 视频标题
+            description: 视频描述
+        """
+        # B 站走 API
+        if platform == "bilibili":
+            return self._test_bilibili_upload(video_path, dry_run, title, description)
+
+        cfg = self._TEST_PLATFORM_CFG.get(platform)
+        if not cfg:
+            return {"success": False, "error": f"不支持的平台: {platform}"}
+
+        video_p = Path(video_path)
+        if not video_p.exists():
+            return {"success": False, "error": f"视频文件不存在: {video_path}"}
+
+        cookie_file = self.cookies_dir / f"{platform}.json"
+        if not cookie_file.exists():
+            return {"success": False, "error": f"{platform} Cookie 文件不存在"}
+
+        try:
+            cookies = json.loads(cookie_file.read_text(encoding="utf-8"))
+        except Exception as e:
+            return {"success": False, "error": f"Cookie 文件解析失败: {e}"}
+
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError:
+            return {"success": False, "error": "playwright 未安装"}
+
+        playwright_cookies = []
+        for name, value in cookies.items():
+            playwright_cookies.append({
+                "name": name,
+                "value": value,
+                "domain": cfg["cookie_domain"],
+                "path": "/",
+            })
+
+        import time
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=False)
+            context = browser.new_context(
+                viewport={"width": 1280, "height": 800},
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            )
+            context.add_cookies(playwright_cookies)
+            page = context.new_page()
+
+            try:
+                page.goto(cfg["publish_url"], wait_until="domcontentloaded", timeout=30000)
+                time.sleep(3)
+
+                current_url = page.url
+                if "login" in current_url.lower() or "passport" in current_url.lower():
+                    browser.close()
+                    return {
+                        "success": False,
+                        "platform": platform,
+                        "error": f"{cfg['name']} Cookie已失效，请重新登录",
+                        "final_url": current_url,
+                    }
+
+                # 上传视频文件
+                upload_input = page.locator(cfg["upload_input"]).first
+                upload_input.set_input_files(str(video_p))
+                self.logger.info(f"[测试] 已选择视频文件: {video_p.name}")
+
+                # 等待上传完成（最长 5 分钟）
+                upload_complete = False
+                for i in range(150):
+                    time.sleep(2)
+                    if page.locator(cfg["publish_btn"]).count() > 0:
+                        upload_complete = True
+                        break
+
+                if not upload_complete:
+                    browser.close()
+                    return {
+                        "success": False,
+                        "platform": platform,
+                        "error": "上传超时（5分钟内未出现发布按钮）",
+                    }
+
+                # 填写标题
+                if title:
+                    title_sel = page.locator(cfg["title_input"]).first
+                    if title_sel.count() > 0:
+                        title_sel.fill(title)
+
+                # 填写描述
+                if description:
+                    desc_sel = page.locator(cfg["desc_input"]).first
+                    if desc_sel.count() > 0:
+                        desc_sel.fill(description)
+
+                if dry_run:
+                    time.sleep(5)  # 等待用户观察
+                    browser.close()
+                    return {
+                        "success": True,
+                        "platform": platform,
+                        "uploaded": True,
+                        "dry_run": True,
+                        "title_filled": bool(title),
+                        "description_filled": bool(description),
+                        "message": f"{cfg['name']} 视频已上传成功（dry-run 模式，未点击发布按钮）",
+                    }
+                else:
+                    publish_btn = page.locator(cfg["publish_btn"]).first
+                    publish_btn.click()
+                    self.logger.info(f"[测试] 已点击发布按钮")
+                    time.sleep(10)
+                    final_url = page.url
+                    browser.close()
+                    return {
+                        "success": True,
+                        "platform": platform,
+                        "uploaded": True,
+                        "published": True,
+                        "dry_run": False,
+                        "final_url": final_url,
+                        "message": f"{cfg['name']} 视频已发布成功",
+                    }
+
+            except Exception as e:
+                browser.close()
+                return {
+                    "success": False,
+                    "platform": platform,
+                    "error": f"上传过程出错: {e}",
+                }
+
+    def _test_bilibili_upload(
+        self,
+        video_path: str,
+        dry_run: bool = True,
+        title: str = "",
+        description: str = "",
+    ) -> dict:
+        """B站上传测试（走 API）"""
+        video_p = Path(video_path)
+        if not video_p.exists():
+            return {"success": False, "error": f"视频文件不存在: {video_path}"}
+
+        cookie_file = self.cookies_dir / "bilibili.json"
+        if not cookie_file.exists():
+            return {"success": False, "error": "B站 Cookie 文件不存在"}
+
+        try:
+            cookies = json.loads(cookie_file.read_text(encoding="utf-8"))
+        except Exception as e:
+            return {"success": False, "error": f"Cookie 文件解析失败: {e}"}
+
+        sessdata = cookies.get("SESSDATA")
+        bili_jct = cookies.get("bili_jct")
+        dedeuserid = cookies.get("DedeUserID")
+
+        if not all([sessdata, bili_jct, dedeuserid]):
+            return {"success": False, "error": "Cookie 缺少必要字段（SESSDATA/bili_jct/DedeUserID）"}
+
+        if dry_run:
+            try:
+                import requests
+                resp = requests.get(
+                    "https://api.bilibili.com/x/web-interface/nav",
+                    cookies={"SESSDATA": sessdata, "bili_jct": bili_jct, "DedeUserID": dedeuserid},
+                    timeout=10,
+                )
+                data = resp.json()
+                if data.get("code") == 0:
+                    user_info = data.get("data", {})
+                    return {
+                        "success": True,
+                        "platform": "bilibili",
+                        "uploaded": False,
+                        "dry_run": True,
+                        "username": user_info.get("uname", ""),
+                        "uid": user_info.get("mid", ""),
+                        "message": "B站 Cookie 有效（dry-run 模式，未实际上传）",
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "platform": "bilibili",
+                        "error": f"Cookie 失效: {data.get('message', '')}",
+                    }
+            except Exception as e:
+                return {"success": False, "error": f"B站 API 校验失败: {e}"}
+        else:
+            # 真实上传：调用 _publish_bilibili
+            try:
+                target = PublishTarget(
+                    platform="bilibili",
+                    title=title or video_p.stem,
+                    video_path=video_p,
+                    description=description,
+                )
+                result = self._publish_bilibili(target)
+                return {
+                    "success": result.get("status") == "success",
+                    "platform": "bilibili",
+                    "uploaded": True,
+                    "published": result.get("status") == "success",
+                    "dry_run": False,
+                    "url": result.get("url"),
+                    "error": result.get("error"),
+                    "message": f"B站视频{'发布成功' if result.get('status') == 'success' else '发布失败'}",
+                }
+            except Exception as e:
+                return {
+                    "success": False,
+                    "platform": "bilibili",
+                    "error": f"B站上传失败: {e}",
+                }

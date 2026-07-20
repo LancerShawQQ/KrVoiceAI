@@ -1010,16 +1010,67 @@ async function loadPublishSettings() {
     `;
   }).join('');
 
-  // 初始化 Cookie 管理 + 一键分发
-  loadCookieManager();
-  loadPublishJobSelect();
-  loadPublishPlatformsGrid();
+  // 初始化 账号管理 + 一键发布 + 发布历史
+  loadAccountsStatus();        // 新：账号管理区（替代 loadCookieManager）
+  loadCookieManager();         // 保留：高级选项中的手动 Cookie 管理
+  loadPublishJobSelect();      // 修改：默认选最新视频
+  loadPublishPlatformsGrid();  // 修改：只显示已登录平台
+  loadPublishHistory();        // 新：发布历史
+  loadTestVideoSelect();
   const publishRunBtn = document.getElementById('publish-run-btn');
   if (publishRunBtn) publishRunBtn.addEventListener('click', runPublishVideo);
+
+  // 发布测试台按钮绑定
+  document.getElementById('test-cookies-btn')?.addEventListener('click', runTestCookies);
+  document.getElementById('test-login-btn')?.addEventListener('click', runTestLogin);
+  document.getElementById('test-selectors-btn')?.addEventListener('click', runTestSelectors);
+  document.getElementById('test-upload-btn')?.addEventListener('click', runTestUpload);
 }
 
 function togglePlatform(key, el) {
   el.classList.toggle('active');
+}
+
+// ========== 账号管理（一次登录，永久复用） ==========
+
+async function loadAccountsStatus() {
+  const gridEl = document.getElementById('accounts-grid');
+  if (!gridEl) return;
+  gridEl.innerHTML = '<div style="color:#666;font-size:12px;padding:8px">加载中...</div>';
+  try {
+    const result = await api('/api/publish/cookies');
+    const cookies = result.cookies || {};
+    gridEl.innerHTML = Object.entries(PLATFORM_INFO).map(([key, info]) => {
+      const c = cookies[key] || {};
+      const configured = c.configured;
+      const loginBtn = key === 'bilibili'
+        ? `<button class="btn btn-sm btn-primary" onclick="loginBilibiliQrcode()" id="bilibili-login-btn">${configured ? '重新登录' : '扫码登录'}</button>`
+        : `<button class="btn btn-sm btn-primary" onclick="loginBrowserPlatform('${key}')">${configured ? '重新登录' : '浏览器登录'}</button>`;
+      const statusBadge = configured
+        ? '<span class="badge badge-success">✓ 已登录</span>'
+        : '<span class="badge badge-muted">✗ 未登录</span>';
+      const deleteBtn = configured
+        ? `<button class="btn btn-sm btn-secondary" onclick="deleteCookie('${key}')" title="退出登录">退出</button>`
+        : '';
+      return `
+        <div class="cookie-mgr-card" data-platform="${key}" style="padding:14px;border:1px solid var(--border-default);border-radius:var(--radius-md);background:var(--bg-elevated)">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <span style="font-size:24px">${info.icon}</span>
+            <div>
+              <div style="font-weight:600;font-size:14px">${info.name}</div>
+              ${statusBadge}
+            </div>
+          </div>
+          <div style="display:flex;gap:6px">
+            ${loginBtn}
+            ${deleteBtn}
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (e) {
+    gridEl.innerHTML = `<div class="hint">加载失败: ${e.message}</div>`;
+  }
 }
 
 // ========== Cookie 管理 + 一键分发（对标蝉妈妈/新榜矩阵分发） ==========
@@ -1119,6 +1170,8 @@ async function _pollBilibiliLogin() {
       if (qrcodeArea) qrcodeArea.innerHTML = '<div style="color:var(--color-success);font-size:13px;padding:8px">✓ 登录成功，Cookie已自动保存</div>';
       toast('B站登录成功！Cookie已自动保存', 'success');
       loadCookieManager();
+      loadAccountsStatus();
+      loadPublishPlatformsGrid();
       return;
     }
     if (result.status === 'expired' || result.status === 'failed') {
@@ -1149,6 +1202,8 @@ async function loginBrowserPlatform(platform) {
     if (result.success || result.status === 'success') {
       toast(`${platformName}登录成功！Cookie已自动保存`, 'success');
       loadCookieManager();
+      loadAccountsStatus();
+      loadPublishPlatformsGrid();
     } else {
       toast(`${platformName}登录未完成: ${result.message || result.error || '可能超时或用户取消'}`, 'error');
     }
@@ -1177,6 +1232,8 @@ async function saveCookie(platform) {
     toast(`${PLATFORM_INFO[platform].name} Cookie 已保存`, 'success');
     input.value = '';
     loadCookieManager();
+    loadAccountsStatus();
+    loadPublishPlatformsGrid();
   } catch (e) {
     toast(`保存失败: ${e.message}`, 'error');
   }
@@ -1188,6 +1245,8 @@ async function deleteCookie(platform) {
     await api(`/api/publish/cookies/${platform}`, { method: 'DELETE' });
     toast('Cookie 已删除', 'success');
     loadCookieManager();
+    loadAccountsStatus();
+    loadPublishPlatformsGrid();
   } catch (e) {
     toast(`删除失败: ${e.message}`, 'error');
   }
@@ -1196,26 +1255,302 @@ async function deleteCookie(platform) {
 async function loadPublishJobSelect() {
   const sel = document.getElementById('publish-job-select');
   if (!sel) return;
+  sel.innerHTML = '<option value="">-- 加载中... --</option>';
   try {
     const jobs = await api('/api/jobs?limit=20');
     const jobList = jobs.jobs || jobs || [];
-    const completed = jobList.filter(j => j.video_path && j.status === 'success');
-    sel.innerHTML = '<option value="">-- 选择已完成的任务 --</option>' +
-      completed.map(j => `<option value="${j.job_id}">${j.job_id} · ${j.title || j.video_path.split(/[\\/]/).pop() || ''}</option>`).join('');
+    const successJobs = jobList.filter(j => j.status === 'success');
+    // 批量查询详情获取 video_path
+    const detailReqs = successJobs.map(j => api(`/api/jobs/${j.job_id}`));
+    const details = await Promise.all(detailReqs);
+    const completed = details.map((d, i) => {
+      const output = d.output || {};
+      const videoPath = output.final_video_absolute || output.video_path_absolute ||
+                        output.final_video || output.video_path || '';
+      return {
+        job_id: successJobs[i].job_id,
+        video_path: videoPath,
+        title: output.title || '',
+      };
+    }).filter(j => j.video_path);
+
+    if (completed.length === 0) {
+      sel.innerHTML = '<option value="">-- 暂无已完成视频，请先生成视频 --</option>';
+      return;
+    }
+    sel.innerHTML = '<option value="">-- 选择视频 --</option>' +
+      completed.map(j => {
+        const videoName = (j.video_path || '').split(/[\\/]/).pop() || '';
+        const label = j.title ? `${j.title.slice(0, 30)} (${j.job_id})` : `${j.job_id} · ${videoName}`;
+        return `<option value="${j.job_id}" data-video-path="${j.video_path}">${label}</option>`;
+      }).join('');
+    // 默认选第一个（最新视频，jobs 已按 created_at DESC 排序）
+    if (completed.length > 0) {
+      sel.value = completed[0].job_id;
+    }
   } catch (e) {
     sel.innerHTML = `<option value="">加载失败: ${e.message}</option>`;
   }
 }
 
-function loadPublishPlatformsGrid() {
+async function loadPublishPlatformsGrid() {
   const grid = document.getElementById('publish-platforms-grid');
+  const emptyEl = document.getElementById('publish-platforms-empty');
   if (!grid) return;
-  grid.innerHTML = Object.entries(PLATFORM_INFO).map(([key, info]) => `
-    <label class="matrix-checkbox-item">
-      <input type="checkbox" value="${key}">
-      <span>${info.icon} ${info.name}</span>
-    </label>
-  `).join('');
+  try {
+    const result = await api('/api/publish/cookies');
+    const cookies = result.cookies || {};
+    const loggedInPlatforms = Object.entries(PLATFORM_INFO).filter(([key]) => cookies[key]?.configured);
+    if (loggedInPlatforms.length === 0) {
+      grid.innerHTML = '';
+      if (emptyEl) emptyEl.style.display = 'block';
+    } else {
+      if (emptyEl) emptyEl.style.display = 'none';
+      grid.innerHTML = loggedInPlatforms.map(([key, info]) => `
+        <label class="matrix-checkbox-item">
+          <input type="checkbox" value="${key}" checked>
+          <span>${info.icon} ${info.name}</span>
+        </label>
+      `).join('');
+    }
+  } catch (e) {
+    grid.innerHTML = `<div class="hint">加载失败: ${e.message}</div>`;
+  }
+}
+
+// ========== 发布历史（localStorage 存储） ==========
+
+function loadPublishHistory() {
+  const listEl = document.getElementById('publish-history-list');
+  if (!listEl) return;
+  try {
+    const history = JSON.parse(localStorage.getItem('enlyai_publish_history') || '[]');
+    if (history.length === 0) {
+      listEl.innerHTML = '<div style="padding:12px;color:#666;font-size:13px;text-align:center">暂无发布记录</div>';
+      return;
+    }
+    listEl.innerHTML = history.slice(0, 5).map(h => {
+      const info = PLATFORM_INFO[h.platform] || { name: h.platform, icon: '' };
+      const ok = h.status === 'success';
+      const color = ok ? '#2e7d32' : (h.status === 'skipped' ? '#f57c00' : '#c62828');
+      const bg = ok ? '#e8f5e9' : (h.status === 'skipped' ? '#fff3e0' : '#ffebee');
+      return `
+        <div style="padding:10px;background:${bg};border-radius:6px;margin-bottom:6px;font-size:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span><strong>${info.icon} ${info.name}</strong> · ${h.title || '未命名'}</span>
+            <span style="color:${color};font-weight:600">${ok ? '✓ 已发布' : (h.status === 'skipped' ? '⚠ 跳过' : '✗ 失败')}</span>
+          </div>
+          <div style="color:#666;margin-top:4px;display:flex;justify-content:space-between">
+            <span>${h.time || ''}</span>
+            ${h.url ? `<a href="${h.url}" target="_blank" style="color:var(--accent-primary)">查看视频 →</a>` : ''}
+          </div>
+          ${h.error ? `<div style="color:#c62828;margin-top:4px">错误: ${escapeHtml(h.error)}</div>` : ''}
+        </div>
+      `;
+    }).join('');
+  } catch (e) {
+    listEl.innerHTML = `<div class="hint">加载历史失败: ${e.message}</div>`;
+  }
+}
+
+function savePublishHistory(record) {
+  try {
+    const history = JSON.parse(localStorage.getItem('enlyai_publish_history') || '[]');
+    history.unshift(record);
+    localStorage.setItem('enlyai_publish_history', JSON.stringify(history.slice(0, 20)));
+    loadPublishHistory();
+  } catch (e) {
+    console.error('保存发布历史失败:', e);
+  }
+}
+
+// ============ 发布测试台（4 阶段测试链路） ============
+
+async function loadTestVideoSelect() {
+  const sel = document.getElementById('test-video-select');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">-- 加载中... --</option>';
+  try {
+    const jobs = await api('/api/jobs?limit=20');
+    const jobList = jobs.jobs || jobs || [];
+    // list_jobs 仅返回 job_id/status，需对 success 任务调用详情 API 获取 video_path
+    const successJobs = jobList.filter(j => j.status === 'success');
+    const detailReqs = successJobs.map(j => api(`/api/jobs/${j.job_id}`));
+    const details = await Promise.all(detailReqs);
+    // 从 output 中提取 video_path 或 final_video（绝对路径优先）
+    const completed = details.map((d, i) => {
+      const output = d.output || {};
+      const videoPath = output.final_video_absolute || output.video_path_absolute ||
+                        output.final_video || output.video_path || '';
+      return { job_id: successJobs[i].job_id, video_path: videoPath };
+    }).filter(j => j.video_path);
+    if (completed.length === 0) {
+      sel.innerHTML = '<option value="">-- 暂无已完成视频 --</option>';
+      return;
+    }
+    sel.innerHTML = '<option value="">-- 选择测试视频 --</option>' +
+      completed.map(j => {
+        const videoName = (j.video_path || '').split(/[\\/]/).pop() || '';
+        return `<option value="${j.video_path}">${j.job_id} · ${videoName}</option>`;
+      }).join('');
+  } catch (e) {
+    sel.innerHTML = `<option value="">加载失败: ${e.message}</option>`;
+  }
+}
+
+function _renderTestResult(result, title) {
+  const el = document.getElementById('test-result');
+  if (!el) return;
+  const success = result.success !== false;
+  const bgColor = success ? '#e8f5e9' : '#ffebee';
+  const borderColor = success ? '#81c784' : '#e57373';
+  const titleColor = success ? '#2e7d32' : '#c62828';
+
+  let detailHtml = '';
+  if (result.platforms) {
+    // Cookie 检查结果（多平台）
+    detailHtml = Object.entries(result.platforms).map(([key, info]) => {
+      const valid = info.valid;
+      const bg = valid ? '#e8f5e9' : (info.file_exists ? '#fff3e0' : '#ffebee');
+      const color = valid ? '#2e7d32' : (info.file_exists ? '#e65100' : '#c62828');
+      let detail = '';
+      if (info.file_exists) {
+        detail = `Cookie 数量: ${info.cookie_count || 0}`;
+        if (info.missing_fields && info.missing_fields.length > 0) {
+          detail += ` | 缺失字段: ${info.missing_fields.join(', ')}`;
+        }
+      } else {
+        detail = info.error || '文件不存在';
+      }
+      return `
+        <div style="padding:8px;margin:4px 0;background:${bg};border-radius:4px;font-size:12px">
+          <strong style="color:${color}">${PLATFORM_INFO[key]?.name || key}: ${valid ? '✓ 有效' : (info.file_exists ? '⚠ 不完整' : '✗ 不存在')}</strong>
+          <div style="color:#666;margin-top:2px">${detail}</div>
+        </div>`;
+    }).join('');
+  } else if (result.selectors) {
+    // 选择器探测结果
+    detailHtml = Object.entries(result.selectors).map(([name, s]) => {
+      const bg = s.found ? '#e8f5e9' : '#ffebee';
+      const color = s.found ? '#2e7d32' : '#c62828';
+      return `
+        <div style="padding:6px;margin:4px 0;background:${bg};border-radius:4px;font-size:12px">
+          <strong style="color:${color}">${name}: ${s.found ? '✓ 找到' : '✗ 未找到'} (${s.count || 0})</strong>
+          <div style="color:#666;margin-top:2px;font-family:monospace">${s.selector}</div>
+        </div>`;
+    }).join('');
+  } else {
+    // 单平台结果
+    detailHtml = `<pre style="margin:4px 0;padding:8px;background:#f5f5f5;border-radius:4px;font-size:11px;overflow-x:auto;white-space:pre-wrap">${JSON.stringify(result, null, 2)}</pre>`;
+  }
+
+  el.innerHTML = `
+    <div style="padding:12px;background:${bgColor};border:1px solid ${borderColor};border-radius:6px">
+      <div style="font-weight:600;color:${titleColor};margin-bottom:6px">${title} ${success ? '✓' : '✗'}</div>
+      ${result.message ? `<div style="font-size:13px;margin-bottom:6px">${result.message}</div>` : ''}
+      ${detailHtml}
+    </div>
+  `;
+}
+
+async function runTestCookies() {
+  const btn = document.getElementById('test-cookies-btn');
+  const resultEl = document.getElementById('test-result');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 检查中...';
+  resultEl.innerHTML = '<div style="color:#666;font-size:13px;padding:8px">正在检查所有平台 Cookie 文件...</div>';
+  try {
+    const result = await api('/api/publish/test/cookies');
+    _renderTestResult(result, '1. Cookie 文件检查');
+  } catch (e) {
+    _renderTestResult({ success: false, message: e.message }, '1. Cookie 文件检查');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i data-lucide="file-check"></i> 1.Cookie检查';
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
+async function runTestLogin() {
+  const btn = document.getElementById('test-login-btn');
+  const resultEl = document.getElementById('test-result');
+  const platform = document.getElementById('test-platform-select').value;
+  if (!platform) { toast('请选择测试平台', 'error'); return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 校验中...';
+  resultEl.innerHTML = `<div style="color:#666;font-size:13px;padding:8px">正在校验 ${PLATFORM_INFO[platform]?.name || platform} 登录态（可能需要 10-30 秒）...</div>`;
+  try {
+    const result = await api('/api/publish/test/login_check', {
+      method: 'POST', body: { platform },
+    });
+    _renderTestResult(result, `2. 登录态校验 - ${PLATFORM_INFO[platform]?.name || platform}`);
+  } catch (e) {
+    _renderTestResult({ success: false, message: e.message }, `2. 登录态校验 - ${PLATFORM_INFO[platform]?.name || platform}`);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i data-lucide="log-in"></i> 2.登录态校验';
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
+async function runTestSelectors() {
+  const btn = document.getElementById('test-selectors-btn');
+  const resultEl = document.getElementById('test-result');
+  const platform = document.getElementById('test-platform-select').value;
+  if (!platform) { toast('请选择测试平台', 'error'); return; }
+  if (platform === 'bilibili') { toast('B站走 API 无需选择器探测，请选择其他平台', 'error'); return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 探测中...';
+  resultEl.innerHTML = `<div style="color:#666;font-size:13px;padding:8px">正在探测 ${PLATFORM_INFO[platform]?.name || platform} 页面选择器（将打开浏览器，请勿关闭）...</div>`;
+  try {
+    const result = await api('/api/publish/test/selectors', {
+      method: 'POST', body: { platform },
+    });
+    _renderTestResult(result, `3. 选择器探测 - ${PLATFORM_INFO[platform]?.name || platform}`);
+  } catch (e) {
+    _renderTestResult({ success: false, message: e.message }, `3. 选择器探测 - ${PLATFORM_INFO[platform]?.name || platform}`);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i data-lucide="search"></i> 3.选择器探测';
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
+async function runTestUpload() {
+  const btn = document.getElementById('test-upload-btn');
+  const resultEl = document.getElementById('test-result');
+  const platform = document.getElementById('test-platform-select').value;
+  const videoPath = document.getElementById('test-video-select').value;
+  const title = document.getElementById('test-video-title').value.trim();
+  const dryRun = document.getElementById('test-dry-run').checked;
+
+  if (!platform) { toast('请选择测试平台', 'error'); return; }
+  if (!videoPath) { toast('请选择测试视频', 'error'); return; }
+
+  if (!dryRun) {
+    if (!confirm(`确认要真实发布视频到 ${PLATFORM_INFO[platform]?.name || platform} 吗？\n\n此操作将点击发布按钮，视频将真实发布到平台！`)) {
+      return;
+    }
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 上传中...';
+  resultEl.innerHTML = `<div style="color:#666;font-size:13px;padding:8px">正在上传视频到 ${PLATFORM_INFO[platform]?.name || platform}（${dryRun ? 'dry-run 模式' : '真实发布模式'}，可能需要 1-5 分钟）...</div>`;
+  try {
+    const result = await api('/api/publish/test/upload', {
+      method: 'POST',
+      body: { platform, video_path: videoPath, dry_run: dryRun, title, description: '' },
+    });
+    _renderTestResult(result, `4. 上传测试 - ${PLATFORM_INFO[platform]?.name || platform} (${dryRun ? 'dry-run' : '真实发布'})`);
+  } catch (e) {
+    _renderTestResult({ success: false, message: e.message }, `4. 上传测试 - ${PLATFORM_INFO[platform]?.name || platform}`);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i data-lucide="upload-cloud"></i> 4.上传测试';
+    if (window.lucide) lucide.createIcons();
+  }
 }
 
 async function runPublishVideo() {
@@ -1227,12 +1562,21 @@ async function runPublishVideo() {
   const resultEl = document.getElementById('publish-result');
   const btn = document.getElementById('publish-run-btn');
 
-  if (!jobId) { toast('请选择任务', 'error'); return; }
-  if (!platforms.length) { toast('请选择分发平台', 'error'); return; }
+  if (!jobId) {
+    toast('请先选择要发布的视频', 'error');
+    return;
+  }
+  if (!platforms.length) {
+    toast('请至少选择一个已登录平台（在上方"账号管理"中登录）', 'error');
+    return;
+  }
 
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> 分发中...';
-  resultEl.innerHTML = '<div style="color:#666;font-size:13px;padding:8px">正在分发到 ' + platforms.length + ' 个平台...</div>';
+  btn.innerHTML = '<span class="spinner"></span> 发布中...';
+  resultEl.innerHTML = `<div style="color:#666;font-size:13px;padding:12px;background:#e3f2fd;border:1px solid #90caf9;border-radius:6px">
+    <strong>正在发布到 ${platforms.length} 个平台...</strong><br>
+    <span style="font-size:11px">可能需要 1-5 分钟，请勿关闭页面</span>
+  </div>`;
 
   try {
     const tags = tagsText ? tagsText.split(/[,，]/).map(t => t.trim()).filter(t => t) : [];
@@ -1244,9 +1588,12 @@ async function runPublishVideo() {
       const results = result.results || [];
       const successCount = result.success_count || 0;
       const totalCount = result.total_count || results.length;
+      const now = new Date();
+      const timeStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
       resultEl.innerHTML = `
-        <div style="padding:10px;background:#e8f5e9;border:1px solid #81c784;border-radius:6px;margin-bottom:8px">
-          <strong>分发完成：${successCount}/${totalCount} 平台成功</strong>
+        <div style="padding:12px;background:#e8f5e9;border:1px solid #81c784;border-radius:6px;margin-bottom:8px">
+          <strong style="font-size:14px">✓ 发布完成：${successCount}/${totalCount} 平台成功</strong>
         </div>
         <div style="display:flex;flex-direction:column;gap:6px">
           ${results.map(r => {
@@ -1254,29 +1601,46 @@ async function runPublishVideo() {
             const ok = r.status === 'success';
             const color = ok ? '#2e7d32' : (r.status === 'skipped' ? '#f57c00' : '#c62828');
             const bg = ok ? '#e8f5e9' : (r.status === 'skipped' ? '#fff3e0' : '#ffebee');
+            const statusText = ok ? '✓ 已发布' : (r.status === 'skipped' ? '⚠ 跳过' : '✗ 失败');
             return `
-              <div style="padding:8px;background:${bg};border-radius:4px;font-size:12px">
-                <div style="display:flex;justify-content:space-between">
-                  <span>${info.icon} ${info.name}</span>
-                  <span style="color:${color};font-weight:600">${r.status}</span>
+              <div style="padding:10px;background:${bg};border-radius:6px;font-size:13px">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <span><strong>${info.icon} ${info.name}</strong></span>
+                  <span style="color:${color};font-weight:600">${statusText}</span>
                 </div>
-                ${r.url ? `<div style="color:#666;margin-top:4px"><a href="${r.url}" target="_blank">${r.url}</a></div>` : ''}
-                ${r.error ? `<div style="color:#c62828;margin-top:4px">${escapeHtml(r.error)}</div>` : ''}
+                ${r.url ? `<div style="margin-top:6px"><a href="${r.url}" target="_blank" style="color:var(--accent-primary);font-size:12px">查看视频 →</a></div>` : ''}
+                ${r.error ? `<div style="color:#c62828;margin-top:4px;font-size:11px">错误: ${escapeHtml(r.error)}</div>` : ''}
               </div>
             `;
           }).join('')}
         </div>
       `;
-      toast(`分发完成：${successCount}/${totalCount} 成功`, successCount === totalCount ? 'success' : 'info');
+      toast(`发布完成：${successCount}/${totalCount} 成功`, successCount === totalCount ? 'success' : 'info');
+
+      // 保存到发布历史
+      results.forEach(r => {
+        savePublishHistory({
+          platform: r.platform,
+          title: title || jobId,
+          status: r.status,
+          url: r.url || '',
+          error: r.error || '',
+          time: timeStr,
+        });
+      });
     } else {
-      resultEl.innerHTML = `<div style="padding:10px;background:#ffebee;border:1px solid #ef9a9a;border-radius:6px;color:#c62828">分发失败：${escapeHtml(result.error || '未知错误')}</div>`;
-      toast('分发失败', 'error');
+      resultEl.innerHTML = `<div style="padding:12px;background:#ffebee;border:1px solid #ef9a9a;border-radius:6px;color:#c62828">
+        <strong>发布失败：</strong>${escapeHtml(result.error || '未知错误')}
+      </div>`;
+      toast('发布失败', 'error');
     }
   } catch (e) {
-    resultEl.innerHTML = `<div style="padding:10px;background:#ffebee;border:1px solid #ef9a9a;border-radius:6px;color:#c62828">请求失败：${escapeHtml(e.message)}</div>`;
+    resultEl.innerHTML = `<div style="padding:12px;background:#ffebee;border:1px solid #ef9a9a;border-radius:6px;color:#c62828">
+      <strong>请求失败：</strong>${escapeHtml(e.message)}
+    </div>`;
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '<i data-lucide="send"></i> 一键分发';
+    btn.innerHTML = '<i data-lucide="send"></i> 立即发布';
     if (window.lucide) lucide.createIcons();
   }
 }

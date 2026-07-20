@@ -2468,80 +2468,184 @@
           <p class="page-subtitle">多平台账号管理、发布模式、频率控制</p>
         </div>
 
+        <!-- ① 账号管理（一次登录，永久复用） -->
         <div class="card">
           <div class="card-header">
-            <div class="card-title"><span class="card-title-icon"><i data-lucide="settings"></i></span> 发布模式</div>
+            <div class="card-title"><span class="card-title-icon"><i data-lucide="users"></i></span> 账号管理</div>
+            <span class="hint">登录一次后永久复用，无需重复登录</span>
           </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">发布模式</label>
-              <select class="form-select" id="pub-mode">
-                <option value="manual">手动 - 仅生成视频，自行发布</option>
-                <option value="semi_auto">半自动 - 自动打开浏览器，手动确认</option>
-                <option value="auto">全自动 - 自动发布（需登录态）</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">发布间隔（秒）</label>
-              <input type="number" class="form-input" id="pub-interval" value="60" min="10" max="3600">
-            </div>
+          <div id="accounts-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+            <!-- 由 JS 渲染 4 个平台卡片 -->
+          </div>
+          <div style="margin-top:10px;padding:10px;background:#e3f2fd;border:1px solid #90caf9;border-radius:6px;font-size:12px;color:#1565c0">
+            <strong>使用说明：</strong>点击平台卡片的"登录"按钮，在弹出的浏览器窗口中完成登录，Cookie 会自动保存。后续发布无需再次登录。
           </div>
         </div>
 
+        <!-- ② 一键发布 -->
         <div class="card">
           <div class="card-header">
-            <div class="card-title"><span class="card-title-icon"><i data-lucide="share-2"></i></span> 平台管理</div>
+            <div class="card-title"><span class="card-title-icon"><i data-lucide="send"></i></span> 一键发布</div>
+            <span class="hint">将视频发布到已登录的平台</span>
           </div>
-          <div class="platform-list" id="platform-list">
-            <!-- 平台卡片由 JS 渲染 -->
-          </div>
-        </div>
 
-        <!-- Cookie 管理（对标蝉妈妈/新榜矩阵分发账号管理） -->
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title"><span class="card-title-icon"><i data-lucide="key"></i></span> 平台 Cookie 管理</div>
-            <span class="hint">上传各平台登录 Cookie，用于自动发布</span>
-          </div>
-          <div id="cookie-manager-list" style="display:flex;flex-direction:column;gap:12px">
-            <!-- Cookie 管理卡片由 JS 渲染 -->
-          </div>
-          <div style="margin-top:12px;padding:10px;background:#fff8e1;border:1px solid #ffe082;border-radius:6px;font-size:12px;color:#8b6914">
-            <strong>获取 Cookie 方法：</strong>浏览器登录对应平台 → F12 开发者工具 → Application/存储 → Cookies → 复制全部 Cookie（JSON 格式）粘贴到对应平台输入框
-          </div>
-        </div>
-
-        <!-- 一键分发（对标蝉妈妈/新榜矩阵分发） -->
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title"><span class="card-title-icon"><i data-lucide="send"></i></span> 一键分发</div>
-            <span class="hint">将已生成的视频一键分发到多个平台</span>
-          </div>
           <div class="form-group">
-            <label class="form-label">选择任务</label>
+            <label class="form-label">📹 选择视频</label>
             <select class="form-select" id="publish-job-select">
-              <option value="">-- 选择已完成的任务 --</option>
+              <option value="">-- 加载中... --</option>
             </select>
           </div>
+
           <div class="form-group">
-            <label class="form-label">分发平台（多选）</label>
-            <div id="publish-platforms-grid" class="matrix-checkbox-grid"></div>
-          </div>
-          <div class="form-group">
-            <label class="form-label">视频标题 <span class="hint">（留空则用文件名）</span></label>
+            <label class="form-label">📝 标题 <span class="hint">（留空则用文件名）</span></label>
             <input class="form-input" id="publish-title" placeholder="输入发布标题">
           </div>
+
           <div class="form-group">
-            <label class="form-label">视频描述</label>
-            <textarea class="form-textarea" id="publish-description" style="min-height:60px" placeholder="视频描述（可选）"></textarea>
+            <label class="form-label">📤 发布到 <span class="hint">（只显示已登录平台）</span></label>
+            <div id="publish-platforms-grid" class="matrix-checkbox-grid">
+              <!-- 由 JS 渲染，只显示已登录平台 -->
+            </div>
+            <div id="publish-platforms-empty" style="display:none;padding:10px;background:#fff3e0;border:1px solid #ffe082;border-radius:6px;font-size:12px;color:#8b6914;margin-top:6px">
+              ⚠ 暂无已登录平台，请先在上方"账号管理"中登录至少一个平台
+            </div>
           </div>
-          <div class="form-group">
-            <label class="form-label">标签 <span class="hint">（逗号分隔）</span></label>
-            <input class="form-input" id="publish-tags" placeholder="口播,AI,数字人">
-          </div>
-          <button class="btn btn-primary btn-block" id="publish-run-btn"><i data-lucide="send"></i> 一键分发</button>
+
+          <details style="margin-top:8px">
+            <summary style="font-size:12px;color:var(--color-text-secondary);cursor:pointer;padding:6px">⚙ 更多选项（描述、标签）</summary>
+            <div class="form-group" style="margin-top:8px">
+              <label class="form-label">视频描述</label>
+              <textarea class="form-textarea" id="publish-description" style="min-height:60px" placeholder="视频描述（可选）"></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">标签 <span class="hint">（逗号分隔）</span></label>
+              <input class="form-input" id="publish-tags" placeholder="口播,AI,数字人">
+            </div>
+          </details>
+
+          <button class="btn btn-primary btn-block" id="publish-run-btn" style="margin-top:12px"><i data-lucide="send"></i> 立即发布</button>
           <div id="publish-result" style="margin-top:12px"></div>
         </div>
+
+        <!-- ③ 发布历史 -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="card-title-icon"><i data-lucide="history"></i></span> 发布历史</div>
+            <span class="hint">最近 5 次发布记录</span>
+          </div>
+          <div id="publish-history-list">
+            <!-- 由 JS 渲染 -->
+          </div>
+        </div>
+
+        <!-- 高级选项（折叠） -->
+        <details style="margin-top:12px">
+          <summary style="font-size:13px;color:var(--color-text-secondary);cursor:pointer;padding:10px;background:var(--bg-elevated);border:1px solid var(--border-default);border-radius:6px;font-weight:600">
+            🔧 高级选项（发布模式 / 平台启用 / 手动 Cookie / 发布测试台）
+          </summary>
+          <div style="margin-top:12px">
+
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title"><span class="card-title-icon"><i data-lucide="settings"></i></span> 发布模式</div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">发布模式</label>
+                  <select class="form-select" id="pub-mode">
+                    <option value="manual">手动 - 仅生成视频，自行发布</option>
+                    <option value="semi_auto">半自动 - 自动打开浏览器，手动确认</option>
+                    <option value="auto">全自动 - 自动发布（需登录态）</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">发布间隔（秒）</label>
+                  <input type="number" class="form-input" id="pub-interval" value="60" min="10" max="3600">
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title"><span class="card-title-icon"><i data-lucide="share-2"></i></span> 平台管理</div>
+              </div>
+              <div class="platform-list" id="platform-list">
+                <!-- 平台卡片由 JS 渲染 -->
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title"><span class="card-title-icon"><i data-lucide="key"></i></span> 手动 Cookie 管理</div>
+                <span class="hint">高级用户可手动粘贴 Cookie</span>
+              </div>
+              <div id="cookie-manager-list" style="display:flex;flex-direction:column;gap:12px">
+                <!-- Cookie 管理卡片由 JS 渲染 -->
+              </div>
+              <div style="margin-top:12px;padding:10px;background:#fff8e1;border:1px solid #ffe082;border-radius:6px;font-size:12px;color:#8b6914">
+                <strong>获取 Cookie 方法：</strong>浏览器登录对应平台 → F12 开发者工具 → Application/存储 → Cookies → 复制全部 Cookie（JSON 格式）粘贴到对应平台输入框
+              </div>
+            </div>
+
+            <!-- 发布测试台（4 阶段测试链路） -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title"><span class="card-title-icon"><i data-lucide="flask-conical"></i></span> 发布测试台</div>
+                <span class="hint">4 阶段测试链路：Cookie检查 → 登录态校验 → 选择器探测 → 上传测试</span>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">测试平台</label>
+                  <select class="form-select" id="test-platform-select">
+                    <option value="bilibili">B站（API 模式）</option>
+                    <option value="douyin">抖音（Playwright）</option>
+                    <option value="kuaishou">快手（Playwright）</option>
+                    <option value="wechat_video">视频号（Playwright）</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">测试视频 <span class="hint">（上传测试用）</span></label>
+                  <select class="form-select" id="test-video-select">
+                    <option value="">-- 选择测试视频 --</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">视频标题 <span class="hint">（上传测试用，留空则用文件名）</span></label>
+                <input class="form-input" id="test-video-title" placeholder="测试标题">
+              </div>
+
+              <div class="form-row" style="align-items:center">
+                <div class="form-group" style="flex:0 0 auto">
+                  <label class="form-label" style="display:flex;align-items:center;gap:6px;cursor:pointer">
+                    <input type="checkbox" id="test-dry-run" checked style="width:auto">
+                    <span>Dry-run 模式 <span class="hint">（仅上传不点发布按钮）</span></span>
+                  </label>
+                </div>
+              </div>
+
+              <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:12px">
+                <button class="btn btn-secondary" id="test-cookies-btn"><i data-lucide="file-check"></i> 1.Cookie检查</button>
+                <button class="btn btn-secondary" id="test-login-btn"><i data-lucide="log-in"></i> 2.登录态校验</button>
+                <button class="btn btn-secondary" id="test-selectors-btn"><i data-lucide="search"></i> 3.选择器探测</button>
+                <button class="btn btn-primary" id="test-upload-btn"><i data-lucide="upload-cloud"></i> 4.上传测试</button>
+              </div>
+
+              <div id="test-result" style="margin-top:12px"></div>
+
+              <div style="margin-top:12px;padding:10px;background:#e3f2fd;border:1px solid #90caf9;border-radius:6px;font-size:12px;color:#1565c0">
+                <strong>测试说明：</strong>
+                <br>• <strong>Cookie检查</strong>：仅检查文件存在性和字段完整性，不访问网络（最安全）
+                <br>• <strong>登录态校验</strong>：实际加载 Cookie 访问平台，检测是否被重定向到登录页
+                <br>• <strong>选择器探测</strong>：打开浏览器访问发布页，检测上传/标题/发布按钮选择器是否有效
+                <br>• <strong>上传测试</strong>：实际上传视频文件，dry-run 模式不点发布按钮；关闭 dry-run 将真实发布视频
+              </div>
+            </div>
+
+          </div>
+        </details>
 
         <div class="card" style="margin-top:20px">
           <div class="form-row">

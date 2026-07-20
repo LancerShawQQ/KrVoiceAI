@@ -1518,6 +1518,82 @@ def create_app() -> FastAPI:
         result = await asyncio.to_thread(publisher.login_browser_platform, platform)
         return result
 
+    # ============ 发布测试台 API（4 阶段测试链路） ============
+
+    @app.get("/api/publish/test/cookies")
+    async def test_publish_cookies():
+        """测试 1：Cookie 文件检查
+        检查各平台 Cookie 文件是否存在、字段是否完整
+        """
+        from ..modules.publisher import Publisher
+        publisher = Publisher()
+        return publisher.test_cookie_files()
+
+    @app.post("/api/publish/test/login_check")
+    async def test_publish_login_check(req: dict):
+        """测试 2：登录态真实性校验
+        实际加载 Cookie 访问平台，检测是否被重定向到登录页
+        Body: {"platform": "bilibili"} 或 {"platform": "douyin"}
+        """
+        from ..modules.publisher import Publisher
+        platform = req.get("platform", "")
+        if not platform:
+            raise HTTPException(400, "缺少 platform 参数")
+        if platform not in ("bilibili", "douyin", "kuaishou", "wechat_video"):
+            raise HTTPException(400, f"不支持的平台: {platform}")
+
+        publisher = Publisher()
+        # Playwright 是同步阻塞操作，在线程池中执行
+        import asyncio
+        result = await asyncio.to_thread(publisher.test_login_status, platform)
+        return result
+
+    @app.post("/api/publish/test/selectors")
+    async def test_publish_selectors(req: dict):
+        """测试 3：页面选择器探测
+        验证各平台发布页的 upload_input/title_input/publish_btn 选择器是否能定位到
+        Body: {"platform": "douyin"}
+        """
+        from ..modules.publisher import Publisher
+        platform = req.get("platform", "")
+        if not platform:
+            raise HTTPException(400, "缺少 platform 参数")
+        if platform not in ("douyin", "kuaishou", "wechat_video"):
+            raise HTTPException(400, f"不支持的平台: {platform}（B站走 API 无需选择器）")
+
+        publisher = Publisher()
+        import asyncio
+        result = await asyncio.to_thread(publisher.test_page_selectors, platform)
+        return result
+
+    @app.post("/api/publish/test/upload")
+    async def test_publish_upload(req: dict):
+        """测试 4：实际上传测试
+        上传视频文件到平台发布页，验证上传流程是否正常
+        Body: {"platform": "douyin", "video_path": "...", "dry_run": true, "title": "", "description": ""}
+        dry_run=true 仅上传不点发布；dry_run=false 真实发布
+        """
+        from ..modules.publisher import Publisher
+        platform = req.get("platform", "")
+        video_path = req.get("video_path", "")
+        dry_run = req.get("dry_run", True)
+        title = req.get("title", "")
+        description = req.get("description", "")
+
+        if not platform:
+            raise HTTPException(400, "缺少 platform 参数")
+        if not video_path:
+            raise HTTPException(400, "缺少 video_path 参数")
+        if platform not in ("bilibili", "douyin", "kuaishou", "wechat_video"):
+            raise HTTPException(400, f"不支持的平台: {platform}")
+
+        publisher = Publisher()
+        import asyncio
+        result = await asyncio.to_thread(
+            publisher.test_video_upload, platform, video_path, dry_run, title, description
+        )
+        return result
+
     return app
 
 
