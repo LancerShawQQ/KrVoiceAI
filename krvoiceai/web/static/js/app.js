@@ -5652,7 +5652,7 @@ function openWizardClipModal(start, editIdx, maxEnd) {
   overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);z-index:9999;display:flex;align-items:center;justify-content:center';
   const modal = document.createElement('div');
   modal.className = 'glass-card-heavy';
-  modal.style.cssText = 'width:400px;max-width:90vw;padding:24px;position:relative';
+  modal.style.cssText = 'width:400px;max-width:90vw;padding:24px;position:relative;background:var(--bg-surface,#fff);border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.18)';
   modal.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
       <h3 style="font-size:18px;font-weight:600;margin:0">${isEdit ? '编辑' : '添加'} B-roll 片段</h3>

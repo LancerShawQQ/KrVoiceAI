@@ -18,6 +18,13 @@
   --bg-glass-heavy: rgba(255, 255, 255, 0.9);
   --bg-vibrant: rgba(0, 0, 0, 0.04);
 
+  /* 兼容性别名 — 修复历史代码中引用的未定义变量，统一指向已定义的语义变量 */
+  --bg-default: var(--bg-elevated);
+  --bg-hover: var(--bg-vibrant);
+  --bg-main: var(--bg-elevated);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+
   /* 主色调 — Apple 蓝靛色系 */
   --color-primary: #0071e3;
   --color-primary-hover: #0077ed;
