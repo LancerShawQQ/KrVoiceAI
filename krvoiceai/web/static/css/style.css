@@ -4026,30 +4026,128 @@ input[type="color"]::-webkit-color-swatch {
 .placeholder-input-group input {
   width: 100%;
   padding: 8px 10px;
-  background: var(--bg-main, #1a1d24);
+  /* 修复：原 var(--bg-main, #1a1d24) 中 --bg-main 未定义，回退到深色导致黑底黑字 */
+  background: var(--bg-elevated);
   border: 1px solid var(--border-default);
   border-radius: 6px;
-  color: var(--text-primary, #e4e6eb);
+  color: var(--text-primary);
   font-size: 13px;
+  transition: border-color var(--transition-base);
 }
 
 .placeholder-input-group input:focus {
   outline: none;
-  border-color: #1d1d1f;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-light);
 }
 
 .scene-preview-script {
   margin-top: 12px;
   padding: 12px;
-  background: var(--bg-main, #1a1d24);
+  /* 修复：原 var(--bg-main, #1a1d24) 中 --bg-main 未定义，回退到深色导致黑底黑字 */
+  background: var(--bg-elevated);
   border: 1px solid var(--border-default);
   border-radius: 6px;
   font-size: 13px;
   line-height: 1.6;
   white-space: pre-wrap;
-  color: var(--text-primary, #e4e6eb);
+  color: var(--text-primary);
   max-height: 200px;
   overflow-y: auto;
+}
+
+/* 联动 P3：向导发布平台卡片登录态样式 */
+.wiz-platform-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  position: relative;
+  user-select: none;
+}
+
+.wiz-platform-card input[type="checkbox"] {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  cursor: pointer;
+}
+
+.wiz-platform-card:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+
+.wiz-platform-card-online {
+  border-color: var(--color-success);
+  background: var(--state-success-light);
+}
+
+.wiz-platform-card-pending {
+  border-color: var(--color-info);
+  background: var(--state-info-light);
+}
+
+.wiz-platform-card-warning {
+  border-color: var(--color-warning);
+  background: var(--state-warning-light);
+}
+
+.wiz-platform-card-offline {
+  border-color: var(--color-error);
+  background: var(--state-error-light);
+  border-style: dashed;
+}
+
+.wiz-platform-badge {
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.wiz-platform-badge-online {
+  background: var(--color-success);
+  color: #fff;
+}
+
+.wiz-platform-badge-pending {
+  background: var(--color-info);
+  color: #fff;
+}
+
+.wiz-platform-badge-warning {
+  background: var(--color-warning);
+  color: #fff;
+}
+
+.wiz-platform-badge-offline {
+  background: var(--color-error);
+  color: #fff;
+}
+
+/* 向导平台卡片内的 icon 和 name 调整（避开徽章） */
+.wiz-platform-card .platform-checkbox-icon {
+  font-size: 22px;
+  margin-top: 2px;
+}
+
+.wiz-platform-card .platform-checkbox-name {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 14px; /* 给底部徽章留空间 */
 }
 
 .tl-insert-point:hover {

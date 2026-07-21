@@ -188,6 +188,8 @@ async function saveLLMSettings() {
       toast('LLM 配置已保存', 'success');
       _currentSettings = await api('/api/settings');
       updateModelStatusBadges();
+      // 联动 P1：广播设置变更事件，通知向导实时刷新
+      window.dispatchEvent(new CustomEvent('enlyai:settings-changed', { detail: { section: 'llm' } }));
     } else {
       toast(`保存失败: ${result.message}`, 'error');
     }
@@ -325,6 +327,8 @@ async function saveTTSSettings() {
         window._wizardVoiceList = null;
         window._wizardVoiceProvider = data.provider;
       }
+      // 联动 P1：广播设置变更事件，通知向导实时刷新音色列表
+      window.dispatchEvent(new CustomEvent('enlyai:settings-changed', { detail: { section: 'tts' } }));
     } else {
       toast(`保存失败: ${result.message}`, 'error');
     }
@@ -392,6 +396,10 @@ async function saveASRSettings() {
     });
     toast(result.success ? 'ASR 配置已保存' : `保存失败: ${result.message}`,
           result.success ? 'success' : 'error');
+    // 联动 P1：广播设置变更事件，通知向导实时刷新字幕样式
+    if (result.success) {
+      window.dispatchEvent(new CustomEvent('enlyai:settings-changed', { detail: { section: 'asr' } }));
+    }
   } catch (e) {
     toast(`保存失败: ${e.message}`, 'error');
   }
@@ -535,6 +543,8 @@ async function saveAvatarSettings() {
       updateModelStatusBadges();
       // 设置变更后使向导缓存失效，下次进入向导时重新加载设置回填
       if (typeof window !== 'undefined') window._wizardVoiceList = null;
+      // 联动 P1：广播设置变更事件，通知向导实时刷新数字人配置（pose 启用状态等）
+      window.dispatchEvent(new CustomEvent('enlyai:settings-changed', { detail: { section: 'avatar' } }));
     } else {
       toast(`保存失败: ${result.message}`, 'error');
     }
@@ -768,6 +778,8 @@ async function saveVideoSettings() {
     _currentSettings = await api('/api/settings');
     // 设置变更后使向导缓存失效，下次进入向导时重新加载设置回填（字幕/BGM/视频输出）
     if (typeof window !== 'undefined') window._wizardVoiceList = null;
+    // 联动 P1：广播设置变更事件，通知向导实时刷新字幕/BGM/视频输出配置
+    window.dispatchEvent(new CustomEvent('enlyai:settings-changed', { detail: { section: 'video' } }));
   } catch (e) {
     toast(`保存失败: ${e.message}`, 'error');
   }
@@ -942,6 +954,8 @@ async function saveSceneEffectSettings() {
     _currentSettings = await api('/api/settings');
     // 设置变更后使向导缓存失效，下次进入向导时重新加载设置回填（场景/音频/效果）
     if (typeof window !== 'undefined') window._wizardVoiceList = null;
+    // 联动 P1：广播设置变更事件，通知向导实时刷新场景/音频/效果配置
+    window.dispatchEvent(new CustomEvent('enlyai:settings-changed', { detail: { section: 'scene' } }));
   } catch (e) {
     toast(`保存失败: ${e.message}`, 'error');
   }
@@ -1834,6 +1848,8 @@ async function savePublishSettings() {
       loadPublishSettings();
       // 设置变更后使向导缓存失效，下次进入向导时重新加载发布设置回填
       if (typeof window !== 'undefined') window._wizardVoiceList = null;
+      // 联动 P1：广播设置变更事件，通知向导实时刷新发布平台启用状态
+      window.dispatchEvent(new CustomEvent('enlyai:settings-changed', { detail: { section: 'publisher' } }));
     }
   } catch (e) {
     toast(`保存失败: ${e.message}`, 'error');

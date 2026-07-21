@@ -814,6 +814,9 @@ async function loadWizardData() {
     fillSelect('wiz-transition', presets.transitions);
     fillSelect('wiz-filter', presets.filters);
 
+    // 联动 P3：动态加载发布平台选择（带登录态校验）
+    loadWizardPublishPlatforms();
+
 
     // 开关联动
     document.getElementById('wiz-show-logo').addEventListener('change', e => {
@@ -864,6 +867,77 @@ async function loadWizardData() {
       return `<div class="pipeline-step pending"><div class="step-icon">○</div><div class="step-info"><div class="step-name">${info.icon} ${info.name}</div><div class="step-status">等待中</div></div></div>`;
     }).join('');
     if (window.lucide) lucide.createIcons();
+
+    // 联动 P1：注册设置变更事件监听器
+    // 设置中心保存配置后广播 enlyai:settings-changed 事件，向导实时刷新
+    if (!window._wizardSettingsChangeListener) {
+      window._wizardSettingsChangeListener = true;
+      window.addEventListener('enlyai:settings-changed', async (e) => {
+        try {
+          const section = e?.detail?.section;
+          // 重新拉取最新设置并回填向导
+          const settings = await api('/api/settings').catch(() => null);
+          if (!settings) return;
+          _applySettingsToWizard(settings);
+          // 如果是 TTS 变更，需要刷新音色列表（provider 可能变了）
+          if (section === 'tts') {
+            const voices = await api('/api/voices').catch(() => []);
+            window._wizardVoiceList = voices;
+            renderWizardVoiceGrid(voices);
+          }
+          // 如果是 publisher 变更，需要刷新平台选择（启用状态可能变了）
+          if (section === 'publisher') {
+            await loadWizardPublishPlatforms();
+          }
+          console.debug(`[向导] 设置变更已同步: section=${section}`);
+        } catch (err) {
+          console.warn('[向导] 设置变更同步失败:', err);
+        }
+      });
+    }
+
+    // 联动 P2：注册形象/音色变更事件监听器
+    // 资源中心注册新形象/音色后广播 enlyai:avatars-changed / enlyai:voices-changed，向导自动刷新
+    if (!window._wizardAvatarsChangeListener) {
+      window._wizardAvatarsChangeListener = true;
+      window.addEventListener('enlyai:avatars-changed', async () => {
+        try {
+          const [avatars, presetAvatars] = await Promise.all([
+            api('/api/avatars').catch(() => []),
+            api('/api/presets/avatars').catch(() => ({ avatars: {} })),
+          ]);
+          const avatarGenderMap = {};
+          if (presetAvatars && presetAvatars.avatars) {
+            Object.entries(presetAvatars.avatars).forEach(([aid, info]) => {
+              avatarGenderMap[aid] = info.gender || '';
+            });
+          }
+          renderWizardAvatarGrid(avatars, avatarGenderMap);
+          // 重新应用设置中的默认形象选中状态
+          const settings = await api('/api/settings').catch(() => null);
+          if (settings) _applySettingsToWizard(settings);
+          toast('已同步新注册的形象到向导', 'success');
+        } catch (err) {
+          console.warn('[向导] 形象列表同步失败:', err);
+        }
+      });
+    }
+    if (!window._wizardVoicesChangeListener) {
+      window._wizardVoicesChangeListener = true;
+      window.addEventListener('enlyai:voices-changed', async () => {
+        try {
+          const voices = await api('/api/voices').catch(() => []);
+          window._wizardVoiceList = voices;
+          renderWizardVoiceGrid(voices);
+          // 重新应用设置中的默认音色选中状态
+          const settings = await api('/api/settings').catch(() => null);
+          if (settings) _applySettingsToWizard(settings);
+          toast('已同步新注册的音色到向导', 'success');
+        } catch (err) {
+          console.warn('[向导] 音色列表同步失败:', err);
+        }
+      });
+    }
   } catch (e) {
     toast(`加载向导数据失败: ${e.message}`, 'error');
     console.error(e);
@@ -1075,6 +1149,134 @@ function _applySettingsToWizard(settings) {
     window._wizardSettingsApplied = true;
   } catch (e) {
     console.warn('applySettingsToWizard error:', e);
+  }
+}
+
+// 联动 P3：向导平台选择动态化 + 登录态校验
+// 复用 settings.js 的 PLATFORM_INFO 和 _platformLoginStatus，但独立实现渲染逻辑
+// 平台卡片显示登录态徽章：✓ 已登录（绿）/ ⚠ 登录失效（橙）/ ✗ 未登录（红）
+const WIZ_PLATFORM_INFO = {
+  bilibili: { name: '哔哩哔哩', icon: '🎬', method: 'api' },
+  douyin: { name: '抖音', icon: '🎵', method: 'playwright' },
+  kuaishou: { name: '快手', icon: '⚡', method: 'playwright' },
+  wechat_video: { name: '微信视频号', icon: '💬', method: 'playwright' },
+};
+// 向导登录态缓存（独立于 settings.js 的 _platformLoginStatus，避免互相干扰）
+window._wizPlatformLoginStatus = window._wizPlatformLoginStatus || {};
+
+async function loadWizardPublishPlatforms() {
+  const grid = document.getElementById('wiz-publish-platforms');
+  const hintEl = document.getElementById('wiz-publish-platforms-hint');
+  if (!grid) return;
+  try {
+    // 1. 获取 Cookie 配置状态
+    const cookieResult = await api('/api/publish/cookies').catch(() => ({ cookies: {} }));
+    const cookies = cookieResult.cookies || {};
+
+    // 2. 第一阶段：基于 Cookie 文件快速渲染（已配置显示"校验中"，未配置显示"未登录"）
+    grid.innerHTML = Object.entries(WIZ_PLATFORM_INFO).map(([key, info]) => {
+      const c = cookies[key] || {};
+      const configured = c.configured;
+      // 保留用户之前勾选的状态（如果已渲染过）
+      const prevCheckbox = document.querySelector(`#wiz-publish-platforms input[value="${key}"]`);
+      const wasChecked = prevCheckbox ? prevCheckbox.checked : (key === 'douyin'); // 默认勾选抖音
+      const statusBadge = configured
+        ? '<span class="wiz-platform-badge wiz-platform-badge-pending">⏳ 校验中</span>'
+        : '<span class="wiz-platform-badge wiz-platform-badge-offline">✗ 未登录</span>';
+      const cardClass = configured ? 'wiz-platform-card wiz-platform-card-pending' : 'wiz-platform-card wiz-platform-card-offline';
+      return `
+        <label class="${cardClass}" data-platform="${key}">
+          <input type="checkbox" value="${key}" ${wasChecked ? 'checked' : ''}>
+          <span class="platform-checkbox-icon">${info.icon}</span>
+          <span class="platform-checkbox-name">${info.name}</span>
+          ${statusBadge}
+        </label>
+      `;
+    }).join('');
+    if (hintEl) hintEl.style.display = 'block';
+    if (window.lucide) lucide.createIcons();
+
+    // 3. 第二阶段：对已配置平台并行调用 login_check API 真实校验
+    const configuredPlatforms = Object.entries(WIZ_PLATFORM_INFO)
+      .filter(([key]) => cookies[key]?.configured)
+      .map(([key]) => key);
+
+    if (configuredPlatforms.length === 0) return;
+
+    // 并行校验
+    configuredPlatforms.forEach(async (platform) => {
+      try {
+        const result = await api('/api/publish/test/login_check', {
+          method: 'POST',
+          body: { platform },
+        });
+        window._wizPlatformLoginStatus[platform] = result;
+        // 更新对应卡片
+        updateWizPlatformCard(platform, result);
+      } catch (e) {
+        window._wizPlatformLoginStatus[platform] = { success: false, error: e.message };
+        updateWizPlatformCard(platform, { success: false, error: e.message });
+      }
+    });
+  } catch (e) {
+    grid.innerHTML = `<div style="grid-column:1/-1;color:var(--color-error);font-size:12px;padding:8px">加载平台状态失败: ${e.message}</div>`;
+  }
+}
+
+// 更新单个平台卡片的登录态徽章和样式
+function updateWizPlatformCard(platform, result) {
+  const card = document.querySelector(`#wiz-publish-platforms .wiz-platform-card[data-platform="${platform}"]`);
+  if (!card) return;
+  // 移除旧的徽章
+  const oldBadge = card.querySelector('.wiz-platform-badge');
+  if (oldBadge) oldBadge.remove();
+
+  let badgeClass = 'wiz-platform-badge';
+  let badgeText = '';
+  let cardClass = 'wiz-platform-card';
+  if (!result.success) {
+    badgeClass += ' wiz-platform-badge-warning';
+    badgeText = '⚠ 校验失败';
+    cardClass += ' wiz-platform-card-warning';
+  } else if (result.logged_in) {
+    badgeClass += ' wiz-platform-badge-online';
+    badgeText = '✓ 已登录';
+    cardClass += ' wiz-platform-card-online';
+  } else {
+    badgeClass += ' wiz-platform-badge-offline';
+    const reason = result.has_login_form ? 'Cookie已失效'
+      : (result.upload_link_to_login ? '登录态已过期' : '未真正登录');
+    badgeText = '✗ ' + reason;
+    cardClass += ' wiz-platform-card-offline';
+  }
+  card.className = cardClass;
+  card.insertAdjacentHTML('beforeend', `<span class="${badgeClass}">${badgeText}</span>`);
+}
+
+// 联动 P3：检查选中平台中是否有未登录的，返回未登录平台列表
+function getWizUnloggedPlatforms() {
+  const checked = Array.from(document.querySelectorAll('#wiz-publish-platforms input[type="checkbox"]:checked'));
+  const unlogged = [];
+  checked.forEach(cb => {
+    const platform = cb.value;
+    const status = window._wizPlatformLoginStatus[platform];
+    // 未配置 Cookie 或登录态校验失败或登录态失效
+    if (!status) {
+      // 未配置 Cookie
+      unlogged.push(platform);
+    } else if (!status.success || !status.logged_in) {
+      unlogged.push(platform);
+    }
+  });
+  return unlogged;
+}
+
+// 联动 P3：跳转到设置中心发布页
+function gotoPublishSettings() {
+  if (typeof navigate === 'function') {
+    navigate('settings-publish');
+  } else if (window.location) {
+    window.location.hash = '#settings-publish';
   }
 }
 
@@ -3619,6 +3821,8 @@ async function handleRegisterAvatar() {
       document.getElementById('avatar-preview').style.display = 'none';
       document.getElementById('avatar-preview').innerHTML = '';
       loadAvatars();
+      // 联动 P2：广播形象变更事件，通知向导刷新形象列表
+      window.dispatchEvent(new CustomEvent('enlyai:avatars-changed'));
     } else {
       toast('注册失败', 'error');
     }
@@ -3685,6 +3889,8 @@ async function deleteAvatar(avatarId) {
     await api(`/api/avatars/${encodeURIComponent(avatarId)}`, { method: 'DELETE' });
     toast('形象已删除', 'success');
     loadAvatars();
+    // 联动 P2：广播形象变更事件，通知向导刷新形象列表
+    window.dispatchEvent(new CustomEvent('enlyai:avatars-changed'));
   } catch (e) {
     toast(`删除失败: ${e.message}`, 'error');
   }
@@ -3696,6 +3902,8 @@ async function deleteVoice(voiceId) {
     await api(`/api/voices/${encodeURIComponent(voiceId)}`, { method: 'DELETE' });
     toast('音色已删除', 'success');
     loadVoices();
+    // 联动 P2：广播音色变更事件，通知向导刷新音色列表
+    window.dispatchEvent(new CustomEvent('enlyai:voices-changed'));
   } catch (e) {
     toast(`删除失败: ${e.message}`, 'error');
   }
@@ -3726,6 +3934,8 @@ async function handleRegisterVoice() {
       document.getElementById('voice-id').value = '';
       fileInput.value = '';
       loadVoices();
+      // 联动 P2：广播音色变更事件，通知向导刷新音色列表
+      window.dispatchEvent(new CustomEvent('enlyai:voices-changed'));
     }
   } catch (e) {
     toast(`注册失败: ${e.message}`, 'error');
@@ -3777,6 +3987,8 @@ async function onWizardVoiceClone(fileInput) {
           }
         }
       }, 200);
+      // 联动 P4：广播音色变更事件，通知资源中心音色管理页同步刷新
+      window.dispatchEvent(new CustomEvent('enlyai:voices-changed'));
     } else {
       if (statusEl) statusEl.textContent = '✗ 克隆失败：' + (result.error || '未知错误');
       toast('声音克隆失败', 'error');
@@ -4352,7 +4564,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 进度模态框关闭
   document.getElementById('progress-modal-close')?.addEventListener('click', closeProgressModal);
 
-  // 自动发布开关：开启时高亮平台选择区，若未选平台即时提示
+  // 联动 P3：自动发布开关——开启时校验登录态，未登录平台即时提示
   document.getElementById('wiz-auto-publish')?.addEventListener('change', (e) => {
     const platformsBox = document.getElementById('wiz-publish-platforms');
     const checked = Array.from(document.querySelectorAll('#wiz-publish-platforms input[type="checkbox"]:checked')).length;
@@ -4360,20 +4572,45 @@ document.addEventListener('DOMContentLoaded', () => {
       if (platformsBox && checked === 0) {
         platformsBox.style.boxShadow = '0 0 0 3px var(--color-warning)';
         toast('请选择至少一个发布平台', 'info');
-      } else if (platformsBox) {
-        platformsBox.style.boxShadow = '0 0 0 3px var(--state-success-light)';
+      } else {
+        // 联动 P3：检查选中平台中是否有未登录的
+        const unlogged = getWizUnloggedPlatforms();
+        if (unlogged.length > 0) {
+          const names = unlogged.map(p => WIZ_PLATFORM_INFO[p]?.name || p).join('、');
+          platformsBox.style.boxShadow = '0 0 0 3px rgba(255,69,58,0.2)';
+          toast(`以下平台未登录：${names}，将无法自动发布。点击"前往发布设置"登录`, 'warning');
+        } else {
+          platformsBox.style.boxShadow = '0 0 0 3px var(--state-success-light)';
+        }
       }
     } else if (platformsBox) {
       platformsBox.style.boxShadow = '';
     }
   });
-  // 平台选择变化时更新高亮
-  document.getElementById('wiz-publish-platforms')?.addEventListener('change', () => {
+  // 联动 P3：平台选择变化时——勾选未登录平台即时提示
+  document.getElementById('wiz-publish-platforms')?.addEventListener('change', (e) => {
     const autoPub = document.getElementById('wiz-auto-publish');
     const platformsBox = document.getElementById('wiz-publish-platforms');
+    // 如果是勾选操作且该平台未登录，即时提示
+    if (e.target.type === 'checkbox' && e.target.checked) {
+      const platform = e.target.value;
+      const status = window._wizPlatformLoginStatus[platform];
+      if (!status || !status.success || !status.logged_in) {
+        const name = WIZ_PLATFORM_INFO[platform]?.name || platform;
+        toast(`${name} 未登录，自动发布将跳过此平台。请前往设置中心登录`, 'warning');
+      }
+    }
+    // 更新高亮
     if (autoPub && autoPub.checked && platformsBox) {
       const checked = Array.from(document.querySelectorAll('#wiz-publish-platforms input[type="checkbox"]:checked')).length;
-      platformsBox.style.boxShadow = checked > 0 ? '0 0 0 3px var(--state-success-light)' : '0 0 0 3px var(--color-warning)';
+      const unlogged = getWizUnloggedPlatforms();
+      if (checked === 0) {
+        platformsBox.style.boxShadow = '0 0 0 3px var(--color-warning)';
+      } else if (unlogged.length > 0) {
+        platformsBox.style.boxShadow = '0 0 0 3px rgba(255,69,58,0.2)';
+      } else {
+        platformsBox.style.boxShadow = '0 0 0 3px var(--state-success-light)';
+      }
     }
   });
 
