@@ -418,12 +418,23 @@ class Publisher(BaseModule):
                 "name": "快手",
             },
             "wechat_video": {
+                # 基于 2026-07-21 dump_wechat_dom.py 诊断的真实 DOM 结构
+                # 关键发现：
+                # 1. 视频号用 wujie 微前端，但 Playwright 主页面可直接操作（无需 frame_locator）
+                # 2. 标题输入框：input[placeholder='填写短标题有机会获得更多流量']（class=weui-desktop-form__input）
+                # 3. 描述输入框：<DIV class='input-editor' contenteditable>（注意：contenteditable 属性值为空字符串，不是 'true'）
+                #    - 不能用 fill()，需用 click() + type()
+                #    - 用 [contenteditable] 匹配（而非 [contenteditable='true']）
+                # 4. 发布按钮：button:has-text('发表')（class=weui-desktop-btn weui-desktop-btn_primary）
+                # 5. 页面有 2 个 body（wujie-app 嵌套），但 Playwright 默认在主页面操作即可
                 "publish_url": "https://channels.weixin.qq.com/platform/post/create",
                 "upload_input": "input[type=file]",
                 "title_input": "input[placeholder*='标题']",
-                "desc_input": "textarea[placeholder*='描述']",
+                # 描述输入框：contenteditable DIV（class=input-editor）
+                # 用 [contenteditable] 匹配（视频号的 contenteditable 属性值为空字符串，不是 'true'）
+                "desc_input": ".input-editor, [contenteditable]",
                 "publish_btn": "button:has-text('发表')",
-                # 视频号上传完成判断：标题输入框出现 + 发表按钮出现
+                # 上传完成判断：发表按钮出现 + 标题输入框出现
                 "upload_complete_btn_selector": "button:has-text('发表')",
                 "upload_complete_title_selector": "input[placeholder*='标题']",
                 "upload_progress_selector": "[class*='progress'], [class*='Progress']",
@@ -617,7 +628,7 @@ class Publisher(BaseModule):
                     if title_sel.count() > 0:
                         try:
                             # 检测 contenteditable（富文本编辑器不能用 fill）
-                            is_ce = title_sel.evaluate("el => el.getAttribute('contenteditable') === 'true'")
+                            is_ce = title_sel.evaluate("el => el.hasAttribute('contenteditable')")
                             title_sel.click()
                             if is_ce:
                                 title_sel.press("Control+a")
@@ -639,7 +650,7 @@ class Publisher(BaseModule):
                     if desc_sel.count() > 0:
                         try:
                             # 检测 contenteditable（富文本编辑器不能用 fill）
-                            is_ce = desc_sel.evaluate("el => el.getAttribute('contenteditable') === 'true'")
+                            is_ce = desc_sel.evaluate("el => el.hasAttribute('contenteditable')")
                             desc_sel.click()
                             if is_ce:
                                 desc_sel.press("Control+a")
@@ -1125,6 +1136,30 @@ class Publisher(BaseModule):
                         # 等待 SPA 渲染
                         time.sleep(3)
 
+                        # 关键修复：先检查 required_confirm_selectors（正向判断）
+                        # 视频号等平台 SPA 登录成功后，[class*='login'] 元素可能仍然存在
+                        # （登录容器只是隐藏，DOM 节点未移除），导致反向判断永远无法通过
+                        # 如果检测到 input[type=file]（上传入口），直接认为登录成功，跳过反向判断
+                        required_selectors = cfg.get("required_confirm_selectors", [])
+                        required_all_found = False
+                        if required_selectors:
+                            required_all_found = True
+                            for sel in required_selectors:
+                                try:
+                                    if page.locator(sel).count() == 0:
+                                        required_all_found = False
+                                        break
+                                except Exception:
+                                    required_all_found = False
+                                    break
+
+                        if required_all_found:
+                            self.logger.info(f"检测到必要确认元素 {required_selectors}，跳过反向判断，直接认为登录成功")
+                            time.sleep(2)  # 再等2秒确认稳定
+                            logged_in = True
+                            self.logger.info(f"登录成功判断通过（正向）：URL={url_ok}, 必要元素={required_selectors}")
+                            break
+
                         # 第2层判断：检查登录表单元素是否消失（反向判断）
                         login_form_count = 0
                         for sel in cfg["login_form_selectors"]:
@@ -1301,11 +1336,13 @@ class Publisher(BaseModule):
             "method": "playwright",
         },
         "wechat_video": {
+            # 与 platform_publish_cfg 的视频号配置保持一致
+            # 基于 2026-07-21 dump_wechat_dom.py 诊断的真实 DOM 结构
             "publish_url": "https://channels.weixin.qq.com/platform/post/create",
             "check_url": "https://channels.weixin.qq.com/platform/post/create",
             "upload_input": "input[type=file]",
             "title_input": "input[placeholder*='标题']",
-            "desc_input": "textarea[placeholder*='描述']",
+            "desc_input": ".input-editor, [contenteditable]",
             "publish_btn": "button:has-text('发表')",
             "upload_complete_btn_selector": "button:has-text('发表')",
             "upload_complete_title_selector": "input[placeholder*='标题']",
@@ -1842,7 +1879,7 @@ class Publisher(BaseModule):
                     title_sel = page.locator(cfg["title_input"]).first
                     if title_sel.count() > 0:
                         try:
-                            is_ce = title_sel.evaluate("el => el.getAttribute('contenteditable') === 'true'")
+                            is_ce = title_sel.evaluate("el => el.hasAttribute('contenteditable')")
                             title_sel.click()
                             if is_ce:
                                 title_sel.press("Control+a")
@@ -1859,7 +1896,7 @@ class Publisher(BaseModule):
                     desc_sel = page.locator(cfg["desc_input"]).first
                     if desc_sel.count() > 0:
                         try:
-                            is_ce = desc_sel.evaluate("el => el.getAttribute('contenteditable') === 'true'")
+                            is_ce = desc_sel.evaluate("el => el.hasAttribute('contenteditable')")
                             desc_sel.click()
                             if is_ce:
                                 desc_sel.press("Control+a")
