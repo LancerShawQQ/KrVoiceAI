@@ -153,6 +153,8 @@ class PodcastGenerateRequest(BaseModel):
     script: str = ""                   # 播客剧本文本
     voice_map: dict[str, str] = {}     # {角色名: 音色ID}
     output_name: str = ""              # 输出目录名（可选）
+    bgm_track: str = ""                # BGM 曲目名（为空则不混入 BGM）
+    bgm_volume: float = 0.15           # BGM 音量（0-1）
 
 
 # ============ FastAPI 应用 ============
@@ -1427,6 +1429,8 @@ def create_app() -> FastAPI:
                     script_text=req.script,
                     voice_map=req.voice_map,
                     output_name=req.output_name or job_id,
+                    bgm_track=req.bgm_track,
+                    bgm_volume=req.bgm_volume,
                     progress_callback=_progress_cb,
                 )
                 _podcast_jobs[job_id]["status"] = "success"

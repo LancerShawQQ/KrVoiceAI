@@ -45,48 +45,58 @@ LEAD_IN_SILENCE = 0.10
 
 # ============ 剧本改写提示词 ============
 
-PODCAST_REWRITE_SYSTEM = """你是一位资深的播客制作人，擅长将文章、资料改写成自然流畅的多人对话播客剧本。
+PODCAST_REWRITE_SYSTEM = """你是一位顶级的播客制作人和对话设计师，擅长将任何素材转化为令人沉浸的多人对话播客剧本。
 
-你的剧本遵循以下原则：
-1. 口语化表达，像朋友聊天，避免书面语和学术腔
-2. 角色间有自然互动（回应、追问、补充、感叹）
-3. 适当加入语气词（嗯、啊、对、没错、就是说）增加真实感
-4. 复杂内容用比喻或举例简化
-5. 每段台词控制在 20-80 字，避免过长独白
-6. 角色性格鲜明（主持人引导/专家深度/嘉宾接地气）
+你的创作理念：
+1. **真实感优先**：像好朋友围坐聊天，不是念稿子。用"你想想看""说白了""我有个感受"这类自然过渡
+2. **角色有温度**：每个角色有独特说话习惯——主持人活跃有掌控感、专家用大白话讲专业事、嘉宾敢说真话带情绪
+3. **节奏感**：短句为主（15-50字），偶尔来个稍长的（60-80字）展开观点。角色间有接话、打断、追问、感叹
+4. **口语化润色**：把书面语翻译成人话——"综上所述"→"所以你看"、"具有重要意义"→"这事挺关键的"
+5. **内容有干货**：保留核心信息点，但用比喻、故事、类比包装，让听众秒懂
+6. **互动自然**：角色之间要有真实的化学反应——有人抛梗、有人接话、有人质疑、有人总结
+7. **避免AI味**：不要用"首先其次最后""值得一提""不可否认"等模板化表达，用"先说一个事""还有一点特别逗""我跟你讲"代替
 
 剧本格式（严格遵守）：
 - 每行一句，格式为 `角色名: 台词`
 - 使用中文冒号或英文冒号均可
 - 以 # 开头的行为注释（可标注角色性别，如 `# 张三（男）`）
 - 空行会被跳过
-- 不要使用 emoji 或特殊符号"""
+- 不要使用 emoji 或特殊符号
+- 开头先用注释行声明所有角色及性别，再开始对话"""
 
-PODCAST_REWRITE_PROMPT = """请将以下内容改写成一段{duration}分钟的多人播客剧本。
+PODCAST_REWRITE_PROMPT = """请将以下内容改写成一段约{duration}分钟的自然对话播客剧本。
 
 内容素材：
 {content}
 
-要求：
+创作要求：
 - {role_count} 个角色参与对话（{role_desc}）
 - 风格：{style}
 - 总台词数约 {line_count} 行
-- 第一个发言的角色作为主持人，负责开场和引导
-- 角色名用简短中文名（如张三、李四、小王）
-- 在注释行标注每个角色的性别，如 `# 张三（男）`
+- 第一个发言的角色作为主持人，负责破冰开场和节奏引导
+- 角色名用简短好记的中文名（如阿杰、小雅、老王）
+- 开头用注释行声明所有角色及性别，格式 `# 角色名（男/女）`
+- 主持人开场要抓人——用问题、故事或反差感开头，不要"大家好欢迎收听"这种套话
+- 内容要覆盖素材的核心观点，但用聊天的方式自然带出
+- 对话中要有观点碰撞和真实反应（"真的假的？""我倒不这么看""你说的有道理但..."）
+- 结尾要有收束感，主持人做个简短总结或抛个开放性问题
 
 请直接输出剧本，不要任何解释说明。"""
 
-PODCAST_GENERATE_PROMPT = """请围绕主题「{topic}」创作一段{duration}分钟的多人播客剧本。
+PODCAST_GENERATE_PROMPT = """请围绕主题「{topic}」创作一段约{duration}分钟的深度对话播客剧本。
 
-要求：
+创作要求：
 - {role_count} 个角色参与对话（{role_desc}）
 - 风格：{style}
 - 总台词数约 {line_count} 行
-- 内容有深度、有观点碰撞，避免空话
-- 第一个发言的角色作为主持人，负责开场和引导
-- 角色名用简短中文名（如张三、李四、小王）
-- 在注释行标注每个角色的性别，如 `# 张三（男）`
+- 第一个发言的角色作为主持人，负责破冰开场和节奏引导
+- 角色名用简短好记的中文名（如阿杰、小雅、老王）
+- 开头用注释行声明所有角色及性别，格式 `# 角色名（男/女）`
+- 主持人开场要抓人——用问题、故事或反差感开头，不要"大家好欢迎收听"这种套话
+- 内容要有真正的洞察和观点碰撞，不要空话废话
+- 对话中要有真实互动（"这个我深有体会""等等你说的这个让我想到...""我不太同意这个观点"）
+- 适当用生活化的比喻和类比解释抽象概念
+- 结尾要有收束感，主持人做个简短总结或抛个开放性问题
 
 请直接输出剧本，不要任何解释说明。"""
 
@@ -436,6 +446,8 @@ class PodcastEngine(BaseModule):
         voice_map: dict[str, str],
         output_dir: Path | str,
         progress_callback: Optional[callable] = None,
+        bgm_track: str = "",
+        bgm_volume: float = 0.15,
     ) -> dict[str, Any]:
         """生成播客音频（核心方法）
 
@@ -444,6 +456,8 @@ class PodcastEngine(BaseModule):
             voice_map: {角色名: 音色ID}
             output_dir: 输出目录
             progress_callback: 进度回调 (current, total, message)
+            bgm_track: BGM 曲目名（如 "soft_piano"），为空则不混入 BGM
+            bgm_volume: BGM 音量（0-1），默认 0.15
 
         Returns:
             {
@@ -454,6 +468,8 @@ class PodcastEngine(BaseModule):
                 "total_duration": float,
                 "segment_count": int,
                 "segments": list[dict],
+                "bgm_track": str,
+                "bgm_volume": float,
             }
         """
         output_dir = Path(output_dir).resolve()
@@ -533,12 +549,35 @@ class PodcastEngine(BaseModule):
         if progress_callback:
             progress_callback(len(lines), len(lines), "合并音频中...")
 
-        merged_path = output_dir / "podcast.wav"
+        merged_path = output_dir / "podcast_voice.wav"
         self._merge_audio_files(
             [Path(s["audio_path"]) for s in segments],
             segments,
             merged_path,
         )
+
+        # 混入 BGM（如有）
+        final_audio_path = merged_path
+        if bgm_track:
+            if progress_callback:
+                progress_callback(len(lines), len(lines), "混入背景音乐...")
+            final_audio_path = output_dir / "podcast.wav"
+            mixed = self._mix_bgm(
+                voice_path=merged_path,
+                bgm_track=bgm_track,
+                bgm_volume=bgm_volume,
+                total_duration=cursor,
+                output_path=final_audio_path,
+            )
+            if not mixed:
+                # BGM 混音失败，回退使用纯语音
+                self.logger.warning(f"BGM 混音失败，回退纯语音 bgm_track={bgm_track}")
+                final_audio_path = merged_path
+                bgm_track = ""  # 标记实际未混入
+        else:
+            # 无 BGM，重命名为最终文件名
+            final_audio_path = output_dir / "podcast.wav"
+            merged_path.rename(final_audio_path)
 
         # 生成字幕
         srt_path = output_dir / "podcast.srt"
@@ -556,17 +595,19 @@ class PodcastEngine(BaseModule):
 
         self.logger.info(
             f"播客生成完成 duration={total_duration:.1f}s "
-            f"segments={len(segments)} output={output_dir}"
+            f"segments={len(segments)} bgm={bgm_track or 'none'} output={output_dir}"
         )
 
         return {
-            "audio_path": str(merged_path),
+            "audio_path": str(final_audio_path),
             "srt_path": str(srt_path),
             "timestamps_path": str(timestamps_path),
             "script_path": str(script_path),
             "total_duration": round(total_duration, 2),
             "segment_count": len(segments),
             "segments": segments,
+            "bgm_track": bgm_track,
+            "bgm_volume": bgm_volume if bgm_track else 0.0,
         }
 
     def _merge_audio_files(
@@ -606,3 +647,98 @@ class PodcastEngine(BaseModule):
 
         merged = np.concatenate(all_audio) if all_audio else np.zeros(0, dtype=np.float32)
         sf.write(str(output_path), merged, sample_rate, subtype="PCM_16")
+
+    def _mix_bgm(
+        self,
+        voice_path: Path,
+        bgm_track: str,
+        bgm_volume: float,
+        total_duration: float,
+        output_path: Path,
+    ) -> bool:
+        """将 BGM 混入语音音频（使用 soundfile + numpy）
+
+        BGM 会循环播放并截取到语音时长，按指定音量混入。
+        语音为主（音量不变），BGM 为辅（按 bgm_volume 缩放）。
+
+        Args:
+            voice_path: 纯语音 WAV 文件路径
+            bgm_track: BGM 曲目名（如 "soft_piano"）
+            bgm_volume: BGM 音量（0-1）
+            total_duration: 语音总时长（秒），用于截取 BGM
+            output_path: 输出文件路径
+
+        Returns:
+            True 表示混音成功，False 表示失败（调用方应回退）
+        """
+        import soundfile as sf
+        import numpy as np
+
+        # 查找 BGM 文件
+        bgm_dir = Path(self.config.get("composer.bgm_dir", "./config/bgm"))
+        bgm_file: Path | None = None
+        for ext in (".mp3", ".m4a", ".wav"):
+            candidate = bgm_dir / f"{bgm_track}{ext}"
+            if candidate.exists():
+                bgm_file = candidate
+                break
+        if not bgm_file:
+            self.logger.warning(f"BGM 文件未找到: {bgm_track} in {bgm_dir}")
+            return False
+
+        # 限制 BGM 音量到合理范围
+        vol = max(0.0, min(1.0, float(bgm_volume)))
+        sample_rate = 24000
+
+        try:
+            # 1. 读取语音音频
+            voice_data, voice_sr = sf.read(str(voice_path), dtype="float32")
+            if voice_data.ndim > 1:
+                voice_data = voice_data.mean(axis=1)
+            # 重采样到目标采样率（如有必要）
+            if voice_sr != sample_rate:
+                ratio = sample_rate / voice_sr
+                new_len = int(len(voice_data) * ratio)
+                indices = np.linspace(0, len(voice_data) - 1, new_len)
+                voice_data = np.interp(indices, np.arange(len(voice_data)), voice_data).astype(np.float32)
+
+            # 2. 读取 BGM 音频
+            bgm_data, bgm_sr = sf.read(str(bgm_file), dtype="float32")
+            # 转为单声道
+            if bgm_data.ndim > 1:
+                bgm_data = bgm_data.mean(axis=1)
+            # 重采样到目标采样率
+            if bgm_sr != sample_rate:
+                ratio = sample_rate / bgm_sr
+                new_len = int(len(bgm_data) * ratio)
+                indices = np.linspace(0, len(bgm_data) - 1, new_len)
+                bgm_data = np.interp(indices, np.arange(len(bgm_data)), bgm_data).astype(np.float32)
+
+            # 3. 循环 BGM 到语音时长
+            target_len = len(voice_data)
+            if len(bgm_data) == 0:
+                self.logger.warning(f"BGM 音频为空: {bgm_track}")
+                return False
+            if len(bgm_data) < target_len:
+                # 循环拼接
+                repeats = int(np.ceil(target_len / len(bgm_data)))
+                bgm_data = np.tile(bgm_data, repeats)
+            bgm_data = bgm_data[:target_len]
+
+            # 4. 混音：语音 + BGM * vol
+            # 注意：float32 音频范围是 [-1.0, 1.0]，直接相加可能超过 1.0 导致削波
+            # 使用 soft clipping（tanh）防止削波
+            mixed = voice_data + bgm_data * vol
+            mixed = np.tanh(mixed).astype(np.float32)  # soft clip 防止削波
+
+            # 5. 写入输出文件
+            sf.write(str(output_path), mixed, sample_rate, subtype="PCM_16")
+
+            self.logger.info(
+                f"BGM 混音成功 track={bgm_track} volume={vol} "
+                f"duration={total_duration:.1f}s output={output_path}"
+            )
+            return True
+        except Exception as e:
+            self.logger.error(f"BGM 混音异常: {e}", exc_info=True)
+            return False

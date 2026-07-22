@@ -5376,3 +5376,115 @@ input[type="color"]::-webkit-color-swatch {
 .voice-assign-row:hover {
   background: rgba(0, 0, 0, 0.02);
 }
+
+/* 音色试听按钮 */
+.pod-voice-preview-btn {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm, 8px);
+}
+.pod-voice-preview-btn i {
+  width: 16px;
+  height: 16px;
+}
+.pod-voice-preview-btn:active {
+  transform: scale(0.95);
+}
+
+/* BGM 选择区域 */
+#pod-bgm-settings {
+  padding: 12px 0 4px;
+}
+#pod-bgm-settings .form-row {
+  gap: 12px;
+}
+#pod-bgm-volume {
+  width: 100%;
+}
+#pod-bgm-preview-btn {
+  height: 34px;
+}
+#pod-bgm-preview-btn i {
+  width: 14px;
+  height: 14px;
+}
+
+/* 播客页面响应式优化 */
+@media (max-width: 768px) {
+  #page-podcast .wizard-stepper {
+    padding: 0 4px;
+  }
+  #page-podcast .wizard-step-label {
+    font-size: 11px;
+  }
+  #page-podcast .voice-assign-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  #page-podcast .voice-assign-row > select {
+    width: 100% !important;
+    flex: 1 1 100%;
+  }
+  #page-podcast .voice-assign-row > .pod-voice-preview-btn {
+    margin-left: auto;
+  }
+  #page-podcast #pod-bgm-settings .form-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+  #page-podcast #pod-bgm-settings .form-row > div {
+    width: 100% !important;
+    flex: 1 1 100% !important;
+  }
+}
+
+/* 播客表单行间距统一 */
+#page-podcast .form-row {
+  gap: 16px;
+}
+#page-podcast .form-range {
+  width: 100%;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--bg-secondary, rgba(0, 0, 0, 0.08));
+  border-radius: 2px;
+  outline: none;
+  margin: 6px 0;
+}
+#page-podcast .form-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--color-primary, #0071e3);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 113, 227, 0.3);
+  transition: transform var(--transition-fast, 0.15s ease);
+}
+#page-podcast .form-range::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+#page-podcast .form-range::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--color-primary, #0071e3);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 1px 4px rgba(0, 113, 227, 0.3);
+}
+
+/* 播客卡片间距紧凑化 */
+#page-podcast .card {
+  margin-bottom: 12px;
+}
+#page-podcast .wizard-panel {
+  margin-bottom: 8px;
+}

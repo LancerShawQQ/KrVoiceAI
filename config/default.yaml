@@ -82,6 +82,8 @@ podcast:
   default_duration_minutes: 5
   # 输出采样率
   output_sample_rate: 24000
+  # BGM 默认音量（0-1），与 composer.bgm_volume 保持一致
+  bgm_volume: 0.15
 
 # 数字人配置（口播生成）
 avatar:

@@ -4118,6 +4118,12 @@ let podcastState = {
   result: null,              // 生成结果
   pollTimer: null,           // 轮询定时器
   initialized: false,
+  // BGM 背景音乐
+  bgmList: [],               // BGM 库列表 [{id, label, mood, duration}]
+  bgmEnabled: false,         // 是否启用 BGM
+  bgmTrack: '',              // 当前选中的 BGM 曲目 ID
+  bgmVolume: 0.15,           // BGM 音量（0-1）
+  bgmPreviewing: false,      // BGM 试听状态
 };
 
 // 初始化播客向导
@@ -4127,6 +4133,8 @@ function initPodcast() {
     bindPodcastEvents();
     // 异步加载音色列表（不阻塞 UI）
     loadPodcastVoices();
+    // 异步加载 BGM 库
+    loadPodcastBgmLibrary();
   }
   renderPodcastStepper();
 }
@@ -4139,6 +4147,40 @@ async function loadPodcastVoices() {
   } catch (e) {
     console.warn('加载播客音色列表失败:', e.message);
     podcastState.voiceList = [];
+  }
+}
+
+// 加载 BGM 素材库（复用 /api/bgm/library）
+async function loadPodcastBgmLibrary() {
+  try {
+    const data = await api('/api/bgm/library');
+    // data 是 {track_id: {label, mood, duration}} 字典
+    const list = Object.entries(data).map(([id, info]) => ({
+      id,
+      label: info.label || id,
+      mood: info.mood || '',
+      duration: info.duration || 0,
+    }));
+    // 按 mood 分组排序，提升选择体验
+    list.sort((a, b) => a.label.localeCompare(b.label, 'zh'));
+    podcastState.bgmList = list;
+
+    // 填充下拉框
+    const select = document.getElementById('pod-bgm-track');
+    if (select) {
+      select.innerHTML = list.map(t =>
+        `<option value="${t.id}">${t.label}（${t.mood}）</option>`
+      ).join('');
+      if (list.length > 0) {
+        podcastState.bgmTrack = list[0].id;
+        select.value = list[0].id;
+      }
+    }
+  } catch (e) {
+    console.warn('加载 BGM 库失败:', e.message);
+    podcastState.bgmList = [];
+    const select = document.getElementById('pod-bgm-track');
+    if (select) select.innerHTML = '<option value="">BGM 库加载失败</option>';
   }
 }
 
@@ -4212,6 +4254,45 @@ function bindPodcastEvents() {
       });
     }
   });
+
+  // BGM 启用开关
+  const bgmEnabled = document.getElementById('pod-bgm-enabled');
+  const bgmSettings = document.getElementById('pod-bgm-settings');
+  if (bgmEnabled && bgmSettings) {
+    bgmEnabled.addEventListener('change', () => {
+      podcastState.bgmEnabled = bgmEnabled.checked;
+      bgmSettings.style.display = bgmEnabled.checked ? 'block' : 'none';
+      // 关闭 BGM 时停止试听
+      if (!bgmEnabled.checked) stopPodcastBgmPreview();
+    });
+  }
+
+  // BGM 曲目选择
+  const bgmTrack = document.getElementById('pod-bgm-track');
+  if (bgmTrack) {
+    bgmTrack.addEventListener('change', () => {
+      podcastState.bgmTrack = bgmTrack.value;
+      // 切换曲目时停止当前试听
+      stopPodcastBgmPreview();
+    });
+  }
+
+  // BGM 音量滑块
+  const bgmVolume = document.getElementById('pod-bgm-volume');
+  const bgmVolumeVal = document.getElementById('pod-bgm-volume-val');
+  if (bgmVolume && bgmVolumeVal) {
+    bgmVolume.addEventListener('input', () => {
+      const vol = parseFloat(bgmVolume.value);
+      podcastState.bgmVolume = vol;
+      bgmVolumeVal.textContent = Math.round(vol * 100) + '%';
+      // 实时调整试听音量
+      const audio = document.getElementById('pod-bgm-audio');
+      if (audio) audio.volume = vol;
+    });
+  }
+
+  // BGM 试听按钮
+  document.getElementById('pod-bgm-preview-btn')?.addEventListener('click', togglePodcastBgmPreview);
 
   // 生成播客
   document.getElementById('pod-generate-btn')?.addEventListener('click', podGenerate);
@@ -4537,6 +4618,9 @@ function renderPodcastVoiceList() {
           <option value="">请选择音色</option>
           ${options}
         </select>
+        <button class="btn btn-secondary btn-sm pod-voice-preview-btn" data-role="${escapeHtml(role)}" type="button" style="white-space:nowrap" title="试听当前音色">
+          <i data-lucide="volume-2"></i>
+        </button>
       </div>`;
   }).join('');
   // 绑定音色选择
@@ -4550,6 +4634,78 @@ function renderPodcastVoiceList() {
       }
     });
   });
+  // 绑定试听按钮
+  container.querySelectorAll('.pod-voice-preview-btn').forEach(btn => {
+    btn.addEventListener('click', () => previewPodcastVoice(btn.dataset.role));
+  });
+  if (window.lucide) lucide.createIcons();
+}
+
+// 音色试听（复用 /api/voice/preview/{voice_id}）
+let _podcastVoiceAudio = null;
+let _podcastVoicePreviewRole = null;
+function previewPodcastVoice(role) {
+  // 获取当前角色选中的音色
+  const sel = document.querySelector(`.pod-voice-select[data-role="${role}"]`);
+  const voiceId = sel?.value || podcastState.voiceMap[role];
+  if (!voiceId) {
+    toast('请先为该角色选择音色', 'error');
+    return;
+  }
+
+  // 如果正在试听同一角色，停止播放
+  if (_podcastVoicePreviewRole === role && _podcastVoiceAudio && !_podcastVoiceAudio.paused) {
+    _podcastVoiceAudio.pause();
+    _podcastVoiceAudio.currentTime = 0;
+    _resetVoicePreviewBtn(role);
+    return;
+  }
+
+  // 停止上一个试听
+  if (_podcastVoiceAudio) {
+    _podcastVoiceAudio.pause();
+    if (_podcastVoicePreviewRole) _resetVoicePreviewBtn(_podcastVoicePreviewRole);
+  }
+
+  // 开始试听
+  const btn = document.querySelector(`.pod-voice-preview-btn[data-role="${role}"]`);
+  if (btn) {
+    btn.innerHTML = '<i data-lucide="loader-2" class="spin"></i>';
+    if (window.lucide) lucide.createIcons();
+  }
+
+  if (!_podcastVoiceAudio) {
+    _podcastVoiceAudio = new Audio();
+  }
+  _podcastVoiceAudio.src = `/api/voice/preview/${encodeURIComponent(voiceId)}`;
+  _podcastVoicePreviewRole = role;
+
+  _podcastVoiceAudio.play().then(() => {
+    if (btn) {
+      btn.innerHTML = '<i data-lucide="square"></i>';
+      if (window.lucide) lucide.createIcons();
+    }
+  }).catch(e => {
+    toast(`试听失败: ${e.message}`, 'error');
+    _resetVoicePreviewBtn(role);
+  });
+
+  _podcastVoiceAudio.onended = () => _resetVoicePreviewBtn(role);
+  _podcastVoiceAudio.onerror = () => {
+    _resetVoicePreviewBtn(role);
+    toast('音色试听加载失败', 'error');
+  };
+}
+
+function _resetVoicePreviewBtn(role) {
+  const btn = document.querySelector(`.pod-voice-preview-btn[data-role="${role}"]`);
+  if (btn) {
+    btn.innerHTML = '<i data-lucide="volume-2"></i>';
+    if (window.lucide) lucide.createIcons();
+  }
+  if (_podcastVoicePreviewRole === role) {
+    _podcastVoicePreviewRole = null;
+  }
 }
 
 // 自动匹配音色
@@ -4593,6 +4749,61 @@ async function podSuggestVoices() {
   }
 }
 
+// BGM 试听切换（播放/停止）
+function togglePodcastBgmPreview() {
+  const audio = document.getElementById('pod-bgm-audio');
+  const btn = document.getElementById('pod-bgm-preview-btn');
+  if (!audio || !btn) return;
+
+  const track = podcastState.bgmTrack || document.getElementById('pod-bgm-track')?.value;
+  if (!track) {
+    toast('请先选择 BGM 曲目', 'error');
+    return;
+  }
+
+  if (podcastState.bgmPreviewing) {
+    // 停止试听
+    stopPodcastBgmPreview();
+    return;
+  }
+
+  // 开始试听（复用 /api/bgm/preview/{track}）
+  audio.src = `/api/bgm/preview/${encodeURIComponent(track)}`;
+  audio.volume = podcastState.bgmVolume;
+  audio.play().then(() => {
+    podcastState.bgmPreviewing = true;
+    btn.innerHTML = '<i data-lucide="square"></i> 停止';
+    if (window.lucide) lucide.createIcons();
+  }).catch(e => {
+    console.warn('BGM 试听失败:', e.message);
+    toast(`试听失败: ${e.message}`, 'error');
+  });
+
+  // 播放结束自动恢复
+  audio.onended = () => {
+    stopPodcastBgmPreview();
+  };
+  audio.onerror = () => {
+    stopPodcastBgmPreview();
+    toast('BGM 试听加载失败', 'error');
+  };
+}
+
+// 停止 BGM 试听
+function stopPodcastBgmPreview() {
+  const audio = document.getElementById('pod-bgm-audio');
+  const btn = document.getElementById('pod-bgm-preview-btn');
+  if (audio) {
+    audio.pause();
+    audio.currentTime = 0;
+  }
+  if (btn && podcastState.bgmPreviewing) {
+    btn.innerHTML = '<i data-lucide="play"></i> 试听';
+    if (window.lucide) lucide.createIcons();
+  }
+  podcastState.bgmPreviewing = false;
+}
+
 // 生成播客
 async function podGenerate() {
   const script = document.getElementById('pod-script-editor')?.value || podcastState.script || '';
@@ -4612,6 +4823,14 @@ async function podGenerate() {
 
   const outputName = (document.getElementById('pod-output-name')?.value || '').trim();
 
+  // 收集 BGM 参数
+  const bgmEnabled = document.getElementById('pod-bgm-enabled')?.checked || false;
+  const bgmTrack = bgmEnabled ? (document.getElementById('pod-bgm-track')?.value || '') : '';
+  const bgmVolume = bgmEnabled ? parseFloat(document.getElementById('pod-bgm-volume')?.value || '0.15') : 0.15;
+
+  // 停止 BGM 试听（避免与生成冲突）
+  stopPodcastBgmPreview();
+
   const btn = document.getElementById('pod-generate-btn');
   btn.disabled = true;
   btn.innerHTML = '<i data-lucide="loader-2" class="spin"></i> 提交中...';
@@ -4622,9 +4841,18 @@ async function podGenerate() {
   document.getElementById('pod-progress-text').textContent = '正在提交任务...';
 
   try {
+    const reqBody = {
+      script,
+      voice_map: podcastState.voiceMap,
+      output_name: outputName,
+    };
+    if (bgmTrack) {
+      reqBody.bgm_track = bgmTrack;
+      reqBody.bgm_volume = bgmVolume;
+    }
     const data = await api('/api/podcast/generate', {
       method: 'POST',
-      body: { script, voice_map: podcastState.voiceMap, output_name: outputName },
+      body: reqBody,
     });
     podcastState.jobId = data.job_id;
     // 开始轮询
@@ -4683,7 +4911,15 @@ function showPodcastResult(result) {
   document.getElementById('pod-result-segments').textContent = result.segment_count || 0;
   document.getElementById('pod-result-roles').textContent = Object.keys(podcastState.voiceMap).length;
   if (window.lucide) lucide.createIcons();
-  toast('播客生成完成！', 'success');
+  // 提示（含 BGM 信息）
+  const bgmTrack = result.bgm_track;
+  if (bgmTrack) {
+    const bgmInfo = podcastState.bgmList.find(b => b.id === bgmTrack);
+    const bgmLabel = bgmInfo ? bgmInfo.label : bgmTrack;
+    toast(`播客生成完成！已混入 BGM：${bgmLabel}`, 'success');
+  } else {
+    toast('播客生成完成！', 'success');
+  }
 }
 
 // 格式化时长

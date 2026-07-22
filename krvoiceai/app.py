@@ -766,9 +766,15 @@ class EnlyAI:
         script_text: str,
         voice_map: dict[str, str],
         output_name: str = "",
+        bgm_track: str = "",
+        bgm_volume: float = 0.15,
         progress_callback: Optional[Callable[[str, str, dict], None]] = None,
     ) -> dict:
         """生成播客音频（同步）
+
+        Args:
+            bgm_track: BGM 曲目名（为空则不混入 BGM）
+            bgm_volume: BGM 音量（0-1）
 
         Returns:
             含 audio_path/srt_path/timestamps_path/script_path/total_duration 等
@@ -795,6 +801,8 @@ class EnlyAI:
             voice_map=voice_map,
             output_dir=output_dir,
             progress_callback=_progress,
+            bgm_track=bgm_track,
+            bgm_volume=bgm_volume,
         )
         result["output_dir"] = str(output_dir)
         return result

@@ -1692,6 +1692,39 @@
                 <label class="checkbox-label"><input type="checkbox" id="pod-gen-script" checked> 剧本文件</label>
               </div>
             </div>
+
+            <!-- BGM 背景音乐 -->
+            <div style="margin-bottom:0;padding-top:12px;border-top:1px solid var(--border-subtle)">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+                <label class="form-label" style="margin-bottom:0">背景音乐（BGM）</label>
+                <label class="checkbox-label" style="font-weight:500">
+                  <input type="checkbox" id="pod-bgm-enabled"> 启用 BGM
+                </label>
+              </div>
+              <div id="pod-bgm-settings" style="display:none">
+                <div class="form-row" style="margin-bottom:10px">
+                  <div style="flex:2">
+                    <label class="form-label">曲目选择</label>
+                    <select class="form-select" id="pod-bgm-track">
+                      <option value="">加载中...</option>
+                    </select>
+                  </div>
+                  <div style="flex:1;display:flex;align-items:flex-end;gap:6px">
+                    <button class="btn btn-secondary btn-sm" id="pod-bgm-preview-btn" type="button" style="white-space:nowrap">
+                      <i data-lucide="play"></i> 试听
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label class="form-label">
+                    BGM 音量
+                    <span class="hint" id="pod-bgm-volume-val">15%</span>
+                  </label>
+                  <input type="range" class="form-range" id="pod-bgm-volume" min="0" max="0.6" step="0.05" value="0.15">
+                </div>
+                <audio id="pod-bgm-audio" preload="none" style="display:none"></audio>
+              </div>
+            </div>
           </div>
         </div>
 
