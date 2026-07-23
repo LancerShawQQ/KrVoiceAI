@@ -527,8 +527,6 @@ class PodcastEngine(BaseModule):
         """
         output_dir = Path(output_dir).resolve()
         output_dir.mkdir(parents=True, exist_ok=True)
-        segments_dir = output_dir / "segments"
-        segments_dir.mkdir(exist_ok=True)
 
         # 解析剧本
         lines, _ = parse_script(script_text)
@@ -540,10 +538,17 @@ class PodcastEngine(BaseModule):
             f"output={output_dir}"
         )
 
-        # 逐段合成
+        # 逐段合成（直接在内存中收集音频数据，不写单独的 segments 文件）
+        import soundfile as sf
+        import numpy as np
+        import tempfile
+
+        sample_rate = 24000
         segments: list[dict] = []
+        all_audio_chunks: list[np.ndarray] = []  # 内存中收集所有音频片段
         cursor = 0.0  # 当前时间游标
         prev_role: Optional[str] = None
+        tts_timeout = self.config.get("tts.timeout", 120)
 
         for i, line in enumerate(lines):
             role = line["role"]
@@ -558,38 +563,82 @@ class PodcastEngine(BaseModule):
             else:
                 pause_before = SAME_ROLE_PAUSE
 
+            # 添加停顿静音到内存
+            if i > 0:
+                pause_samples = int(sample_rate * pause_before)
+                all_audio_chunks.append(np.zeros(pause_samples, dtype=np.float32))
+
+            # 引导静音
+            lead_in_samples = int(sample_rate * LEAD_IN_SILENCE)
+            all_audio_chunks.append(np.zeros(lead_in_samples, dtype=np.float32))
+
             # 进度回调
             if progress_callback:
                 progress_callback(i + 1, len(lines), f"合成第 {i+1}/{len(lines)} 句：{role}")
 
-            # TTS 合成（带缓存）
-            seg_path = segments_dir / f"seg_{i:04d}_{role}.wav"
+            # TTS 合成（带缓存 + 超时保护）
             cache_key = self._get_cache_key(text, voice_id)
             cache_path = self._cache_dir / f"{cache_key}.wav"
+            seg_audio: np.ndarray | None = None
+            duration = 0.0
 
             if cache_path.exists():
-                # 缓存命中，直接复制
-                import shutil
-                shutil.copy2(str(cache_path), str(seg_path))
-                duration = self._get_wav_duration(seg_path)
-                self.logger.info(f"第 {i} 句缓存命中: {role} voice={voice_id}")
+                # 缓存命中，直接读取到内存
+                seg_audio, sr = sf.read(str(cache_path), dtype="float32")
+                if seg_audio.ndim > 1:
+                    seg_audio = seg_audio.mean(axis=1)
+                if sr != sample_rate:
+                    ratio = sample_rate / sr
+                    new_len = int(len(seg_audio) * ratio)
+                    indices = np.linspace(0, len(seg_audio) - 1, new_len)
+                    seg_audio = np.interp(indices, np.arange(len(seg_audio)), seg_audio).astype(np.float32)
+                duration = len(seg_audio) / sample_rate
+                self.logger.info(f"第 {i} 句缓存命中: {role} voice={voice_id} duration={duration:.1f}s")
             else:
+                # TTS 合成，带超时保护（线程池 + future.result timeout）
+                import concurrent.futures
+                tmp_path = Path(tempfile.mktemp(suffix=".wav", dir=str(self._cache_dir.parent / "tmp")))
+                tmp_path.parent.mkdir(parents=True, exist_ok=True)
                 try:
-                    audio_path, duration, _ = self.tts.synthesize(
-                        text=text,
-                        voice_id=voice_id,
-                        output_path=seg_path,
-                    )
+                    def _do_synth():
+                        return self.tts.synthesize(
+                            text=text, voice_id=voice_id, output_path=tmp_path,
+                        )
+
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                        future = executor.submit(_do_synth)
+                        try:
+                            audio_path, duration, _ = future.result(timeout=tts_timeout)
+                        except concurrent.futures.TimeoutError:
+                            self.logger.warning(f"第 {i} 句 TTS 超时({tts_timeout}s)，跳过用静音填充")
+                            raise TimeoutError(f"TTS 合成超时({tts_timeout}s)")
+
+                    # 读取到内存
+                    seg_audio, sr = sf.read(str(tmp_path), dtype="float32")
+                    if seg_audio.ndim > 1:
+                        seg_audio = seg_audio.mean(axis=1)
+                    if sr != sample_rate:
+                        ratio = sample_rate / sr
+                        new_len = int(len(seg_audio) * ratio)
+                        indices = np.linspace(0, len(seg_audio) - 1, new_len)
+                        seg_audio = np.interp(indices, np.arange(len(seg_audio)), seg_audio).astype(np.float32)
+                    duration = len(seg_audio) / sample_rate
+
                     # 写入缓存
                     import shutil
-                    shutil.copy2(str(seg_path), str(cache_path))
+                    shutil.copy2(str(tmp_path), str(cache_path))
+
+                    # 清理临时文件
+                    tmp_path.unlink(missing_ok=True)
+
                 except Exception as e:
                     self.logger.error(f"第 {i} 句合成失败: {e}")
                     # 用静音填充
-                    from ..core.audio_utils import generate_silent_wav
                     duration = max(1.0, len(text) * 0.15)
-                    generate_silent_wav(seg_path, duration)
-                    audio_path = seg_path
+                    seg_audio = np.zeros(int(sample_rate * duration), dtype=np.float32)
+
+            # 添加到内存合并列表
+            all_audio_chunks.append(seg_audio)
 
             # 计算时间戳
             start = cursor + LEAD_IN_SILENCE
@@ -600,7 +649,6 @@ class PodcastEngine(BaseModule):
                 "index": i,
                 "role": role,
                 "text": text,
-                "audio_path": str(audio_path),
                 "duration": round(duration, 2),
                 "start": round(start, 2),
                 "end": round(end, 2),
@@ -611,16 +659,13 @@ class PodcastEngine(BaseModule):
 
             prev_role = role
 
-        # 合并音频
+        # 合并音频（直接从内存拼接，无需读取文件）
         if progress_callback:
             progress_callback(len(lines), len(lines), "合并音频中...")
 
         merged_path = output_dir / "podcast_voice.wav"
-        self._merge_audio_files(
-            [Path(s["audio_path"]) for s in segments],
-            segments,
-            merged_path,
-        )
+        merged_audio = np.concatenate(all_audio_chunks) if all_audio_chunks else np.zeros(0, dtype=np.float32)
+        sf.write(str(merged_path), merged_audio, sample_rate, subtype="PCM_16")
 
         # 混入 BGM（如有）
         final_audio_path = merged_path

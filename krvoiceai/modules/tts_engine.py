@@ -307,8 +307,15 @@ class TTSEngine(BaseModule):
         runtime = self._get_moss_runtime()
         cfg = self.config.get("tts.moss_nano", {}) or {}
 
-        # MOSS 内置音色清单
-        MOSS_BUILTIN_VOICES = {"Junhao", "Trump", "Ava", "Bella", "Adam", "Nathan"}
+        # MOSS 内置音色清单（18 个：6 中文 + 5 英文 + 7 日文）
+        MOSS_BUILTIN_VOICES = {
+            # 中文音色
+            "Junhao", "Zhiming", "Weiguo", "Xiaoyu", "Yuewen", "Lingyu",
+            # 英文音色
+            "Trump", "Ava", "Bella", "Adam", "Nathan",
+            # 日文音色
+            "Soyo", "Saki", "Mortis", "Umiri", "Mei", "Anon", "Arisa",
+        }
         config_builtin = cfg.get("builtin_voice", "Junhao")
 
         # 查找该音色的参考音频（用于声音克隆）
@@ -341,10 +348,57 @@ class TTSEngine(BaseModule):
                 f"MOSS 未找到 {voice_id} 的克隆样本，回退到内置音色 {actual_builtin}"
             )
 
+        # v8: 修复 Junhao 开头急促问题
+        # 根因：Junhao 参考音频 zh_1.wav 开头静音仅 60ms（< 1 codec 帧），
+        #   模型学到"急促起音"韵律，导致第一个字没说完就跳到下一个字。
+        #   其他音色（Zhiming 200ms、Xiaoyu 270ms 开头静音）无此问题。
+        # 修复：对 Junhao 音色，使用补了 240ms 静音前缀 + 200ms 后缀的参考音频，
+        #   让模型学到"静音→起音"的自然过渡。幅度淡入无法解决韵律问题。
+        if prompt_audio_path is None and actual_builtin == "Junhao":
+            from ..core.config import PROJECT_ROOT
+            junhao_padded = (PROJECT_ROOT / "../MOSS-TTS-Nano/assets/audio/zh_1_padded.wav").resolve()
+            if junhao_padded.exists():
+                prompt_audio_path = str(junhao_padded)
+                self.logger.info(
+                    f"v8: Junhao 使用补静音参考音频 (240ms前缀+200ms后缀): {junhao_padded.name}"
+                )
+
         self.logger.info(
             f"MOSS-TTS-Nano 合成 voice={voice_id} builtin={actual_builtin} "
             f"clone={'是' if prompt_audio_path else '否'} text_len={len(text)}"
         )
+
+        # v7: 采样参数调优（降低 AI 感，让语音更自然）
+        # v6 修复：必须通过 synthesize() 的 sample_mode/do_sample 参数传递
+        # v7 新增：voice_clone_max_text_tokens 从 75 调到 100（保持长句韵律连贯）
+        # 注意：audio_top_k 不宜过低（<22 会导致模型无法选到 audio_end_token，
+        #        生成满 30s max_new_frames 才停止），保持 manifest 默认 25
+        gen_defaults = runtime.manifest["generation_defaults"]
+        _orig_defaults = dict(gen_defaults)
+        try:
+            # 音频层参数通过 manifest 注入（synthesize 不覆盖这些字段）
+            # v7: temperature=0.9 与 v6 一致（0.85 太低导致生成过长）
+            if "audio_temperature" in gen_defaults:
+                gen_defaults["audio_temperature"] = float(cfg.get("audio_temperature", 0.9))
+            if "audio_top_p" in gen_defaults:
+                gen_defaults["audio_top_p"] = float(cfg.get("audio_top_p", 0.90))
+            if "audio_repetition_penalty" in gen_defaults:
+                gen_defaults["audio_repetition_penalty"] = float(cfg.get("audio_repetition_penalty", 1.05))
+            if "text_temperature" in gen_defaults:
+                gen_defaults["text_temperature"] = float(cfg.get("text_temperature", 1.0))
+        except (TypeError, ValueError):
+            pass
+
+        # v6: sample_mode 和 do_sample 必须通过参数传递（不能只改 manifest）
+        # v8.2: 从 full 改回 fixed。full 模式会生成大量静音（85-95% 静音比例），
+        #   fixed 模式稳定（静音比例 <25%），且补静音参考音频已解决开头急促问题
+        # full = 完整随机性（最自然但会生成大量静音）
+        # fixed = 固定随机性（最稳定，烘焙常数在 ONNX 图中）
+        # greedy = 贪婪（最机械）
+        sample_mode_val = str(cfg.get("sample_mode", "fixed"))
+        if sample_mode_val not in ("full", "fixed", "greedy"):
+            sample_mode_val = "fixed"
+        do_sample_val = sample_mode_val != "greedy"
 
         result = runtime.synthesize(
             text=text,
@@ -352,11 +406,50 @@ class TTSEngine(BaseModule):
             prompt_audio_path=prompt_audio_path,
             output_audio_path=str(output_path.resolve()),
             streaming=bool(cfg.get("realtime_streaming", True)),
+            # v8.2: 恢复 375（fixed 模式不会生成大量静音，无需降低上限）
             max_new_frames=int(cfg.get("max_new_frames", 375)),
-            voice_clone_max_text_tokens=int(cfg.get("voice_clone_max_text_tokens", 75)),
+            # v7: 75 → 100，保持长句韵律连贯，减少分块断层
+            voice_clone_max_text_tokens=int(cfg.get("voice_clone_max_text_tokens", 100)),
             enable_wetext=bool(cfg.get("enable_wetext", False)),
             enable_normalize_tts_text=bool(cfg.get("enable_normalize_tts_text", True)),
+            seed=int(cfg["seed"]) if cfg.get("seed") else None,
+            sample_mode=sample_mode_val,
+            do_sample=do_sample_val,
         )
+
+        # 恢复原始采样参数（避免影响后续合成）
+        runtime.manifest["generation_defaults"] = _orig_defaults
+
+        # v8.1: 截断尾部连续静音（>500ms）
+        # full 模式有时会生成大量尾部静音，需要自动截断
+        try:
+            import soundfile as _sf
+            import numpy as _np
+            _data, _sr = _sf.read(str(result["audio_path"]), dtype="float32")
+            if _data.ndim == 1:
+                _data = _data.reshape(-1, 1)
+            _win = int(_sr * 0.01)  # 10ms 窗口
+            _n = len(_data) // _win
+            _silence_threshold = 0.01
+            # 从末尾向前找最后一个非静音窗口
+            _last_speech = 0
+            for _i in range(_n - 1, -1, -1):
+                _w = _data[_i * _win: (_i + 1) * _win]
+                _rms = float(_np.sqrt(_np.mean(_w ** 2)))
+                if _rms > _silence_threshold:
+                    _last_speech = (_i + 1) * _win
+                    break
+            _trailing_silence_ms = (len(_data) - _last_speech) / _sr * 1000
+            if _trailing_silence_ms > 500:
+                # 保留 200ms 尾部静音，截断其余部分
+                _keep = _last_speech + int(_sr * 0.2)
+                _trimmed = _data[:_keep]
+                _sf.write(str(result["audio_path"]), _trimmed, _sr, subtype="PCM_16")
+                self.logger.info(
+                    f"v8.1: 截断尾部静音 {_trailing_silence_ms:.0f}ms → 保留 200ms"
+                )
+        except Exception as _e:
+            self.logger.warning(f"v8.1: 尾部静音截断失败: {_e}")
 
         audio_path = Path(result["audio_path"])
         # MOSS 输出 48kHz 立体声 wav；转 16kHz 单声道供 Wav2Lip 使用
