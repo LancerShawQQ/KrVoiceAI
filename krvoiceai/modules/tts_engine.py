@@ -800,11 +800,29 @@ class TTSEngine(BaseModule):
 
         if self.provider != "gpt_sovits":
             # moss_nano / mimo / edge 模式：本地保存样本音频（moss_nano 用做零样本克隆参考）
+            # 关键：MOSS 用 soundfile 读取参考音频，soundfile 不支持 m4a/aac 等格式
+            # 非 wav 格式必须转换为 wav，否则克隆时报 "Format not recognised"
             import shutil
-            dest = voice_dir / f"sample{sample_audio.suffix or '.wav'}"
-            shutil.copy2(sample_audio, dest)
+            dest = voice_dir / "sample.wav"
+            if sample_audio.suffix.lower() == ".wav":
+                shutil.copy2(sample_audio, dest)
+            else:
+                # 非 wav（m4a/mp3/flac 等），用 imageio-ffmpeg 转换为标准 wav（48kHz 立体声 PCM_16）
+                try:
+                    import imageio_ffmpeg
+                    import subprocess
+                    ffmpeg_cmd = imageio_ffmpeg.get_ffmpeg_exe()
+                    subprocess.run(
+                        [ffmpeg_cmd, "-y", "-i", str(sample_audio),
+                         "-acodec", "pcm_s16le", "-ar", "48000", "-ac", "2", str(dest)],
+                        check=True, capture_output=True, timeout=30,
+                    )
+                    self.logger.info(f"音色样本已转 WAV: {sample_audio.name} -> {dest.name}")
+                except Exception as e:
+                    self.logger.warning(f"音色样本转 WAV 失败({e})，直接复制原文件")
+                    dest = voice_dir / f"sample{sample_audio.suffix or '.wav'}"
+                    shutil.copy2(sample_audio, dest)
             self.logger.info(f"本地音色注册成功: {voice_id} -> {dest}")
-            # moss_nano: 若样本不是 wav/48k，尝试转为标准 wav（MOSS 内部会重采样，但保留原始更稳）
             if self.provider == "moss_nano":
                 self.logger.info(
                     f"音色 {voice_id} 已注册，MOSS 将用 {dest.name} 作为零样本克隆参考"
