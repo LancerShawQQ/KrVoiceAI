@@ -80,6 +80,9 @@ output/
 # 提取缓存（yt-dlp/ASR 等中间产物）
 .extract_cache/
 
+# PyInstaller 构建产物
+*.spec
+
 # 临时文件
 *.tmp
 *.bak

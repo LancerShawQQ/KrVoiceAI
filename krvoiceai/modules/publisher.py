@@ -1477,8 +1477,19 @@ class Publisher(BaseModule):
                 resp = requests.get(
                     "https://api.bilibili.com/x/web-interface/nav",
                     cookies={"SESSDATA": sessdata, "bili_jct": bili_jct, "DedeUserID": dedeuserid},
+                    headers={
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                        "Referer": "https://www.bilibili.com/",
+                    },
                     timeout=10,
                 )
+                # B站风控可能返回 412 或非 JSON 内容
+                if resp.status_code != 200 or "text/html" in resp.headers.get("content-type", ""):
+                    return {
+                        "success": False,
+                        "error": f"B站API返回异常(status={resp.status_code})，可能触发风控",
+                        "check_method": "api",
+                    }
                 data = resp.json()
                 if data.get("code") == 0:
                     user_info = data.get("data", {})
