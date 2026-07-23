@@ -1,6 +1,6 @@
 """预生成内置音色试听样本
 
-为 MOSS-TTS-Nano 的 6 个内置音色生成试听音频，
+为 MOSS-TTS-Nano 的 18 个内置音色生成试听音频，
 保存到 config/voices/samples/{voice_id}.wav。
 
 运行后，前端点击试听按钮时直接返回预生成文件（<1秒），
@@ -9,6 +9,7 @@
 用法：
   cd KrVoiceAI
   python scripts/pregenerate_voice_samples.py
+  python scripts/pregenerate_voice_samples.py --force  # 强制重新生成
 """
 import sys
 import shutil
@@ -20,30 +21,62 @@ sys.path.insert(0, str(project_root))
 
 from krvoiceai.app import EnlyAI
 
-SAMPLE_TEXT = "你好，这是音色试听，欢迎体验 EnlyAI 智能语音合成。"
-BUILTIN_VOICES = ["Junhao", "Trump", "Ava", "Bella", "Adam", "Nathan"]
+# 试听文本（自然口语化，避免太短导致"着急"感）
+SAMPLE_TEXT_ZH = "大家好，欢迎收听本期播客，今天我们来聊一个有趣的话题。"
+SAMPLE_TEXT_EN = "Hello everyone, welcome to our podcast. Today we'll talk about an interesting topic."
+SAMPLE_TEXT_JA = "皆さんこんにちは、今回のポッドキャストへようこそ。今日は面白い話題をお話ししましょう。"
+
+# 18 个音色及其对应语言
+BUILTIN_VOICES = {
+    # 中文（6个）
+    "Junhao":  SAMPLE_TEXT_ZH,
+    "Zhiming": SAMPLE_TEXT_ZH,
+    "Weiguo":  SAMPLE_TEXT_ZH,
+    "Xiaoyu":  SAMPLE_TEXT_ZH,
+    "Yuewen":  SAMPLE_TEXT_ZH,
+    "Lingyu":  SAMPLE_TEXT_ZH,
+    # 英文（5个）
+    "Trump":   SAMPLE_TEXT_EN,
+    "Ava":     SAMPLE_TEXT_EN,
+    "Bella":   SAMPLE_TEXT_EN,
+    "Adam":    SAMPLE_TEXT_EN,
+    "Nathan":  SAMPLE_TEXT_EN,
+    # 日文（7个）
+    "Soyo":    SAMPLE_TEXT_JA,
+    "Saki":    SAMPLE_TEXT_JA,
+    "Mortis":  SAMPLE_TEXT_JA,
+    "Umiri":   SAMPLE_TEXT_JA,
+    "Mei":     SAMPLE_TEXT_JA,
+    "Anon":    SAMPLE_TEXT_JA,
+    "Arisa":   SAMPLE_TEXT_JA,
+}
 SAMPLES_DIR = project_root / "config" / "voices" / "samples"
 
 
 def main():
+    force = "--force" in sys.argv or "-f" in sys.argv
+
     print("=" * 60)
-    print("预生成内置音色试听样本")
+    print("预生成内置音色试听样本（18 个音色）")
     print(f"样本目录: {SAMPLES_DIR}")
-    print(f"试听文本: {SAMPLE_TEXT}")
+    print(f"强制重新生成: {force}")
     print("=" * 60)
 
     SAMPLES_DIR.mkdir(parents=True, exist_ok=True)
 
     # 检查是否所有样本已存在
-    existing = [v for v in BUILTIN_VOICES if (SAMPLES_DIR / f"{v}.wav").exists()]
-    if len(existing) == len(BUILTIN_VOICES):
-        print(f"\n所有 {len(BUILTIN_VOICES)} 个音色样本已存在，无需重新生成。")
-        for v in BUILTIN_VOICES:
+    all_voices = list(BUILTIN_VOICES.keys())
+    existing = [v for v in all_voices if (SAMPLES_DIR / f"{v}.wav").exists()]
+    if len(existing) == len(all_voices) and not force:
+        print(f"\n所有 {len(all_voices)} 个音色样本已存在，无需重新生成。")
+        print("使用 --force 可强制重新生成。")
+        for v in all_voices:
             size = (SAMPLES_DIR / f"{v}.wav").stat().st_size
             print(f"  {v}.wav  ({size/1024:.0f} KB)")
         return
 
-    print(f"\n需生成 {len(BUILTIN_VOICES) - len(existing)} 个新样本...")
+    to_generate = all_voices if force else [v for v in all_voices if not (SAMPLES_DIR / f"{v}.wav").exists()]
+    print(f"\n需生成 {len(to_generate)} 个样本...")
 
     # 初始化 KrVoiceAI 应用
     print("\n初始化 TTS 引擎...")
@@ -54,9 +87,10 @@ def main():
         sys.exit(1)
 
     import time
-    for voice_id in BUILTIN_VOICES:
+    for voice_id in to_generate:
+        sample_text = BUILTIN_VOICES[voice_id]
         sample_path = SAMPLES_DIR / f"{voice_id}.wav"
-        if sample_path.exists():
+        if sample_path.exists() and not force:
             print(f"  [跳过] {voice_id} 已存在")
             continue
 
@@ -66,7 +100,7 @@ def main():
             tmp_path = project_root / "workspace_data" / "tmp" / f"voice_sample_{voice_id}.wav"
             tmp_path.parent.mkdir(parents=True, exist_ok=True)
             audio_path, duration, _ = engine.synthesize(
-                SAMPLE_TEXT, voice_id, tmp_path,
+                sample_text, voice_id, tmp_path,
             )
             # 复制到样本目录
             shutil.copy2(str(audio_path), str(sample_path))
@@ -79,7 +113,7 @@ def main():
     # 汇总
     print("\n" + "=" * 60)
     print("生成完成！")
-    for v in BUILTIN_VOICES:
+    for v in all_voices:
         p = SAMPLES_DIR / f"{v}.wav"
         if p.exists():
             print(f"  {v}.wav  ({p.stat().st_size/1024:.0f} KB)")

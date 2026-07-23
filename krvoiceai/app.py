@@ -615,14 +615,29 @@ class EnlyAI:
                 seen_ids.add(default_voice)
 
         elif provider == "moss_nano":
-            # MOSS-TTS-Nano: 内置 6 个音色（Junhao/Trump/Ava/Bella/Adam/Nathan）
+            # MOSS-TTS-Nano: 内置 18 个音色（6中文 + 5英文 + 7日文）
             moss_builtin = {
-                "Junhao":  {"label": "君浩（男·中文）",  "gender": "male",   "description": "沉稳男声，适合新闻播报"},
-                "Trump":   {"label": "特朗普（男·英文）","gender": "male",   "description": "英文男声，适合外语内容"},
+                # 中文音色（6个）
+                "Junhao":  {"label": "君浩（男·中文）",   "gender": "male",   "description": "沉稳男声，适合新闻播报"},
+                "Zhiming": {"label": "志明（男·中文）",   "gender": "male",   "description": "温和男声，适合对话叙事"},
+                "Weiguo":  {"label": "建国（男·中文）",   "gender": "male",   "description": "浑厚男声，适合知识分享"},
+                "Xiaoyu":  {"label": "小语（女·中文）",   "gender": "female", "description": "清亮女声，适合日常对话"},
+                "Yuewen":  {"label": "悦文（女·中文）",   "gender": "female", "description": "亲切女声，适合情感内容"},
+                "Lingyu":  {"label": "灵语（女·中文）",   "gender": "female", "description": "知性女声，适合专业讲解"},
+                # 英文音色（5个）
+                "Trump":   {"label": "Trump（男·英文）",  "gender": "male",   "description": "英文男声，特色鲜明"},
                 "Ava":     {"label": "Ava（女·英文）",    "gender": "female", "description": "英文女声，自然流畅"},
-                "Bella":   {"label": "Bella（女·中文）",  "gender": "female", "description": "温柔女声，适合情感内容"},
+                "Bella":   {"label": "Bella（女·英文）",  "gender": "female", "description": "英文女声，温柔亲和"},
                 "Adam":    {"label": "Adam（男·英文）",   "gender": "male",   "description": "英文男声，沉稳专业"},
                 "Nathan":  {"label": "Nathan（男·英文）", "gender": "male",   "description": "英文男声，浑厚有力"},
+                # 日文音色（7个）
+                "Soyo":    {"label": "Soyo（女·日文）",   "gender": "female", "description": "日文女声，温柔治愈"},
+                "Saki":    {"label": "Saki（女·日文）",   "gender": "female", "description": "日文女声，活泼明亮"},
+                "Mortis":  {"label": "Mortis（男·日文）", "gender": "male",   "description": "日文男声，低沉磁性"},
+                "Umiri":   {"label": "Umiri（女·日文）",  "gender": "female", "description": "日文女声，清澈自然"},
+                "Mei":     {"label": "Mei（女·日文）",    "gender": "female", "description": "日文女声，柔和亲切"},
+                "Anon":    {"label": "Anon（女·日文）",   "gender": "female", "description": "日文女声，清新灵动"},
+                "Arisa":   {"label": "Arisa（女·日文）",  "gender": "female", "description": "日文女声，成熟稳重"},
             }
             builtin_voice = self.config.get("tts.moss_nano.builtin_voice", "Junhao")
             for vid, info in moss_builtin.items():

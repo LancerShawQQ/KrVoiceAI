@@ -4239,6 +4239,7 @@ function bindPodcastEvents() {
 
   // 自动匹配音色
   document.getElementById('pod-auto-voice-btn')?.addEventListener('click', podSuggestVoices);
+  document.getElementById('pod-clone-voice-btn')?.addEventListener('click', podCloneVoice);
 
   // 生成设置滑块实时显示
   const sliders = [
@@ -4706,6 +4707,115 @@ function _resetVoicePreviewBtn(role) {
   if (_podcastVoicePreviewRole === role) {
     _podcastVoicePreviewRole = null;
   }
+}
+
+// 克隆新音色（弹窗上传）
+async function podCloneVoice() {
+  // 创建弹窗
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);z-index:9999;display:flex;align-items:center;justify-content:center';
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:18px;padding:28px;width:420px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+      <h3 style="font-size:18px;font-weight:600;margin-bottom:16px">克隆新音色</h3>
+      <div style="margin-bottom:14px">
+        <label style="font-size:13px;color:#6e6e73;display:block;margin-bottom:6px">音色名称（可选，留空自动生成）</label>
+        <input type="text" id="pod-clone-id-input" placeholder="如 my_voice" style="width:100%;padding:8px 12px;border:1px solid rgba(0,0,0,0.1);border-radius:10px;font-size:14px">
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="font-size:13px;color:#6e6e73;display:block;margin-bottom:6px">上传参考音频（wav/mp3，5-30秒）</label>
+        <div id="pod-clone-upload-area" style="border:2px dashed rgba(0,0,0,0.15);border-radius:14px;padding:24px;text-align:center;cursor:pointer;transition:all 0.2s">
+          <div id="pod-clone-file-info" style="color:#6e6e73;font-size:13px">点击选择或拖拽音频文件</div>
+        </div>
+        <input type="file" id="pod-clone-file-input" accept=".wav,.mp3,.m4a,.flac" style="display:none">
+      </div>
+      <div id="pod-clone-status" style="font-size:13px;margin-bottom:14px;min-height:18px"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn btn-secondary" id="pod-clone-cancel" style="padding:8px 16px;border-radius:10px;border:1px solid rgba(0,0,0,0.1);background:transparent;cursor:pointer;font-size:14px">取消</button>
+        <button class="btn btn-primary" id="pod-clone-confirm" style="padding:8px 16px;border-radius:10px;background:#0071e3;color:#fff;border:none;cursor:pointer;font-size:14px" disabled>开始克隆</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  const fileInput = overlay.querySelector('#pod-clone-file-input');
+  const uploadArea = overlay.querySelector('#pod-clone-upload-area');
+  const fileInfo = overlay.querySelector('#pod-clone-file-info');
+  const confirmBtn = overlay.querySelector('#pod-clone-confirm');
+  const cancelBtn = overlay.querySelector('#pod-clone-cancel');
+  const statusEl = overlay.querySelector('#pod-clone-status');
+  const idInput = overlay.querySelector('#pod-clone-id-input');
+  let selectedFile = null;
+
+  // 点击上传区域
+  uploadArea.addEventListener('click', () => fileInput.click());
+  // 拖拽
+  uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.style.borderColor = '#0071e3'; });
+  uploadArea.addEventListener('dragleave', () => { uploadArea.style.borderColor = 'rgba(0,0,0,0.15)'; });
+  uploadArea.addEventListener('drop', e => {
+    e.preventDefault();
+    uploadArea.style.borderColor = 'rgba(0,0,0,0.15)';
+    if (e.dataTransfer.files[0]) {
+      selectedFile = e.dataTransfer.files[0];
+      fileInfo.textContent = selectedFile.name + ' (' + (selectedFile.size / 1024).toFixed(0) + ' KB)';
+      confirmBtn.disabled = false;
+    }
+  });
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) {
+      selectedFile = fileInput.files[0];
+      fileInfo.textContent = selectedFile.name + ' (' + (selectedFile.size / 1024).toFixed(0) + ' KB)';
+      confirmBtn.disabled = false;
+    }
+  });
+
+  // 取消
+  cancelBtn.addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  // 确认克隆
+  confirmBtn.addEventListener('click', async () => {
+    if (!selectedFile) return;
+    let voiceId = idInput.value.trim();
+    if (!voiceId) {
+      voiceId = 'clone_' + Date.now().toString(36);
+    }
+    voiceId = voiceId.replace(/[^a-zA-Z0-9_]/g, '_');
+
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = '克隆中...';
+    statusEl.style.color = '#6e6e73';
+    statusEl.textContent = '正在上传和克隆，请稍候...';
+
+    const formData = new FormData();
+    formData.append('voice_id', voiceId);
+    formData.append('file', selectedFile);
+
+    try {
+      const resp = await fetch('/api/voices/register', { method: 'POST', body: formData });
+      const result = await resp.json();
+      if (result.success) {
+        statusEl.style.color = '#30d158';
+        statusEl.textContent = '✓ 克隆成功！正在刷新音色列表...';
+        toast('声音克隆成功', 'success');
+        // 刷新播客音色列表
+        await loadPodcastVoices();
+        renderPodcastVoiceList();
+        // 广播音色变更
+        window.dispatchEvent(new CustomEvent('enlyai:voices-changed'));
+        setTimeout(() => overlay.remove(), 1200);
+      } else {
+        statusEl.style.color = '#ff453a';
+        statusEl.textContent = '✗ 克隆失败：' + (result.error || '未知错误');
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = '开始克隆';
+      }
+    } catch (e) {
+      statusEl.style.color = '#ff453a';
+      statusEl.textContent = '✗ 上传失败：' + e.message;
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = '开始克隆';
+    }
+  });
 }
 
 // 自动匹配音色
