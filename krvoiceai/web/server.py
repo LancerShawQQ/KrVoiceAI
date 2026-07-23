@@ -155,6 +155,7 @@ class PodcastGenerateRequest(BaseModel):
     output_name: str = ""              # 输出目录名（可选）
     bgm_track: str = ""                # BGM 曲目名（为空则不混入 BGM）
     bgm_volume: float = 0.15           # BGM 音量（0-1）
+    output_format: str = "wav"         # 输出音频格式：wav / mp3
 
 
 # ============ FastAPI 应用 ============
@@ -1431,6 +1432,7 @@ def create_app() -> FastAPI:
                     output_name=req.output_name or job_id,
                     bgm_track=req.bgm_track,
                     bgm_volume=req.bgm_volume,
+                    output_format=req.output_format,
                     progress_callback=_progress_cb,
                 )
                 _podcast_jobs[job_id]["status"] = "success"

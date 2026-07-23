@@ -4718,14 +4718,23 @@ async function podCloneVoice() {
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);z-index:9999;display:flex;align-items:center;justify-content:center';
   overlay.innerHTML = `
-    <div style="background:#fff;border-radius:18px;padding:28px;width:420px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+    <div style="background:#fff;border-radius:18px;padding:28px;width:480px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,0.3);max-height:90vh;overflow-y:auto">
       <h3 style="font-size:18px;font-weight:600;margin-bottom:16px">克隆新音色</h3>
+      <div style="margin-bottom:14px;padding:14px;background:#F5F5F7;border-radius:12px;font-size:12px;color:#6e6e73;line-height:1.7">
+        <strong style="color:#1d1d1f">录制指南</strong><br>
+        • <strong>时长</strong>：5～30 秒（太短克隆效果差，太长处理慢）<br>
+        • <strong>格式</strong>：WAV（推荐）、MP3、M4A、FLAC<br>
+        • <strong>采样率</strong>：≥ 16kHz，越高越清晰（建议 44.1kHz 或 48kHz）<br>
+        • <strong>内容</strong>：用正常语速朗读一段自然口语，推荐读：「大家好，欢迎收听本期播客，今天我们来聊一个关于人工智能的话题。我觉得这个领域最近发展得特别快，很多新技术让人眼前一亮。」<br>
+        • <strong>环境</strong>：安静无回声的房间，避免空旷大厅或嘈杂环境<br>
+        • <strong>注意</strong>：只录制人声，不要有背景音乐或噪音；不要朗读数字、英文或特殊符号
+      </div>
       <div style="margin-bottom:14px">
         <label style="font-size:13px;color:#6e6e73;display:block;margin-bottom:6px">音色名称（可选，留空自动生成）</label>
         <input type="text" id="pod-clone-id-input" placeholder="如 my_voice" style="width:100%;padding:8px 12px;border:1px solid rgba(0,0,0,0.1);border-radius:10px;font-size:14px">
       </div>
       <div style="margin-bottom:14px">
-        <label style="font-size:13px;color:#6e6e73;display:block;margin-bottom:6px">上传参考音频（wav/mp3，5-30秒）</label>
+        <label style="font-size:13px;color:#6e6e73;display:block;margin-bottom:6px">上传参考音频</label>
         <div id="pod-clone-upload-area" style="border:2px dashed rgba(0,0,0,0.15);border-radius:14px;padding:24px;text-align:center;cursor:pointer;transition:all 0.2s">
           <div id="pod-clone-file-info" style="color:#6e6e73;font-size:13px">点击选择或拖拽音频文件</div>
         </div>
@@ -4954,10 +4963,12 @@ async function podGenerate() {
   document.getElementById('pod-progress-text').textContent = '正在提交任务...';
 
   try {
+    const outputFormat = document.getElementById('pod-output-format')?.value || 'wav';
     const reqBody = {
       script,
       voice_map: podcastState.voiceMap,
       output_name: outputName,
+      output_format: outputFormat,
     };
     if (bgmTrack) {
       reqBody.bgm_track = bgmTrack;

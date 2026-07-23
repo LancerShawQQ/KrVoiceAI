@@ -58,15 +58,16 @@ _SCRIPT_FORMAT_RULES = """剧本格式（严格遵守）：
 - 不要使用 emoji 或特殊符号
 - 开头先用注释行声明所有角色及性别，再开始对话"""
 
-# 改写模式：忠实保留原始内容，只做口语化表达形式转换
+# 改写模式：忠实保留原始内容，只做措辞口语化调整 + 适度语气词
 PODCAST_REWRITE_SYSTEM = """你是一位口语化改写专家，任务是把书面素材忠实转写为多人对话播客剧本。
 
-核心原则——只改表达形式，不改内容：
-1. **忠实保留**：必须覆盖原文的所有核心观点、事实信息、数据、案例，不得遗漏或篡改
-2. **禁止添加**：禁止添加原文没有的观点、故事、案例、数据、比喻，禁止编造角色间的观点对立或质疑
-3. **口语化转换**：只允许把书面语转口语化——"综上所述"→"所以你看"、"具有重要意义"→"这事挺关键的"、适当拆长句为短句
-4. **自然对话感**：用聊天的方式带出原文内容，角色间可以有自然的接话和确认（"对""是的""你说的这个很重要"），但不得编造原文没有的内容
-5. **角色分工**：多个角色分担原文的不同段落，每个角色负责转述一部分内容，不要让某个角色凭空发挥
+最高原则——标准普通话 + 忠实保留内容：
+1. **标准普通话**：所有台词必须是标准、清晰的普通话。禁止使用方言词（如"咋""啥""嘞""俺""咱""中""得劲"等）、禁止吞音/连读的文字表示（如把"这样"写成"酱"、"你知道吗"写成"你知道嘛"）。发音必须能让 TTS 引擎正确朗读
+2. **忠实保留**：必须覆盖原文的所有核心观点、事实信息、数据、案例，不得遗漏或篡改内容含义
+3. **只调整措辞**：只允许把书面语措辞替换为口语化措辞——"综上所述"→"所以"、"具有重要意义"→"很重要"、"在...过程中"→"在...的时候"。不要重新组织段落结构，不要改变论述顺序
+4. **适度语气词**：可以加入自然的语气词和叹词增强拟人感——"嗯""呢""啊""吧""哦""对""是的"。但要克制，每句最多1个语气词，不要每句都加，避免做作
+5. **自然接话**：角色间可以有简短的自然接话（"对""是的""这个说得好"），但接话内容不得添加原文没有的信息
+6. **禁止行为**：禁止添加原文没有的观点/故事/案例/比喻，禁止编造角色间的质疑或对立，禁止改变原文的结论
 
 """ + _SCRIPT_FORMAT_RULES
 
@@ -86,7 +87,7 @@ PODCAST_GENERATE_SYSTEM = """你是一位顶级的播客制作人和对话设计
 
 PODCAST_REWRITE_PROMPT = """请将以下内容改写成一段约{duration}分钟的多人对话播客剧本。
 
-重要：这是"改写"任务，不是"创作"任务。你必须忠实保留原文的核心观点和事实信息，只做口语化表达形式转换，不得添加、篡改或遗漏原文内容。
+重要：这是"措辞口语化"任务，不是"创作"任务。你只做两件事：①把书面语措辞换成口语措辞 ②适度加入语气词。不要改写内容、不要重新组织结构、不要添加信息。
 
 内容素材：
 {content}
@@ -97,9 +98,10 @@ PODCAST_REWRITE_PROMPT = """请将以下内容改写成一段约{duration}分钟
 - 总台词数约 {line_count} 行
 - 角色名用简短好记的中文名（如阿杰、小雅、老王）
 - 开头用注释行声明所有角色及性别，格式 `# 角色名（男/女）`
+- 所有台词必须使用标准普通话，禁止方言词和吞音表示
+- 把原文内容分配给各角色转述，保持原文的论述顺序和逻辑
+- 适度加入语气词（嗯、呢、啊、吧、哦）和自然接话（对、是的），但每句最多1个语气词
 - 主持人开场直接点明原文主题，不要编造故事或反差
-- 内容必须覆盖素材的所有核心观点，用聊天的方式自然带出，但不得添加原文没有的信息
-- 角色间可以有自然的接话和确认，但不得编造与原文相左的观点或反应
 - 结尾可简短总结原文要点，不要编造原文未涉及的开放性问题
 
 请直接输出剧本，不要任何解释说明。"""
@@ -501,6 +503,7 @@ class PodcastEngine(BaseModule):
         progress_callback: Optional[callable] = None,
         bgm_track: str = "",
         bgm_volume: float = 0.15,
+        output_format: str = "wav",
     ) -> dict[str, Any]:
         """生成播客音频（核心方法）
 
@@ -511,6 +514,7 @@ class PodcastEngine(BaseModule):
             progress_callback: 进度回调 (current, total, message)
             bgm_track: BGM 曲目名（如 "soft_piano"），为空则不混入 BGM
             bgm_volume: BGM 音量（0-1），默认 0.15
+            output_format: 输出音频格式 wav / mp3
 
         Returns:
             {
@@ -671,32 +675,57 @@ class PodcastEngine(BaseModule):
         if progress_callback:
             progress_callback(len(lines), len(lines), "合并音频中...")
 
-        merged_path = output_dir / "podcast_voice.wav"
+        # 统一用临时 wav 文件做中间产物，最后转为目标格式并删除临时文件
         merged_audio = np.concatenate(all_audio_chunks) if all_audio_chunks else np.zeros(0, dtype=np.float32)
-        sf.write(str(merged_path), merged_audio, sample_rate, subtype="PCM_16")
+        # 先写到临时 wav（供 BGM 混音或格式转换用）
+        tmp_wav = output_dir / "_tmp_voice.wav"
+        sf.write(str(tmp_wav), merged_audio, sample_rate, subtype="PCM_16")
 
-        # 混入 BGM（如有）
-        final_audio_path = merged_path
+        # 混入 BGM（如有）→ 输出到临时混音 wav
+        bgm_mixed_wav = tmp_wav  # 默认无 BGM，直接用原始 wav
         if bgm_track:
             if progress_callback:
                 progress_callback(len(lines), len(lines), "混入背景音乐...")
-            final_audio_path = output_dir / "podcast.wav"
+            bgm_mixed_wav = output_dir / "_tmp_mixed.wav"
             mixed = self._mix_bgm(
-                voice_path=merged_path,
+                voice_path=tmp_wav,
                 bgm_track=bgm_track,
                 bgm_volume=bgm_volume,
                 total_duration=cursor,
-                output_path=final_audio_path,
+                output_path=bgm_mixed_wav,
             )
             if not mixed:
                 # BGM 混音失败，回退使用纯语音
                 self.logger.warning(f"BGM 混音失败，回退纯语音 bgm_track={bgm_track}")
-                final_audio_path = merged_path
+                bgm_mixed_wav = tmp_wav
                 bgm_track = ""  # 标记实际未混入
+            # 删除原始纯语音临时文件
+            tmp_wav.unlink(missing_ok=True)
+
+        # 转换为最终输出格式
+        output_format = (output_format or "wav").lower()
+        if output_format not in ("wav", "mp3"):
+            output_format = "wav"
+        final_audio_path = output_dir / f"podcast.{output_format}"
+
+        if output_format == "wav":
+            # 直接重命名临时文件为最终文件
+            bgm_mixed_wav.rename(final_audio_path)
         else:
-            # 无 BGM，重命名为最终文件名
-            final_audio_path = output_dir / "podcast.wav"
-            merged_path.rename(final_audio_path)
+            # mp3：用 soundfile 直接编码（不依赖 ffmpeg）
+            if progress_callback:
+                progress_callback(len(lines), len(lines), "转换为 MP3...")
+            try:
+                _data, _sr = sf.read(str(bgm_mixed_wav), dtype="float32")
+                if _data.ndim > 1:
+                    _data = _data.mean(axis=1)
+                sf.write(str(final_audio_path), _data, _sr, format="MP3")
+            except Exception as e:
+                self.logger.warning(f"MP3 转换失败({e})，回退 WAV")
+                final_audio_path = output_dir / "podcast.wav"
+                bgm_mixed_wav.rename(final_audio_path)
+            # 删除临时 wav
+            bgm_mixed_wav.unlink(missing_ok=True)
 
         # 生成字幕
         srt_path = output_dir / "podcast.srt"

@@ -1739,6 +1739,13 @@
             </div>
 
             <div id="pod-generate-section">
+              <div style="margin-bottom:16px;display:flex;align-items:center;gap:12px">
+                <label class="form-label" style="margin:0;white-space:nowrap">输出格式</label>
+                <select id="pod-output-format" class="form-control" style="width:auto;min-width:120px">
+                  <option value="wav" selected>WAV（无损）</option>
+                  <option value="mp3">MP3（压缩）</option>
+                </select>
+              </div>
               <button class="btn btn-primary btn-lg" id="pod-generate-btn" type="button" style="width:100%;margin-bottom:16px">
                 <i data-lucide="rocket"></i> 开始生成播客
               </button>
