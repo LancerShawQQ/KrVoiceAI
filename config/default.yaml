@@ -49,8 +49,8 @@ tts:
     repo_dir: ../MOSS-TTS-Nano
     # ONNX 模型目录（含 MOSS-TTS-Nano-100M-ONNX 和 MOSS-Audio-Tokenizer-Nano-ONNX）
     model_dir: ../MOSS-TTS-Nano/models
-    # CPU 线程数
-    cpu_threads: 4
+    # CPU 线程数（i7-1165G7 有 8 逻辑核，用满可提升自回归推理并行度）
+    cpu_threads: 8
     # 执行后端：cpu / cuda
     execution_provider: cpu
     # 内置音色（无参考音频时使用）：Junhao / Trump / Ava / Bella / Adam / Nathan
